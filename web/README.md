@@ -37,6 +37,37 @@ export DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/booking
 python manage.py migrate
 ```
 
+## Публикация на PythonAnywhere (бесплатно)
+
+В консоли **Bash** на PythonAnywhere:
+
+```bash
+git clone -b django-site https://github.com/Ideal-iss/db-booking_flights-.git
+cd db-booking_flights-/web
+python3.12 -m venv ~/venv && source ~/venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env && nano .env      # вписать свой логин и секретный ключ
+python manage.py migrate
+python manage.py seed
+python manage.py collectstatic --noinput
+python manage.py createsuperuser
+```
+
+Во вкладке **Web**: **Add a new web app → Manual configuration → Python 3.12**, затем:
+- **Virtualenv**: `/home/ЛОГИН/venv`
+- **WSGI configuration file** — заменить содержимое на:
+
+  ```python
+  import os, sys
+  sys.path.insert(0, "/home/ЛОГИН/db-booking_flights-/web")
+  os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
+  from django.core.wsgi import get_wsgi_application
+  application = get_wsgi_application()
+  ```
+- включить **Force HTTPS**, нажать **Reload**.
+
+Сайт: `https://ЛОГИН.pythonanywhere.com`. Раз в месяц нажимайте во вкладке **Web** кнопку продления, иначе бесплатный сайт отключится. Чтобы обновить тестовые рейсы, раз в несколько недель запускайте `python manage.py seed` в консоли.
+
 ## Публикация на Railway
 
 1. На [railway.com](https://railway.com) войдите через GitHub и создайте проект: **New Project → Deploy from GitHub repo →** `db-booking_flights-`.

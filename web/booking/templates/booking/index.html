@@ -1,0 +1,53 @@
+{% extends "booking/base.html" %}
+{% block title %}Поиск рейсов{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="wrap">
+    <h1>Куда летим?</h1>
+    <p class="hero__sub">Найдите рейс, выберите место в салоне и получите посадочный талон за минуту.</p>
+
+    <form class="search" method="get">
+      <label class="field">
+        <span>Откуда</span>
+        {{ form.origin }}
+      </label>
+      <button type="button" class="swap" id="swap" title="Поменять местами" aria-label="Поменять местами">⇄</button>
+      <label class="field">
+        <span>Куда</span>
+        {{ form.destination }}
+      </label>
+      <label class="field">
+        <span>Дата</span>
+        {{ form.date }}
+      </label>
+      <button class="btn btn--accent" type="submit">Найти</button>
+    </form>
+    {% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  </div>
+</section>
+
+<section class="wrap results">
+  <h2>{% if searched %}Результаты поиска{% else %}Ближайшие рейсы{% endif %}</h2>
+
+  {% for f in flights %}
+    {% include "booking/_flight_card.html" %}
+  {% empty %}
+    <div class="empty">
+      <p>Рейсов на эту дату не нашлось.</p>
+      {% if nearby %}<p class="muted">Посмотрите ближайшие по этому направлению:</p>{% endif %}
+    </div>
+    {% for f in nearby %}
+      {% include "booking/_flight_card.html" %}
+    {% endfor %}
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("swap").addEventListener("click", () => {
+    const a = document.getElementById("id_origin"), b = document.getElementById("id_destination");
+    [a.value, b.value] = [b.value, a.value];
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "booking/base.html" %}
+{% block title %}Бронь {{ booking.code }}{% endblock %}
+{% block content %}
+{% with f=booking.flight p=booking.passenger %}
+<div class="wrap narrow">
+  <div class="pass pass--{{ booking.payment_status }}">
+    <div class="pass__main">
+      <div class="pass__top">
+        <span class="logo logo--small">SkyBook</span>
+        <span class="badge badge--{{ booking.payment_status }}">{{ booking.get_payment_status_display }}</span>
+      </div>
+      <div class="pass__route">
+        <div><div class="route__code">{{ f.origin.code }}</div><div class="muted">{{ f.origin.city }}</div></div>
+        <div class="route__plane">✈</div>
+        <div class="route__end"><div class="route__code">{{ f.destination.code }}</div><div class="muted">{{ f.destination.city }}</div></div>
+      </div>
+      <dl class="pass__grid">
+        <div><dt>Пассажир</dt><dd>{{ p.first_name }} {{ p.last_name }}</dd></div>
+        <div><dt>Рейс</dt><dd>{{ f.flight_number }}</dd></div>
+        <div><dt>Дата</dt><dd>{{ f.departure|date:"j E Y" }}</dd></div>
+        <div><dt>Вылет</dt><dd>{{ f.departure|date:"H:i" }}</dd></div>
+        <div><dt>Прилёт</dt><dd>{{ f.arrival|date:"j E, H:i" }}</dd></div>
+        <div><dt>Цена</dt><dd>${{ booking.price|floatformat:2 }}</dd></div>
+      </dl>
+    </div>
+    <div class="pass__stub">
+      <span class="lbl">Место</span>
+      <div class="pass__seat">{{ booking.seat }}</div>
+      <span class="lbl">Код брони</span>
+      <div class="pass__code">{{ booking.code }}</div>
+      <div class="barcode" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  {% if can_change %}
+  <div class="actions">
+    {% if booking.payment_status == "pending" %}
+    <form method="post" action="{% url 'booking:pay_booking' booking.code %}">{% csrf_token %}
+      <button class="btn btn--accent">Оплатить ${{ booking.price|floatformat:2 }}</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'booking:cancel_booking' booking.code %}"
+          onsubmit="return confirm('Отменить бронирование {{ booking.code }}?');">{% csrf_token %}
+      <button class="btn btn--ghost">Отменить бронь</button>
+    </form>
+  </div>
+  {% endif %}
+  <p class="muted small center">Сохраните код <b>{{ booking.code }}</b> — по нему можно найти бронь в разделе «Мои брони».</p>
+</div>
+{% endwith %}
+{% endblock %}

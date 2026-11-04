@@ -1,0 +1,42 @@
+{% extends "booking/base.html" %}
+{% block title %}Мои брони{% endblock %}
+{% block content %}
+<div class="wrap narrow">
+  <h1 class="page-title">Мои брони</h1>
+
+  <div class="lookup">
+    <form method="get" class="panel">
+      <h2>По коду брони</h2>
+      <label class="field field--stack"><span>Код из 6 символов</span>
+        <input type="text" name="code" maxlength="6" placeholder="Например, K7Q2ZD" class="mono" required>
+      </label>
+      <button class="btn btn--accent btn--wide">Открыть</button>
+    </form>
+
+    <form method="get" class="panel">
+      <h2>Все брони пассажира</h2>
+      {% for field in form %}
+      <label class="field field--stack"><span>{{ field.label }}</span>{{ field }}
+        {% if field.errors %}<em class="field-error">{{ field.errors|join:" " }}</em>{% endif %}
+      </label>
+      {% endfor %}
+      <button class="btn btn--wide">Найти</button>
+    </form>
+  </div>
+
+  {% if bookings is not None %}
+    <h2>Найдено: {{ bookings|length }}</h2>
+    {% for b in bookings %}
+    <a class="row-booking" href="{% url 'booking:booking_detail' b.code %}">
+      <span class="mono">{{ b.code }}</span>
+      <span><b>{{ b.flight.origin.code }} → {{ b.flight.destination.code }}</b> · {{ b.flight.flight_number }}</span>
+      <span class="muted">{{ b.flight.departure|date:"j E Y, H:i" }}</span>
+      <span>Место {{ b.seat }}</span>
+      <span class="badge badge--{{ b.payment_status }}">{{ b.get_payment_status_display }}</span>
+    </a>
+    {% empty %}
+    <div class="empty"><p>Броней с такими данными не найдено.</p></div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

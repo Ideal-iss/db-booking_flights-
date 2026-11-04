@@ -1,0 +1,22 @@
+<a class="flight" href="{% url 'booking:flight_detail' f.pk %}">
+  <div class="flight__num">{{ f.flight_number }}<span>{{ f.departure|date:"j E, D" }}</span></div>
+  <div class="flight__leg">
+    <div class="flight__pt">
+      <strong>{{ f.departure|date:"H:i" }}</strong>
+      <span class="code">{{ f.origin.code }}</span>
+      <small>{{ f.origin.city }}</small>
+    </div>
+    <div class="flight__line"><span>{{ f.duration_display }}</span></div>
+    <div class="flight__pt flight__pt--end">
+      <strong>{{ f.arrival|date:"H:i" }}</strong>
+      <span class="code">{{ f.destination.code }}</span>
+      <small>{{ f.destination.city }}</small>
+    </div>
+  </div>
+  <div class="flight__buy">
+    <div class="price">${{ f.price|floatformat:0 }}</div>
+    <div class="seats {% if f.free < 10 %}seats--low{% endif %}">
+      {% if f.free > 0 %}{{ f.free }} мест{% else %}мест нет{% endif %}
+    </div>
+  </div>
+</a>

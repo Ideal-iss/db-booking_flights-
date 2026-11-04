@@ -1,0 +1,100 @@
+{% extends "booking/base.html" %}
+{% block title %}{{ flight.flight_number }}: {{ flight.origin.city }} → {{ flight.destination.city }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <a class="back" href="{% url 'booking:index' %}">← Все рейсы</a>
+
+  <div class="route">
+    <div>
+      <div class="route__code">{{ flight.origin.code }}</div>
+      <div class="route__city">{{ flight.origin.city }}</div>
+      <div class="route__time">{{ flight.departure|date:"j E, H:i" }}</div>
+    </div>
+    <div class="route__mid">
+      <div class="route__num">{{ flight.flight_number }}</div>
+      <div class="route__plane">✈</div>
+      <div class="muted">{{ flight.duration_display }}</div>
+    </div>
+    <div class="route__end">
+      <div class="route__code">{{ flight.destination.code }}</div>
+      <div class="route__city">{{ flight.destination.city }}</div>
+      <div class="route__time">{{ flight.arrival|date:"j E, H:i" }}</div>
+    </div>
+  </div>
+
+  {% if departed %}
+    <div class="flash flash--error">Этот рейс уже вылетел, бронирование закрыто.</div>
+  {% elif flight.available_seats == 0 %}
+    <div class="flash flash--error">Все места на этот рейс проданы.</div>
+  {% else %}
+  <form method="post" class="book" id="book-form" novalidate>
+    {% csrf_token %}
+    <section class="cabin">
+      <div class="cabin__head">
+        <h2>Выберите место</h2>
+        <div class="legend">
+          <span><i class="seat-dot"></i>Свободно</span>
+          <span><i class="seat-dot seat-dot--taken"></i>Занято</span>
+          <span><i class="seat-dot seat-dot--sel"></i>Ваше</span>
+        </div>
+      </div>
+      <div class="plane">
+        <div class="plane__nose">Кабина пилотов</div>
+        <div class="seatrow seatrow--head"><span></span>{% for l in "ABC" %}<b>{{ l }}</b>{% endfor %}<span></span>{% for l in "DEF" %}<b>{{ l }}</b>{% endfor %}</div>
+        {% for row, seats in seat_map %}
+        <div class="seatrow">
+          <span class="rownum">{{ row }}</span>
+          {% for seat, taken in seats %}
+            {% if forloop.counter == 4 %}<span class="aisle"></span>{% endif %}
+            <button type="button" class="seat{% if taken %} is-taken{% endif %}{% if seat == selected_seat %} is-selected{% endif %}"
+                    data-seat="{{ seat }}" {% if taken %}disabled aria-label="Место {{ seat }} занято"{% else %}aria-label="Место {{ seat }}"{% endif %}></button>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2>Пассажир</h2>
+      {% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      {{ form.seat }}
+      <div class="picked">
+        <span>Место</span>
+        <strong id="picked-seat">{{ selected_seat|default:"—" }}</strong>
+      </div>
+      {% if form.seat.errors %}<div class="form-error">{{ form.seat.errors|join:" " }}</div>{% endif %}
+
+      {% for field in form.visible_fields %}
+      <label class="field field--stack">
+        <span>{{ field.label }}</span>
+        {{ field }}
+        {% if field.errors %}<em class="field-error">{{ field.errors|join:" " }}</em>{% endif %}
+      </label>
+      {% endfor %}
+
+      <div class="total"><span>К оплате</span><strong>${{ flight.price|floatformat:2 }}</strong></div>
+      <button class="btn btn--accent btn--wide" type="submit">Забронировать</button>
+      <p class="muted small">Свободно {{ flight.available_seats }} из {{ flight.total_seats }} мест</p>
+    </aside>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const input = document.getElementById("id_seat");
+    const label = document.getElementById("picked-seat");
+    if (!input) return;
+    document.querySelectorAll(".seat:not(.is-taken)").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".seat.is-selected").forEach((s) => s.classList.remove("is-selected"));
+        btn.classList.add("is-selected");
+        input.value = btn.dataset.seat;
+        label.textContent = btn.dataset.seat;
+      });
+    });
+  })();
+</script>
+{% endblock %}

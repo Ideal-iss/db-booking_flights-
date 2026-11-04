@@ -33,10 +33,31 @@ python manage.py runserver
 ### PostgreSQL вместо SQLite
 
 ```bash
-pip install "psycopg[binary]"
-export POSTGRES_DB=booking POSTGRES_USER=postgres POSTGRES_PASSWORD=...  # и при необходимости POSTGRES_HOST, POSTGRES_PORT
+export DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/booking
 python manage.py migrate
 ```
+
+## Публикация на Railway
+
+1. На [railway.com](https://railway.com) войдите через GitHub и создайте проект: **New Project → Deploy from GitHub repo →** `db-booking_flights-`.
+2. В настройках сервиса (**Settings**):
+   - **Source → Branch**: ветка с сайтом (`django-site` или `main`, если уже слили);
+   - **Source → Root Directory**: `web`;
+   - **Deploy → Custom Start Command**: `sh start.sh`.
+3. Добавьте базу: на схеме проекта **+ Create → Database → PostgreSQL**.
+4. В сервисе сайта, вкладка **Variables**, добавьте:
+
+   | Переменная | Значение |
+   |---|---|
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+   | `DJANGO_SECRET_KEY` | длинная случайная строка |
+   | `DJANGO_SUPERUSER_USERNAME` | логин администратора |
+   | `DJANGO_SUPERUSER_EMAIL` | email администратора |
+   | `DJANGO_SUPERUSER_PASSWORD` | надёжный пароль администратора |
+
+5. **Settings → Networking → Generate Domain** — получите адрес вида `xxx.up.railway.app`.
+
+При каждом запуске `start.sh` применяет миграции, собирает статику, добавляет тестовые рейсы на ближайший месяц (отключается переменной `SEED_DEMO_DATA=0`) и создаёт администратора, если его ещё нет. Для своего домена добавьте его в `DJANGO_ALLOWED_HOSTS` и `DJANGO_CSRF_HOSTS`.
 
 ## Схема базы данных
 

@@ -13,6 +13,14 @@ SEAT_LETTERS = "ABCDEF"
 class Airport(models.Model):
     """Аэропорт. Первичный ключ — трёхбуквенный код IATA (JFK, LHR...)."""
 
+    class Continent(models.TextChoices):
+        EUROPE = "EU", "Европа"
+        ASIA = "AS", "Азия"
+        AFRICA = "AF", "Африка"
+        NORTH_AMERICA = "NA", "Северная Америка"
+        SOUTH_AMERICA = "SA", "Южная Америка"
+        OCEANIA = "OC", "Океания"
+
     code = models.CharField(
         "код IATA",
         max_length=3,
@@ -23,6 +31,7 @@ class Airport(models.Model):
     location = models.CharField("город, страна", max_length=255)
     latitude = models.FloatField("широта", null=True, blank=True)
     longitude = models.FloatField("долгота", null=True, blank=True)
+    continent = models.CharField("континент", max_length=2, choices=Continent.choices, blank=True)
 
     class Meta:
         ordering = ["location"]

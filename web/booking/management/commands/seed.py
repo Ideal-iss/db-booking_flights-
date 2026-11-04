@@ -15,18 +15,35 @@ from django.utils import timezone
 
 from booking.models import SEAT_LETTERS, Airport, Booking, Flight, Passenger
 
-# код, название, город, широта, долгота
+# код, название, город, широта, долгота, континент
 AIRPORTS = [
-    ("JFK", "John F. Kennedy International Airport", "Нью-Йорк, США", 40.6413, -73.7781),
-    ("LAX", "Los Angeles International Airport", "Лос-Анджелес, США", 33.9416, -118.4085),
-    ("HND", "Tokyo Haneda Airport", "Токио, Япония", 35.5494, 139.7798),
-    ("CDG", "Charles de Gaulle Airport", "Париж, Франция", 49.0097, 2.5479),
-    ("DXB", "Dubai International Airport", "Дубай, ОАЭ", 25.2532, 55.3657),
-    ("SIN", "Singapore Changi Airport", "Сингапур, Сингапур", 1.3644, 103.9915),
-    ("SYD", "Sydney Kingsford Smith Airport", "Сидней, Австралия", -33.9399, 151.1753),
-    ("LHR", "London Heathrow Airport", "Лондон, Великобритания", 51.4700, -0.4543),
-    ("FRA", "Frankfurt Airport", "Франкфурт, Германия", 50.0379, 8.5622),
-    ("AMS", "Amsterdam Schiphol Airport", "Амстердам, Нидерланды", 52.3105, 4.7683),
+    ("JFK", "John F. Kennedy International Airport", "Нью-Йорк, США", 40.6413, -73.7781, "NA"),
+    ("LAX", "Los Angeles International Airport", "Лос-Анджелес, США", 33.9416, -118.4085, "NA"),
+    ("HND", "Tokyo Haneda Airport", "Токио, Япония", 35.5494, 139.7798, "AS"),
+    ("CDG", "Charles de Gaulle Airport", "Париж, Франция", 49.0097, 2.5479, "EU"),
+    ("DXB", "Dubai International Airport", "Дубай, ОАЭ", 25.2532, 55.3657, "AS"),
+    ("SIN", "Singapore Changi Airport", "Сингапур, Сингапур", 1.3644, 103.9915, "AS"),
+    ("SYD", "Sydney Kingsford Smith Airport", "Сидней, Австралия", -33.9399, 151.1753, "OC"),
+    ("LHR", "London Heathrow Airport", "Лондон, Великобритания", 51.4700, -0.4543, "EU"),
+    ("FRA", "Frankfurt Airport", "Франкфурт, Германия", 50.0379, 8.5622, "EU"),
+    ("AMS", "Amsterdam Schiphol Airport", "Амстердам, Нидерланды", 52.3105, 4.7683, "EU"),
+    # Аэропорты для игры «Кругосветка» — по всем континентам.
+    ("PEK", "Beijing Capital International Airport", "Пекин, Китай", 40.0799, 116.6031, "AS"),
+    ("HKG", "Hong Kong International Airport", "Гонконг, Китай", 22.3080, 113.9185, "AS"),
+    ("ICN", "Incheon International Airport", "Сеул, Южная Корея", 37.4602, 126.4407, "AS"),
+    ("BKK", "Suvarnabhumi Airport", "Бангкок, Таиланд", 13.6900, 100.7501, "AS"),
+    ("DEL", "Indira Gandhi International Airport", "Дели, Индия", 28.5562, 77.1000, "AS"),
+    ("SVO", "Sheremetyevo International Airport", "Москва, Россия", 55.9726, 37.4146, "EU"),
+    ("IST", "Istanbul Airport", "Стамбул, Турция", 41.2753, 28.7519, "EU"),
+    ("CAI", "Cairo International Airport", "Каир, Египет", 30.1219, 31.4056, "AF"),
+    ("NBO", "Jomo Kenyatta International Airport", "Найроби, Кения", -1.3192, 36.9278, "AF"),
+    ("JNB", "O. R. Tambo International Airport", "Йоханнесбург, ЮАР", -26.1337, 28.2420, "AF"),
+    ("GRU", "São Paulo/Guarulhos International Airport", "Сан-Паулу, Бразилия", -23.4356, -46.4731, "SA"),
+    ("EZE", "Ministro Pistarini International Airport", "Буэнос-Айрес, Аргентина", -34.8222, -58.5358, "SA"),
+    ("BOG", "El Dorado International Airport", "Богота, Колумбия", 4.7016, -74.1469, "SA"),
+    ("MEX", "Mexico City International Airport", "Мехико, Мексика", 19.4361, -99.0719, "NA"),
+    ("YYZ", "Toronto Pearson International Airport", "Торонто, Канада", 43.6777, -79.6248, "NA"),
+    ("AKL", "Auckland Airport", "Окленд, Новая Зеландия", -37.0082, 174.7850, "OC"),
 ]
 
 # номер, откуда, куда, час вылета, длительность (мин), рядов, цена
@@ -84,9 +101,13 @@ class Command(BaseCommand):
             Passenger.objects.all().delete()
             Airport.objects.all().delete()
 
-        for code, name, location, lat, lon in AIRPORTS:
+        for code, name, location, lat, lon, continent in AIRPORTS:
             Airport.objects.update_or_create(
-                code=code, defaults={"name": name, "location": location, "latitude": lat, "longitude": lon}
+                code=code,
+                defaults={
+                    "name": name, "location": location,
+                    "latitude": lat, "longitude": lon, "continent": continent,
+                },
             )
 
         today = timezone.localdate()

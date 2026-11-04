@@ -1,14 +1,19 @@
 from django import forms
+from django.db.models import Q
 
 from .models import Airport
 
 
+def _airports_with_flights():
+    return Airport.objects.filter(Q(departures__isnull=False) | Q(arrivals__isnull=False)).distinct()
+
+
 class SearchForm(forms.Form):
     origin = forms.ModelChoiceField(
-        Airport.objects.all(), label="Откуда", empty_label="Любой аэропорт", required=False
+        _airports_with_flights(), label="Откуда", empty_label="Любой аэропорт", required=False
     )
     destination = forms.ModelChoiceField(
-        Airport.objects.all(), label="Куда", empty_label="Любой аэропорт", required=False
+        _airports_with_flights(), label="Куда", empty_label="Любой аэропорт", required=False
     )
     date = forms.DateField(
         label="Дата вылета", required=False, widget=forms.DateInput(attrs={"type": "date"})

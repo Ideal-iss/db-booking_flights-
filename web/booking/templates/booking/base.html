@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}SkyBook{% endblock %} · SkyBook</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ff5a1f' d='M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="{% static 'booking/style.css' %}">
 </head>
 <body>
@@ -11,10 +12,11 @@
     <div class="wrap topbar__inner">
       <a class="logo" href="{% url 'booking:index' %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
-        SkyBook
+        <span class="logo__text">SkyBook</span>
       </a>
       <nav class="nav">
         <a href="{% url 'booking:index' %}" class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}">Рейсы</a>
+        <a href="{% url 'game:home' %}" class="{% if request.resolver_match.app_name == 'game' %}is-active{% endif %}">Игра</a>
         <a href="{% url 'booking:my_bookings' %}" class="{% if request.resolver_match.url_name == 'my_bookings' %}is-active{% endif %}">Мои брони</a>
         <a href="{% url 'admin:index' %}">Админка</a>
       </nav>

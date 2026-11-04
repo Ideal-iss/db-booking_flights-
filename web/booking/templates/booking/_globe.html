@@ -1,0 +1,12 @@
+{% load static %}{{ globe|json_script:globe_id }}
+<div class="globe{% if compact %} globe--compact{% endif %}" data-globe data-config="{{ globe_id }}"
+     data-world="{% static 'booking/vendor/countries-110m.json' %}">
+  <canvas role="img" aria-label="{{ label }}"></canvas>
+  <div class="globe__hint">Потяните, чтобы вращать</div>
+  <div class="globe__ctrl" role="group" aria-label="Масштаб глобуса">
+    <button type="button" data-zoom="in" aria-label="Приблизить">+</button>
+    <button type="button" data-zoom="out" aria-label="Отдалить">−</button>
+    <button type="button" data-zoom="reset" aria-label="Вернуть вид">⟲</button>
+  </div>
+  {% if caption %}<div class="globe__caption">{{ caption }}</div>{% endif %}
+</div>

@@ -258,3 +258,36 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   .row-booking { grid-template-columns: 1fr auto; }
   .nav a { padding: 8px; font-size: .85rem; }
 }
+
+/* Глобус */
+.map-section { padding-top: 28px; }
+.globe {
+  position: relative; height: 440px; margin-bottom: 24px; border-radius: var(--radius); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #13254a 0%, #060c1c 75%);
+  box-shadow: var(--shadow);
+}
+.globe--compact { height: 420px; }
+.globe canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.globe.is-dragging canvas { cursor: grabbing; }
+.globe__hint {
+  position: absolute; left: 16px; top: 14px; font-size: .78rem; color: rgba(255,255,255,.6);
+  pointer-events: none; transition: opacity .4s;
+}
+.globe.was-touched .globe__hint { opacity: 0; }
+.globe__ctrl { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.globe__ctrl button {
+  width: 34px; height: 34px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08); color: #fff; font: 600 1.05rem/1 "Manrope", sans-serif; cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.globe__ctrl button:hover { background: rgba(255,255,255,.18); }
+.globe__caption {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); white-space: nowrap;
+  background: rgba(6, 12, 28, .7); color: #fff; font-size: .85rem; font-weight: 600;
+  padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(255,255,255,.12); pointer-events: none;
+}
+@media (max-width: 820px) {
+  .globe { height: 340px; }
+  .globe--compact { height: 300px; }
+  .globe__caption { font-size: .75rem; white-space: normal; text-align: center; width: max-content; max-width: 90%; }
+}

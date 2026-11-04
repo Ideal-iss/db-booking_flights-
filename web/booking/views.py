@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import BookingForm, LookupForm, SearchForm
+from .globe import flight_globe, network_globe
 from .models import Booking, Flight, Passenger
 
 
@@ -55,7 +56,7 @@ def index(request):
     return render(
         request,
         "booking/index.html",
-        {"form": form, "flights": flights, "searched": searched, "nearby": nearby},
+        {"form": form, "flights": flights, "searched": searched, "nearby": nearby, "globe": network_globe()},
     )
 
 
@@ -113,6 +114,7 @@ def flight_detail(request, pk):
             "departed": departed,
             "seat_map": flight.seat_map(),
             "selected_seat": form["seat"].value() or "",
+            "globe": flight_globe(flight),
         },
     )
 

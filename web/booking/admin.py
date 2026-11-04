@@ -6,7 +6,7 @@ from .models import Airport, Booking, Flight, Passenger
 
 @admin.register(Airport)
 class AirportAdmin(admin.ModelAdmin):
-    list_display = ["code", "name", "location"]
+    list_display = ["code", "name", "location", "latitude", "longitude"]
     search_fields = ["code", "name", "location"]
 
 

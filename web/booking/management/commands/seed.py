@@ -15,17 +15,18 @@ from django.utils import timezone
 
 from booking.models import SEAT_LETTERS, Airport, Booking, Flight, Passenger
 
+# код, название, город, широта, долгота
 AIRPORTS = [
-    ("JFK", "John F. Kennedy International Airport", "Нью-Йорк, США"),
-    ("LAX", "Los Angeles International Airport", "Лос-Анджелес, США"),
-    ("HND", "Tokyo Haneda Airport", "Токио, Япония"),
-    ("CDG", "Charles de Gaulle Airport", "Париж, Франция"),
-    ("DXB", "Dubai International Airport", "Дубай, ОАЭ"),
-    ("SIN", "Singapore Changi Airport", "Сингапур, Сингапур"),
-    ("SYD", "Sydney Kingsford Smith Airport", "Сидней, Австралия"),
-    ("LHR", "London Heathrow Airport", "Лондон, Великобритания"),
-    ("FRA", "Frankfurt Airport", "Франкфурт, Германия"),
-    ("AMS", "Amsterdam Schiphol Airport", "Амстердам, Нидерланды"),
+    ("JFK", "John F. Kennedy International Airport", "Нью-Йорк, США", 40.6413, -73.7781),
+    ("LAX", "Los Angeles International Airport", "Лос-Анджелес, США", 33.9416, -118.4085),
+    ("HND", "Tokyo Haneda Airport", "Токио, Япония", 35.5494, 139.7798),
+    ("CDG", "Charles de Gaulle Airport", "Париж, Франция", 49.0097, 2.5479),
+    ("DXB", "Dubai International Airport", "Дубай, ОАЭ", 25.2532, 55.3657),
+    ("SIN", "Singapore Changi Airport", "Сингапур, Сингапур", 1.3644, 103.9915),
+    ("SYD", "Sydney Kingsford Smith Airport", "Сидней, Австралия", -33.9399, 151.1753),
+    ("LHR", "London Heathrow Airport", "Лондон, Великобритания", 51.4700, -0.4543),
+    ("FRA", "Frankfurt Airport", "Франкфурт, Германия", 50.0379, 8.5622),
+    ("AMS", "Amsterdam Schiphol Airport", "Амстердам, Нидерланды", 52.3105, 4.7683),
 ]
 
 # номер, откуда, куда, час вылета, длительность (мин), рядов, цена
@@ -83,8 +84,10 @@ class Command(BaseCommand):
             Passenger.objects.all().delete()
             Airport.objects.all().delete()
 
-        for code, name, location in AIRPORTS:
-            Airport.objects.update_or_create(code=code, defaults={"name": name, "location": location})
+        for code, name, location, lat, lon in AIRPORTS:
+            Airport.objects.update_or_create(
+                code=code, defaults={"name": name, "location": location, "latitude": lat, "longitude": lon}
+            )
 
         today = timezone.localdate()
         flights_created = 0

@@ -26,6 +26,13 @@
   </div>
 </section>
 
+{% if globe %}
+<section class="wrap map-section">
+  <h2>Куда мы летаем</h2>
+  {% include "booking/_globe.html" with globe_id="globe-data" compact=True label="Карта всех направлений" %}
+</section>
+{% endif %}
+
 <section class="wrap results">
   <h2>{% if searched %}Результаты поиска{% else %}Ближайшие рейсы{% endif %}</h2>
 
@@ -44,6 +51,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% include "booking/_globe_scripts.html" %}
 <script>
   document.getElementById("swap").addEventListener("click", () => {
     const a = document.getElementById("id_origin"), b = document.getElementById("id_destination");

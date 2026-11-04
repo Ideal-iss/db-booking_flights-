@@ -1,3 +1,4 @@
+import math
 import secrets
 import string
 
@@ -20,6 +21,8 @@ class Airport(models.Model):
     )
     name = models.CharField("название", max_length=100)
     location = models.CharField("город, страна", max_length=255)
+    latitude = models.FloatField("широта", null=True, blank=True)
+    longitude = models.FloatField("долгота", null=True, blank=True)
 
     class Meta:
         ordering = ["location"]
@@ -88,6 +91,22 @@ class Flight(models.Model):
     @property
     def duration(self):
         return self.arrival - self.departure
+
+    @property
+    def distance_km(self):
+        """Расстояние по дуге большого круга (как летят самолёты), в километрах."""
+        a, b = self.origin, self.destination
+        if None in (a.latitude, a.longitude, b.latitude, b.longitude):
+            return None
+        lat1, lon1, lat2, lon2 = map(math.radians, (a.latitude, a.longitude, b.latitude, b.longitude))
+        h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+        return round(2 * 6371 * math.asin(math.sqrt(h)))
+
+    def progress_at(self, moment):
+        """Доля пройденного пути (0..1), если рейс в воздухе в этот момент, иначе None."""
+        if self.departure < moment < self.arrival:
+            return (moment - self.departure) / (self.arrival - self.departure)
+        return None
 
     def duration_display(self):
         minutes = int(self.duration.total_seconds() // 60)

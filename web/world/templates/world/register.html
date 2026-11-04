@@ -1,0 +1,33 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% block title %}Новый персонаж{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block content %}
+<div class="wrap register">
+  <h1 class="page-title">Новый персонаж</h1>
+  <form method="post" class="register__grid">
+    {% csrf_token %}
+    <section class="panel">
+      <h2>Внешность</h2>
+      {% include "world/_builder.html" with target="id_avatar" %}
+    </section>
+    <section class="panel">
+      <h2>Аккаунт</h2>
+      {{ form.avatar }}
+      {% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      {% for field in form.visible_fields %}
+      <label class="field field--stack"><span>{{ field.label }}</span>{{ field }}
+        {% if field.errors %}<em class="field-error">{{ field.errors|join:" " }}</em>
+        {% elif field.name == "nickname" or field.name == "home" %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+      </label>
+      {% endfor %}
+      <button class="btn btn--accent btn--wide">Начать путешествие</button>
+      <p class="muted small center">Уже играете? <a href="{% url 'world:login' %}">Войти</a></p>
+    </section>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'world/scene.js' %}" defer></script>
+<script src="{% static 'world/builder.js' %}" defer></script>
+{% endblock %}

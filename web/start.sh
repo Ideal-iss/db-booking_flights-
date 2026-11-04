@@ -9,6 +9,7 @@ python manage.py collectstatic --noinput
 # при каждом перезапуске она лишь добавляет недостающие будущие рейсы.
 if [ "${SEED_DEMO_DATA:-1}" = "1" ]; then
   python manage.py seed
+  python manage.py seed_world
 fi
 
 # Администратор создаётся из переменных DJANGO_SUPERUSER_USERNAME / _EMAIL / _PASSWORD.

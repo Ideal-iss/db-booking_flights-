@@ -214,6 +214,21 @@
         if (!alpha) return;
         const [x, y] = projection(c);
         const kind = ap.kind || "main";
+        if (kind === "unvisited") {
+          // Ещё не были: пустое кольцо и вопросительный знак
+          ctx.globalAlpha = alpha * 0.8;
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, 2 * Math.PI);
+          ctx.strokeStyle = "rgba(255,255,255,.7)";
+          ctx.lineWidth = 1.4;
+          ctx.setLineDash([2, 2]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = '700 10px "JetBrains Mono", monospace';
+          ctx.fillStyle = "rgba(255,255,255,.55)";
+          ctx.fillText(`${ap.code}?`, x + 8, y - 1);
+          return;
+        }
         ctx.globalAlpha = alpha * (kind === "dim" ? 0.45 : 1);
         const r = { current: 5, main: 3.6, visited: 3.6, minor: 2.4, dim: 2.2 }[kind] || 3;
         ctx.beginPath();
@@ -237,6 +252,7 @@
     }
 
     function draw(now) {
+      if (width < 20 || height < 20) return; // блок скрыт или ещё не размечен
       zoom += (targetZoom - zoom) * 0.15;
       const live = planes
         .map((plane) => ({ plane, p: progressOf(plane, now) }))

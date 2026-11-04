@@ -1,0 +1,12 @@
+<div class="builder" data-builder {% if target %}data-target="{{ target }}"{% endif %} {% if initial %}data-initial="{{ initial }}"{% endif %} {% if items %}data-items="{{ items }}"{% endif %} {% if save_url %}data-save-url="{{ save_url }}"{% endif %}>
+  <div class="builder__stage"><canvas></canvas></div>
+  <div class="builder__controls">
+    <div class="builder__row"><span>Кожа</span><div class="swatches" data-skin></div></div>
+    <div class="builder__row"><span>Причёска</span><div class="chips" data-hair></div></div>
+    <div class="builder__row"><span>Цвет волос</span><div class="swatches" data-hair-color></div></div>
+    <div class="builder__row"><span>Верх</span><div class="swatches" data-top></div></div>
+    <div class="builder__row"><span>Низ</span><div class="swatches" data-bottom></div></div>
+    {% if items %}<div data-items></div>{% endif %}
+    {% if save_url %}<button type="button" class="btn btn--accent" data-save>Сохранить персонажа</button>{% endif %}
+  </div>
+</div>

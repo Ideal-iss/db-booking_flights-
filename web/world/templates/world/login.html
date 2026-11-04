@@ -1,0 +1,18 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% block title %}Вход{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block content %}
+<div class="wrap auth">
+  <form method="post" class="panel">
+    {% csrf_token %}
+    <h1 class="page-title">Вход в мир</h1>
+    {% if form.non_field_errors %}<div class="form-error">Неверный логин или пароль.</div>{% endif %}
+    <label class="field field--stack"><span>Логин</span>{{ form.username }}</label>
+    <label class="field field--stack"><span>Пароль</span>{{ form.password }}</label>
+    <input type="hidden" name="next" value="{{ next|default:'' }}">
+    <button class="btn btn--accent btn--wide">Войти</button>
+    <p class="muted small center">Ещё нет персонажа? <a href="{% url 'world:register' %}">Создать</a></p>
+  </form>
+</div>
+{% endblock %}

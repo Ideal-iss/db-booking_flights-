@@ -1,0 +1,80 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% block title %}{{ p.nickname }} · кабинет{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block content %}
+<div class="wrap cabinet">
+  {% include "world/_topnav.html" %}
+  <header class="passport">
+    <canvas class="passport__avatar" data-avatar='{{ avatar_json }}'></canvas>
+    <div class="passport__info">
+      <span class="passport__label">Паспорт путешественника</span>
+      <h1>{{ p.nickname }}</h1>
+      <p class="muted">Сейчас: <b>{{ p.airport.city }} ({{ p.airport_id }})</b> · родной аэропорт {{ p.home.city }}</p>
+      <div class="passport__stats">
+        <div><b>{{ visits|length }}/{{ airports_total }}</b><span>аэропортов</span></div>
+        <div><b>{{ continents }}/6</b><span>континентов</span></div>
+        <div><b>{{ p.flights_count }}</b><span>полётов</span></div>
+        <div><b>{{ p.km_flown }}</b><span>км налёта</span></div>
+        <div><b>{{ stamps_count }}</b><span>штампов</span></div>
+        <div><b>{{ earned_count }}/{{ achievements|length }}</b><span>достижений</span></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="cabinet__grid">
+    <section class="panel">
+      <h2>Мой персонаж</h2>
+      {% include "world/_builder.html" with initial="avatar-data" items="owned-items" save_url=save_url %}
+    </section>
+    <section class="panel">
+      <h2>Карта путешествий</h2>
+      {% include "booking/_globe.html" with globe_id="globe-data" compact=True label="Посещённые аэропорты" %}
+      <p class="legend-line"><span><i class="lg lg--visited"></i>посещён</span><span><i class="lg lg--new"></i>ещё не были</span><span><i class="lg lg--here"></i>вы здесь</span></p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Достижения</h2>
+    <div class="achievements">
+      {% for row in achievements %}
+      <div class="ach{% if row.earned %} is-earned{% endif %}">
+        <span class="ach__icon">{{ row.a.icon }}</span>
+        <b>{{ row.a.title }}</b>
+        <small>{{ row.a.description }}</small>
+        <em>{% if row.earned %}получено {{ row.earned|date:"j E" }}{% else %}+{{ row.a.reward }} 🪙{% endif %}</em>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Штампы достопримечательностей</h2>
+    <div class="stamps">
+      {% for row in landmarks %}
+      <div class="stamp{% if row.at %} is-on{% endif %}" title="{{ row.l.fact }}">
+        <span class="stamp__code mono">{{ row.l.airport_id }}</span>
+        <b>{{ row.l.name }}</b>
+        <small>{{ row.l.airport.city }}</small>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if trips %}
+  <section class="panel">
+    <h2>Последние полёты</h2>
+    <ul class="trips">
+      {% for t in trips %}<li><span class="mono">{{ t.route.number }}</span> <b>{{ t.route.origin_id }} → {{ t.route.destination_id }}</b> <span class="muted">{{ t.route.distance_km }} км · {{ t.departure_at|date:"j E, H:i" }}</span></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+{{ p.avatar|json_script:"avatar-data" }}
+{{ owned_items|json_script:"owned-items" }}
+{% endblock %}
+{% block scripts %}
+{% include "booking/_globe_scripts.html" %}
+<script src="{% static 'world/scene.js' %}" defer></script>
+<script src="{% static 'world/builder.js' %}" defer></script>
+{% endblock %}

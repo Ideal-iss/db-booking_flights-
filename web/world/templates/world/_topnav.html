@@ -1,0 +1,7 @@
+<nav class="world-nav">
+  <a href="{% url 'world:play' %}" class="btn btn--accent btn--sm">▶ В игру</a>
+  <a href="{% url 'world:cabinet' %}" class="chip{% if request.resolver_match.url_name == 'cabinet' %} is-on{% endif %}">👤 Кабинет</a>
+  <a href="{% url 'world:shop' %}" class="chip{% if request.resolver_match.url_name == 'shop' %} is-on{% endif %}">🛍 Магазин</a>
+  <span class="coins-pill" id="coins-pill">🪙 {{ p.coins }}</span>
+  <form method="post" action="{% url 'world:logout' %}" class="inline">{% csrf_token %}<button class="chip">Выйти</button></form>
+</nav>

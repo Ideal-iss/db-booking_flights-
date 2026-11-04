@@ -1,0 +1,29 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% block title %}Магазин{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block content %}
+<div class="wrap shop" id="shop" data-buy-url="{% url 'world:buy' %}" data-equip-url="{% url 'world:equip' %}">
+  {% csrf_token %}
+  {% include "world/_topnav.html" %}
+  <h1 class="page-title">Магазин аэропорта</h1>
+  <p class="muted">Покупка сразу надевается на персонажа. Снять или поменять вещи можно в кабинете.</p>
+  <div class="shop__grid">
+    {% for it in items %}
+    <div class="item" data-code="{{ it.code }}" data-slot="{{ it.slot }}" data-price="{{ it.price }}">
+      <canvas class="item__preview"></canvas>
+      <b>{{ it.name }}</b>
+      <small class="muted">{{ it.get_slot_display }}</small>
+      <button type="button" class="btn btn--accent btn--sm" data-action="buy">{{ it.price }} 🪙</button>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+{{ p.avatar|json_script:"avatar-data" }}
+{{ owned|json_script:"owned-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'world/scene.js' %}" defer></script>
+<script src="{% static 'world/shop.js' %}" defer></script>
+{% endblock %}

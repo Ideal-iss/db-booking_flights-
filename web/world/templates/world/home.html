@@ -1,0 +1,26 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% block title %}Мир SkyBook{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block content %}
+<section class="hero hero--world">
+  <div class="wrap world-hero">
+    <div>
+      <h1>Мир SkyBook</h1>
+      <p class="hero__sub">Создайте персонажа, садитесь в самолёт вместе с другими игроками и путешествуйте по {{ airports }} аэропортам мира. Гуляйте по городам, собирайте штампы достопримечательностей и монеты, общайтесь в чате.</p>
+      <div class="world-hero__cta">
+        <a class="btn btn--accent" href="{% url 'world:register' %}">Создать персонажа</a>
+        <a class="btn btn--light" href="{% url 'world:login' %}">Войти</a>
+      </div>
+    </div>
+    {% include "booking/_globe.html" with globe_id="globe-data" compact=True label="Аэропорты мира" %}
+  </div>
+</section>
+<div class="wrap features">
+  <div class="feature"><span>🧑‍✈️</span><b>Свой персонаж</b><p>Внешность, одежда из магазина, достижения и паспорт со штампами.</p></div>
+  <div class="feature"><span>✈️</span><b>Общие рейсы</b><p>Самолёты летают по расписанию для всех — в салоне вы увидите других пассажиров.</p></div>
+  <div class="feature"><span>🗺️</span><b>Прогулки по городам</b><p>После прилёта гуляйте по территории, фотографируйте достопримечательности.</p></div>
+  <div class="feature"><span>🪙</span><b>Монеты и награды</b><p>Собирайте монеты, получайте достижения, покупайте билеты и вещи.</p></div>
+</div>
+{% endblock %}
+{% block scripts %}{% include "booking/_globe_scripts.html" %}{% endblock %}

@@ -9,7 +9,12 @@
 - **Посадочный талон** с кодом брони, условной оплатой и отменой (отмена освобождает место).
 - **Мои брони**: поиск по коду брони или по email и номеру паспорта.
 - **Интерактивный глобус**: самолёт летит по маршруту рейса, на главной — все направления.
-- **Игра «Кругосветка»** (`/game/`): игроки в одной комнате соревнуются, кто за 7 игровых дней посетит больше аэропортов. Места на рейсах ограничены, цена растёт с каждым проданным билетом, есть бюджет и пересадки.
+- **Мир SkyBook** (`/world/`) — многопользовательская игра-путешествие:
+  - регистрация с логином и паролем, конструктор персонажа, личный кабинет с паспортом, достижениями и картой посещённых аэропортов;
+  - самолёты летают по общему расписанию в реальном времени (вылет примерно раз в 2–3 минуты, полёт 1–2 минуты): все, кто купил билет на один вылет, сидят в одном салоне;
+  - во время полёта — вид салона с пассажирами, облака, мини-глобус с положением самолёта;
+  - после прилёта можно гулять по территории аэропорта, собирать монеты, фотографировать достопримечательности (штампы в паспорт), общаться в чате и эмоциями;
+  - магазин вещей для персонажа; на карте мира отмечены посещённые и ещё не открытые аэропорты.
 - **Админ-панель** (`/admin/`) для аэропортов, рейсов, пассажиров и броней, с заполняемостью рейсов.
 
 ## Запуск
@@ -23,6 +28,7 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed --with-admin # тестовые данные + админ admin / admin12345
+python manage.py seed_world         # маршруты, достопримечательности, достижения, магазин
 python manage.py runserver
 ```
 
@@ -51,6 +57,7 @@ pip install -r requirements.txt
 cp .env.example .env && nano .env      # вписать свой логин и секретный ключ
 python manage.py migrate
 python manage.py seed
+python manage.py seed_world
 python manage.py collectstatic --noinput
 python manage.py createsuperuser
 ```
@@ -73,7 +80,7 @@ python manage.py createsuperuser
 Обновление после новых коммитов (в консоли Bash), затем кнопка **Reload** во вкладке **Web**:
 
 ```bash
-cd ~/db-booking_flights-/web && source ~/venv/bin/activate && git pull && python manage.py migrate && python manage.py seed && python manage.py collectstatic --noinput
+cd ~/db-booking_flights-/web && source ~/venv/bin/activate && git pull && python manage.py migrate && python manage.py seed && python manage.py seed_world && python manage.py collectstatic --noinput
 ``` Раз в месяц нажимайте во вкладке **Web** кнопку продления, иначе бесплатный сайт отключится. Чтобы обновить тестовые рейсы, раз в несколько недель запускайте `python manage.py seed` в консоли.
 
 ## Публикация на Railway

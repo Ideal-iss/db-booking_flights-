@@ -78,7 +78,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "booking",
-    "game",
+    "world",
 ]
 
 MIDDLEWARE = [
@@ -180,3 +180,7 @@ MAILERS = {
         "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
+
+LOGIN_URL = "world:login"
+LOGIN_REDIRECT_URL = "world:play"
+LOGOUT_REDIRECT_URL = "world:home"

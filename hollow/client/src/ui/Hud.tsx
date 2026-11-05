@@ -1,3 +1,4 @@
+import { HOTKEYS } from "./SkillsPanel";
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "../store";
 import { Bar } from "./common";
@@ -114,7 +115,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
           <HotSlot k="ЛКМ" icon={weapon ? itemIcon(BASE_BY_ID[weapon.base].icon) : itemIcon("gloves")} />
           <HotSlot k="ПКМ" icon={char.equipment.offhand ? itemIcon(BASE_BY_ID[char.equipment.offhand.base].icon) : itemIcon("shield")} dim />
           <div className="w-2" />
-          {["Q", "R", "F"].map((k, i) => {
+          {HOTKEYS.map((k, i) => {
             const id = char.hotbar[i];
             const sk = id ? SKILL_BY_ID[id] : null;
             const cd = id ? hud.cds[id] || 0 : 0;
@@ -136,7 +137,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
           <div className="panel px-6 py-4 text-center">
             <div className="panel-title text-xl">Кликните, чтобы играть</div>
             <div className="text-parch mt-1 text-sm">WASD — ходить · мышь — смотреть · ЛКМ — атака (зажать — сильная) · ПКМ — блок/прицел</div>
-            <div className="text-parch text-sm">Shift — бег · Пробел — уклонение · E — действие · Q/R/F — навыки · 1/2 — зелья</div>
+            <div className="text-parch text-sm">Shift — бег · Пробел — уклонение · E — действие · Q/R/F/G/Z/X — навыки · 1/2 — зелья</div>
             <div className="text-parch text-sm">I — сумка · C — персонаж · B — навыки · M — карта · Esc — пауза · F1 — помощь</div>
             {lock.soft && <div className="mt-2 text-xs text-[#e0a84a]">Браузер не разрешил захват мыши — включён режим без захвата: поворачивайтесь мышью, подводя курсор к краю экрана, или стрелками.</div>}
           </div>

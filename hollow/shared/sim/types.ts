@@ -13,6 +13,16 @@ export interface Buff {
   movePct?: number;
   drPct?: number;
   manaRegenMul?: number;
+  regenPct?: number;
+  lifeSteal?: number;
+  critChance?: number;
+  thorns?: number;
+  auraDps?: number;
+  auraR?: number;
+  auraEl?: string;
+  auraUndead?: number;
+  /** Сколько стоит одна единица силы ауры (средний урон заклинаний или оружия на момент применения). */
+  auraBase?: number;
 }
 
 export interface SimPlayer {
@@ -43,6 +53,9 @@ export interface SimPlayer {
   whirlUntil: number;
   whirlNext: number;
   whirlDmg: number;
+  whirlR?: number;
+  whirlTick?: number;
+  auraNext?: number;
   potionReadyAt: number;
   potionsUsed: { health: number; mana: number };
   potionsFound: { health: number; mana: number };
@@ -87,6 +100,11 @@ export interface SimEnemy {
   blindUntil: number;
   vulnUntil: number; vulnPct: number;
   dots: { dps: number; until: number; el: Element; by: string }[];
+  weakenUntil?: number;
+  weakenPct?: number;
+  tapUntil?: number;
+  tapPct?: number;
+  fearUntil?: number;
   kx: number; kz: number;
   guarding: boolean;
   phase: number;
@@ -123,6 +141,7 @@ export interface Projectile {
   slow?: number;
   undeadBonus?: number;
   healAlly?: number;
+  freeze?: number;
   life: number;
   hit: Set<string>;
 }
@@ -157,7 +176,7 @@ export interface Snapshot {
     x: number; y: number; z: number; yaw: number; pitch: number;
     hp: number; maxHp: number; mana: number; maxMana: number; stamina: number; maxStamina: number;
     alive: boolean; blocking: boolean; aiming: boolean; atk: number; whirl: boolean; absorb: number;
-    buffs: string[]; app: unknown; weapon: string; offhand: string; cds: Record<string, number>;
+    buffs: string[]; move?: number; app: unknown; weapon: string; offhand: string; cds: Record<string, number>;
     reviving: number; connected: boolean;
   }[];
   enemies: {

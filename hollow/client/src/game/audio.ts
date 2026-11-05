@@ -240,6 +240,10 @@ class AudioEngine {
       case "drip":
         this.tone(out, t, { type: "sine", f: 1600 + Math.random() * 900, f2: 700, d: 0.09, gain: 0.05 * v });
         break;
+      case "zap":
+        this.noiseHit(out, t, { type: "highpass", f: 2500, a: 0.005, d: 0.18, gain: 0.35 * v });
+        this.tone(out, t, { type: "sawtooth", f: 900, f2: 120, d: 0.15, gain: 0.08 * v });
+        break;
       case "fuse":
         this.noiseHit(out, t, { type: "highpass", f: 4000, f2: 7000, a: 0.02, d: 0.35, gain: 0.3 * v });
         break;

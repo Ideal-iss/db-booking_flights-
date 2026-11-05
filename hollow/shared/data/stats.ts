@@ -5,7 +5,7 @@ import { SKILL_BY_ID } from "./skills";
 
 export const MAX_LEVEL = 40;
 export const ATTR_POINTS_PER_LEVEL = 5;
-export const SKILL_POINTS_PER_LEVEL = 1;
+export const SKILL_POINTS_PER_LEVEL = 2;
 
 /** Опыт, нужный для перехода с уровня L на L+1. */
 export const xpForLevel = (level: number) => Math.round(80 * level ** 1.75 + 40 * level);
@@ -32,7 +32,7 @@ export interface CharacterData {
   attrPoints: number;
   skillPoints: number;
   skills: Record<string, number>;
-  /** Навыки на клавишах Q, R, F. */
+  /** Навыки на клавишах Q, R, F, G, Z, X. */
   hotbar: (string | null)[];
   equipment: Partial<Record<EquipSlot, Item>>;
   inventory: (Item & { pos: number })[];
@@ -94,6 +94,8 @@ export interface Derived {
   secondary: "block" | "ward" | "aim";
   boltElement: string;
   flags: Record<string, number>;
+  /** Бонус урона по стихиям от пассивок (pct_fire и т. п.). */
+  elemPct: Record<string, number>;
   attrs: Attrs;
 }
 
@@ -134,7 +136,7 @@ export function deriveStats(c: Pick<CharacterData, "cls" | "level" | "attrs" | "
   else if (!(offhand && offhand.type === "shield") && (attackMode === "bolt" || cls.bolt)) secondary = "ward";
 
   const flags: Record<string, number> = {};
-  for (const k of ["lifeOnKill", "manaOnKill", "burnOnHit", "chillOnHit", "extraSkeleton", "critHeal", "holyAura", "doubleShot", "berserk", "backstab"]) {
+  for (const k of ["lifeOnKill", "manaOnKill", "burnOnHit", "chillOnHit", "extraSkeleton", "critHeal", "holyAura", "doubleShot", "berserk", "backstab", "extraTraps", "curseDur"]) {
     const v = sum(mods, k);
     if (v) flags[k] = v;
   }
@@ -175,6 +177,7 @@ export function deriveStats(c: Pick<CharacterData, "cls" | "level" | "attrs" | "
     secondary,
     boltElement: cls.bolt?.element || "holy",
     flags,
+    elemPct: Object.fromEntries(["physical", "fire", "cold", "dark", "holy", "arcane", "poison", "lightning"].map((el) => [el, sum(mods, "pct_" + el)])),
     attrs,
   };
 }

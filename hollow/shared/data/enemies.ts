@@ -59,6 +59,28 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: "summoned_skeleton", name: "Скелет-слуга", behavior: "summon", hp: 60, dmg: 8, element: "physical", armor: 6, speed: 4.2,
     range: 1.9, windup: 0.35, cooldown: 1.1, radius: 0.4, height: 1.8, xp: 0, undead: true, poise: 0.2, aggro: 16, loot: "normal",
   },
+  summoned_mage: {
+    id: "summoned_mage", name: "Скелет-маг", behavior: "ranged", hp: 40, dmg: 9, element: "dark", armor: 2, speed: 3.6,
+    range: 14, windup: 0.5, cooldown: 1.6, radius: 0.4, height: 1.8, xp: 0, undead: true, poise: 0.1, aggro: 16,
+    projectile: { speed: 18, size: 0.2, element: "dark" }, keepDistance: 7, loot: "normal",
+  },
+  clay_golem: {
+    id: "clay_golem", name: "Глиняный голем", behavior: "summon", hp: 220, dmg: 14, element: "physical", armor: 20, speed: 3.0,
+    range: 2.3, windup: 0.55, cooldown: 1.5, radius: 0.65, height: 2.3, xp: 0, undead: false, poise: 0.8, aggro: 16, loot: "normal",
+  },
+  blood_golem: {
+    id: "blood_golem", name: "Кровавый голем", behavior: "summon", hp: 260, dmg: 20, element: "physical", armor: 12, speed: 3.6,
+    range: 2.3, windup: 0.45, cooldown: 1.2, radius: 0.65, height: 2.3, xp: 0, undead: false, poise: 0.8, aggro: 16, loot: "normal",
+  },
+  shadow_clone: {
+    id: "shadow_clone", name: "Теневой двойник", behavior: "aggressive", hp: 90, dmg: 14, element: "dark", armor: 4, speed: 5.4,
+    range: 1.9, windup: 0.3, cooldown: 0.9, radius: 0.4, height: 1.8, xp: 0, undead: false, poise: 0.3, aggro: 16, loot: "normal",
+  },
+  guardian_spirit: {
+    id: "guardian_spirit", name: "Дух-хранитель", behavior: "ranged", hp: 120, dmg: 12, element: "holy", armor: 6, speed: 4.4,
+    range: 13, windup: 0.4, cooldown: 1.2, radius: 0.4, height: 1.8, xp: 0, undead: false, poise: 0.5, aggro: 16,
+    projectile: { speed: 22, size: 0.25, element: "holy" }, keepDistance: 5, loot: "normal",
+  },
   skeleton_archer: {
     id: "skeleton_archer", name: "Скелет-лучник", behavior: "archer", hp: 28, dmg: 9, element: "physical", armor: 2, speed: 3.1,
     range: 16, windup: 0.95, cooldown: 2.2, radius: 0.4, height: 1.8, xp: 16, undead: true, poise: 0, aggro: 20,

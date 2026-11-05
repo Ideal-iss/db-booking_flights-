@@ -264,7 +264,9 @@ export class Game {
             if (this.ctl && e.skill !== "bolt") ents.flash(this.ctl.x - Math.sin(this.ctl.yaw) * 0.8, 1.4, this.ctl.z - Math.cos(this.ctl.yaw) * 0.8, ELEMENT_COLOR[this.stats.boltElement] || "#ffd8a0", 0.8, 7, 0.3);
             const sk = SKILL_BY_ID[e.skill as string];
             if (sk) this.cb.say(sk.name, "#c9a46a");
-            audio.play(sk?.cls === "mage" ? "fire" : sk?.cls === "cleric" ? "holy" : sk?.cls === "necromancer" ? "dark" : e.skill === "bolt" ? "cast" : "heavy");
+            const sel = sk ? (sk.effect(1) as { element?: string; type: string }) : null;
+            const snd = !sk ? "cast" : sel?.element === "fire" ? "fire" : sel?.element === "cold" ? "frost" : sel?.element === "holy" ? "holy" : sel?.element === "lightning" ? "zap" : sel?.element === "dark" || sel?.element === "poison" ? "dark" : sel?.type === "buff" || sel?.type === "summon" ? "cast" : "heavy";
+            audio.play(snd);
           }
           break;
         case "nomana":
@@ -355,10 +357,39 @@ export class Game {
           if (this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 8) this.shake = Math.max(this.shake, 0.4);
           break;
         case "nova":
+          if (e.slam && this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 6) this.shake = Math.max(this.shake, 0.6);
           ents.flash(e.x as number, 1.4, e.z as number, ELEMENT_COLOR[e.el as string] || "#ffffff", 1.6, 4 + (e.r as number) * 2, 0.5);
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, ELEMENT_COLOR[e.el as string] || "#fff");
           ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#fff", 24, { speed: e.r as number, additive: true, size: 0.25, up: 0.5, g: 0 });
           audio.play(e.el === "cold" ? "frost" : e.el === "holy" ? "holy" : "explode", pos, 0.8);
+          break;
+        case "chain":
+          ents.bolt(e.pts as number[], ELEMENT_COLOR[e.el as string] || "#bfe4ff");
+          audio.play(e.el === "lightning" ? "zap" : e.el === "holy" ? "holy" : "impact", { x: (e.pts as number[])[0], z: (e.pts as number[])[2] }, 0.8);
+          break;
+        case "warcry":
+          ents.ring(e.x as number, e.z as number, (e.r as number) * 2, e.fear ? "#9a6aff" : "#ffb04a");
+          ents.ring(e.x as number, e.z as number, (e.r as number) * 1.3, e.fear ? "#9a6aff" : "#ffb04a");
+          audio.play("roar", pos, 0.7);
+          if (e.p === me) this.shake = Math.max(this.shake, 0.35);
+          break;
+        case "buff":
+          ents.burst(e.x as number, 1, e.z as number, "#ffe9a0", 18, { speed: 1.2, up: 2.5, g: 0, additive: true, size: 0.14, life: 0.8 });
+          if (e.party) ents.ring(e.x as number, e.z as number, (e.party as number) * 2, "#ffe9a0");
+          break;
+        case "aura":
+          ents.burst(e.x as number, 0.3, e.z as number, ELEMENT_COLOR[e.el as string] || "#ffe9a0", 6, { speed: (e.r as number) * 1.2, up: 0.8, g: 0, additive: true, size: 0.12, life: 0.5 });
+          if (e.el === "lightning") audio.play("zap", pos, 0.3);
+          break;
+        case "sentry":
+          ents.flash(e.x as number, 0.8, e.z as number, "#ffb070", 0.5, 4, 0.15);
+          break;
+        case "blink_from":
+          ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#d87aff", 26, { speed: 2, up: 1, g: 0, additive: true, size: 0.2, life: 0.6 });
+          audio.play("portal", pos, 0.5);
+          break;
+        case "combo":
+          if (e.p === me) for (let i = 1; i < (e.n as number); i++) setTimeout(() => this.view.attack(false, 0.18), i * 90);
           break;
         case "smoke":
           ents.burst(e.x as number, 1, e.z as number, "#5a5a5a", 50, { speed: 4, size: 0.6, up: 0.6, g: -0.5, life: 2 });
@@ -419,6 +450,7 @@ export class Game {
           break;
         case "summon":
         case "esummon":
+          if (e.id) ents.markSpawn(e.id as string);
           ents.burst(e.x as number, 0.4, e.z as number, "#7aff9a", 20, { speed: 2, up: 3, additive: true, size: 0.2 });
           audio.play("dark", pos, 0.7);
           break;
@@ -625,8 +657,7 @@ export class Game {
     const blocking = this.mode === "dungeon" && inp.mouse.right && alive;
     let speed = this.stats.moveSpeed;
     if (this.mode === "dungeon" && this.self) {
-      if (this.self.buffs.includes("shrine_haste")) speed *= 1.2;
-      if (this.self.buffs.includes("smoke_bomb")) speed *= 1.3;
+      speed *= 1 + (this.self.move || 0);
       if (blocking) speed *= 0.55;
     }
     const sprintOk = this.mode === "hub" || (this.self ? this.self.stamina > 2 : true);
@@ -666,7 +697,7 @@ export class Game {
       this.act({ t: "attack", draw });
       this.lmbAt = -1;
     }
-    const slots: [string, number][] = [["KeyQ", 0], ["KeyR", 1], ["KeyF", 2]];
+    const slots: [string, number][] = [["KeyQ", 0], ["KeyR", 1], ["KeyF", 2], ["KeyG", 3], ["KeyZ", 4], ["KeyX", 5]];
     for (const [code, slot] of slots) {
       if (inp.pressed.includes(code)) {
         const id = this.char.hotbar[slot];

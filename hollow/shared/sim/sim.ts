@@ -48,6 +48,8 @@ export const SHRINE_NAMES: Record<string, string> = {
   clarity: "Святыня ясности: ×3 восстановление маны",
 };
 
+export const ELEMENT_LIST: Element[] = ["physical", "fire", "cold", "dark", "holy", "arcane", "poison", "lightning"];
+
 export class Sim {
   R: Rapier;
   d: Dungeon;
@@ -265,7 +267,7 @@ export class Sim {
     const [lo, hi] = p.stats.dmg;
     let dmg = this.rng.range(lo, hi) * mult;
     dmg *= 1 + p.stats.dmgPct + this.buffSum(p, "dmgPct") + this.berserk(p);
-    const crit = forceCrit || this.rng.chance(p.stats.critChance);
+    const crit = forceCrit || this.rng.chance(p.stats.critChance + this.buffSum(p, "critChance"));
     if (crit) dmg *= p.stats.critDmg;
     return { dmg, crit };
   }
@@ -274,13 +276,13 @@ export class Sim {
     const [lo, hi] = p.stats.spell;
     let dmg = this.rng.range(lo, hi) * mult;
     dmg *= 1 + p.stats.spellPct + this.buffSum(p, "dmgPct") + this.berserk(p);
-    const crit = this.rng.chance(p.stats.critChance * 0.6);
+    const crit = this.rng.chance((p.stats.critChance + this.buffSum(p, "critChance")) * 0.6);
     if (crit) dmg *= 1 + (p.stats.critDmg - 1) * 0.7;
     return { dmg, crit };
   }
 
   private berserk(p: SimPlayer) {
-    return p.stats.flags.berserk ? 1 - p.hp / p.stats.maxHp : 0;
+    return p.stats.flags.berserk ? Math.min(1, p.stats.flags.berserk) * (1 - p.hp / p.stats.maxHp) : 0;
   }
 
   forward(p: { yaw: number }) {
@@ -422,7 +424,7 @@ export class Sim {
 
   fireProjectile(
     p: SimPlayer,
-    o: { kind: string; speed: number; dmg: number; crit: boolean; element: Element; size: number; explode?: number; pierce?: boolean; slow?: number; undeadBonus?: number; healAlly?: number; yawOffset?: number; gravity?: boolean },
+    o: { kind: string; speed: number; dmg: number; crit: boolean; element: Element; size: number; explode?: number; pierce?: boolean; slow?: number; undeadBonus?: number; healAlly?: number; yawOffset?: number; gravity?: boolean; freeze?: number; life?: number },
   ) {
     const yaw = p.yaw + (o.yawOffset || 0);
     const cp = Math.cos(p.pitch);
@@ -432,7 +434,19 @@ export class Sim {
       x: p.x + dir.x * 0.6, y: p.y + 1.45 + dir.y * 0.6, z: p.z + dir.z * 0.6,
       vx: dir.x * o.speed, vy: dir.y * o.speed + (o.gravity ? 0.5 : 0), vz: dir.z * o.speed,
       size: o.size, dmg: o.dmg, element: o.element, crit: o.crit, explode: o.explode, pierce: o.pierce,
-      slow: o.slow, undeadBonus: o.undeadBonus, healAlly: o.healAlly, life: 2.6, hit: new Set(),
+      slow: o.slow, undeadBonus: o.undeadBonus, healAlly: o.healAlly, freeze: o.freeze, life: o.life || 2.6, hit: new Set(),
+    });
+  }
+
+  /** Снаряд игрока из произвольной точки (ловушки, гидра, призванные маги). */
+  pointProjectile(owner: string, x: number, y: number, z: number, tx: number, ty: number, tz: number, o: { kind: string; speed: number; dmg: number; crit?: boolean; element: Element; size: number; explode?: number; pierce?: boolean }) {
+    let dx = tx - x, dy = ty - y, dz = tz - z;
+    const l = Math.hypot(dx, dy, dz) || 1;
+    dx /= l; dy /= l; dz /= l;
+    this.projectiles.push({
+      id: this.nextId++, team: "player", owner, kind: o.kind, x, y, z,
+      vx: dx * o.speed, vy: dy * o.speed, vz: dz * o.speed,
+      size: o.size, dmg: o.dmg, element: o.element, crit: !!o.crit, explode: o.explode, pierce: o.pierce, life: 2.6, hit: new Set(),
     });
   }
 
@@ -445,8 +459,9 @@ export class Sim {
       const c = Math.cos(o.spread), s = Math.sin(o.spread);
       [dx, dz] = [dx * c - dz * s, dx * s + dz * c];
     }
+    const ally = e.team === "ally";
     this.projectiles.push({
-      id: this.nextId++, team: "enemy", owner: e.id, kind: o.kind,
+      id: this.nextId++, team: ally ? "player" : "enemy", owner: ally ? e.owner || "" : e.id, kind: o.kind,
       x: sx + dx * (e.def.radius + 0.3), y: sy, z: sz + dz * (e.def.radius + 0.3),
       vx: dx * o.speed, vy: dy * o.speed, vz: dz * o.speed,
       size: o.size, dmg: o.dmg, element: o.element, crit: false, explode: o.explode, life: 3.5, hit: new Set(),
@@ -508,7 +523,8 @@ export class Sim {
       if (player.stats.flags.burnOnHit && this.rng.chance(player.stats.flags.burnOnHit)) e.dots.push({ dps: dmg * 0.3, until: this.t + 3, el: "fire", by: player.id });
       const poison = this.buffSum(player, "poison");
       if (poison && o.melee) e.dots.push({ dps: player.stats.dmg[1] * poison, until: this.t + 3, el: "poison", by: player.id });
-      if (player.stats.lifeSteal) this.healPlayer(player, dmg * player.stats.lifeSteal, false);
+      const ls = player.stats.lifeSteal + this.buffSum(player, "lifeSteal") + ((e.tapUntil || 0) > this.t ? e.tapPct || 0 : 0);
+      if (ls) this.healPlayer(player, dmg * ls, false);
       if (o.crit && player.stats.flags.critHeal) this.healPlayer(player, player.stats.maxHp * player.stats.flags.critHeal, false);
     }
     if (e.hp <= 0) this.killEnemy(e, by);
@@ -601,6 +617,7 @@ export class Sim {
     if (this.t < p.iframesUntil) { this.events.push({ t: "evade", p: p.id }); return; }
     if (!o.aoe && p.stats.dodge && this.rng.chance(p.stats.dodge)) { this.events.push({ t: "evade", p: p.id }); return; }
     let dmg = amount;
+    if (src && (src.weakenUntil || 0) > this.t) dmg *= 1 - (src.weakenPct || 0);
     // блок / парирование / магический заслон
     if ((p.blocking) && src && !o.aoe) {
       const f = this.forward(p);
@@ -640,7 +657,8 @@ export class Sim {
     dmg = Math.max(0, dmg);
     p.hp -= dmg;
     if (dmg > 0) this.events.push({ t: "phit", p: p.id, amount: Math.round(dmg), el: element, src: src?.id, sx: src?.x, sz: src?.z });
-    if (o.melee && src && p.stats.thorns && src.state !== "dead") this.damageEnemy(src, amount * p.stats.thorns, "physical", p, { noDot: true });
+    const thorns = p.stats.thorns + this.buffSum(p, "thorns");
+    if (o.melee && src && thorns && src.state !== "dead") this.damageEnemy(src, amount * thorns, "physical", p, { noDot: true });
     if (p.hp <= 0) this.downPlayer(p);
   }
 
@@ -904,8 +922,24 @@ export class Sim {
     if (p.attack && !p.attack.done && this.t >= p.attack.hitAt) this.resolveMelee(p);
     if (p.attack && p.attack.done && this.t > p.nextAttackAt) p.attack = null;
     // ресурсы
-    p.hp = Math.min(p.stats.maxHp, p.hp + p.stats.hpRegen * dt);
+    p.hp = Math.min(p.stats.maxHp, p.hp + (p.stats.hpRegen + p.stats.maxHp * this.buffSum(p, "regenPct")) * dt);
     if (p.hp <= 0) return this.downPlayer(p);
+    // ауры: импульс урона раз в полсекунды
+    if (this.t >= (p.auraNext || 0)) {
+      p.auraNext = this.t + 0.5;
+      for (const b of p.buffs) {
+        if (!b.auraDps || b.until <= this.t) continue;
+        const r = b.auraR || 4;
+        let any = false;
+        for (const e of this.enemies.values()) {
+          if (e.state === "dead" || e.team !== "enemy" || (b.auraUndead && !e.def.undead)) continue;
+          if (Math.hypot(e.x - p.x, e.z - p.z) > r + e.def.radius) continue;
+          this.damageEnemy(e, (b.auraBase || 1) * b.auraDps * 0.5, (b.auraEl || "holy") as Element, p, { noDot: true });
+          any = true;
+        }
+        if (any) this.events.push({ t: "aura", p: p.id, x: p.x, z: p.z, r, el: b.auraEl });
+      }
+    }
     const manaMul = 1 + this.buffSum(p, "manaRegenMul");
     p.mana = Math.min(p.stats.maxMana, p.mana + p.stats.manaRegen * manaMul * dt);
     if (p.sprinting) {
@@ -915,11 +949,12 @@ export class Sim {
       p.stamina = Math.min(p.stats.maxStamina, p.stamina + p.stats.staminaRegen * dt);
     }
     if (p.whirlUntil > this.t && this.t >= p.whirlNext) {
-      p.whirlNext = this.t + 0.3;
-      this.breakInRadius(p.x, p.z, 3.2, p);
+      p.whirlNext = this.t + (p.whirlTick || 0.3);
+      const wr = p.whirlR || 3.2;
+      this.breakInRadius(p.x, p.z, wr, p);
       for (const e of this.enemies.values()) {
         if (e.state === "dead" || e.team !== "enemy") continue;
-        if (Math.hypot(e.x - p.x, e.z - p.z) < 3.2 + e.def.radius) {
+        if (Math.hypot(e.x - p.x, e.z - p.z) < wr + e.def.radius) {
           const { dmg, crit } = this.rollWeapon(p, p.whirlDmg);
           this.damageEnemy(e, dmg, "physical", p, { crit, knock: 0.6, melee: true });
         }
@@ -997,7 +1032,7 @@ export class Sim {
           pr.hit.add(e.id);
           if (e.team === "ally") continue;
           if (pr.explode) { this.explode(pr, owner, e.x, e.z); alive = false; break; }
-          this.damageEnemy(e, pr.dmg, pr.element, owner, { crit: pr.crit, slow: pr.slow, undeadBonus: pr.undeadBonus, knock: pr.kind === "arrow" ? 0.5 : 0.3 });
+          this.damageEnemy(e, pr.dmg, pr.element, owner, { crit: pr.crit, slow: pr.slow, freeze: pr.freeze, undeadBonus: pr.undeadBonus, knock: pr.kind === "arrow" ? 0.5 : 0.3 });
           if (!pr.pierce) { alive = false; break; }
         }
         if (alive) {
@@ -1075,11 +1110,54 @@ export class Sim {
       for (const e of this.enemies.values()) {
         if (e.state === "dead" || e.team !== "enemy") continue;
         const d = Math.hypot(e.x - x, e.z - z);
-        if (d < r + e.def.radius) this.damageEnemy(e, pr.dmg * (d < 1 ? 1 : 0.75), pr.element, owner, { crit: pr.crit, knock: 1.5 });
+        if (d < r + e.def.radius) this.damageEnemy(e, pr.dmg * (d < 1 ? 1 : 0.75), pr.element, owner, { crit: pr.crit, knock: 1.5, freeze: pr.freeze });
       }
     } else {
       for (const p of this.players.values()) if (Math.hypot(p.x - x, p.z - z) < r) this.damagePlayer(p, pr.dmg, pr.element, this.enemies.get(pr.owner) || null, { aoe: true });
     }
+  }
+
+  /** Ловушка/гидра: раз в rate секунд бьёт ближайшего врага в радиусе. */
+  private stepSentry(g: Ground, owner: SimPlayer | null) {
+    if (this.t < (g.data.next || 0)) return;
+    let best: SimEnemy | null = null, bd = g.data.range;
+    for (const e of this.enemies.values()) {
+      if (e.state === "dead" || e.team !== "enemy" || e.phased) continue;
+      const d = Math.hypot(e.x - g.x, e.z - g.z);
+      if (d < bd && lineOfSight(this.R, this.phys, g.x, 0.8, g.z, e.x, 1, e.z)) { bd = d; best = e; }
+    }
+    if (!best) return;
+    g.data.next = this.t + g.data.rate;
+    const el = ELEMENT_LIST[g.data.elx] || "physical";
+    if (g.kind === "sentry_death_sentry") {
+      this.chainFrom(owner, g.x, 0.9, g.z, best, g.data.dmg, el, 3, null);
+    } else {
+      const fire = g.kind !== "sentry_blade_trap";
+      this.pointProjectile(g.owner, g.x, 0.7, g.z, best.x, 1, best.z, {
+        kind: g.kind === "sentry_blade_trap" ? "knife" : "fireball", speed: fire ? 20 : 30, dmg: g.data.dmg, element: el, size: fire ? 0.22 : 0.12, explode: g.kind === "sentry_fire_trap" ? 1.6 : undefined,
+      });
+    }
+    this.events.push({ t: "sentry", id: g.id, x: g.x, z: g.z, tx: best.x, tz: best.z });
+  }
+
+  /** Цепной удар: от точки к первой цели, потом прыжками к ближайшим. */
+  chainFrom(owner: SimPlayer | null, x: number, y: number, z: number, first: SimEnemy, dmg: number, el: Element, jumps: number, opts: { stun?: number } | null) {
+    const pts: number[] = [x, y, z];
+    const hit = new Set<string>();
+    let cur: SimEnemy | null = first;
+    for (let i = 0; cur && i <= jumps; i++) {
+      hit.add(cur.id);
+      pts.push(cur.x, cur.y + cur.def.height * 0.6, cur.z);
+      this.damageEnemy(cur, dmg * (i === 0 ? 1 : Math.pow(0.9, i)), el, owner, { stun: opts?.stun, noDot: i > 0 });
+      let next: SimEnemy | null = null, nd = 8;
+      for (const e of this.enemies.values()) {
+        if (e.state === "dead" || e.team !== "enemy" || hit.has(e.id) || e.phased) continue;
+        const d = Math.hypot(e.x - cur.x, e.z - cur.z);
+        if (d < nd && lineOfSight(this.R, this.phys, cur.x, 1, cur.z, e.x, 1, e.z)) { nd = d; next = e; }
+      }
+      cur = next;
+    }
+    this.events.push({ t: "chain", pts: pts.map((v) => Math.round(v * 100) / 100), el });
   }
 
   addGround(g: Omit<Ground, "id" | "t0">) {
@@ -1108,19 +1186,42 @@ export class Sim {
         }
       } else if (g.kind === "curse") {
         for (const e of this.enemies.values()) if (e.state !== "dead" && e.team === "enemy" && Math.hypot(e.x - g.x, e.z - g.z) < g.r) {
-          e.vulnUntil = this.t + 0.3; e.vulnPct = g.data.vuln;
-          e.slowUntil = this.t + 0.3; e.slowPct = Math.max(e.slowPct, g.data.slow);
+          if (g.data.vuln) { e.vulnUntil = this.t + 0.3; e.vulnPct = g.data.vuln; }
+          if (g.data.slow) { e.slowUntil = this.t + 0.3; e.slowPct = Math.max(e.slowPct, g.data.slow); }
+          if (g.data.weaken) { e.weakenUntil = this.t + 0.3; e.weakenPct = g.data.weaken; }
+          if (g.data.lifeTap) { e.tapUntil = this.t + 0.3; e.tapPct = g.data.lifeTap; }
         }
+      } else if (g.kind.startsWith("field_")) {
+        // поле: урон в секунду всем врагам внутри
+        const el = ELEMENT_LIST[g.data.elx] || "fire";
+        if (this.t >= (g.data.next || 0)) {
+          g.data.next = this.t + 0.25;
+          for (const e of this.enemies.values()) {
+            if (e.state === "dead" || e.team !== "enemy") continue;
+            if (Math.hypot(e.x - g.x, e.z - g.z) > g.r + e.def.radius) continue;
+            this.damageEnemy(e, g.data.dps * 0.25, el, owner, { noDot: true, slow: g.data.slow || undefined });
+          }
+          if (g.kind === "field_armageddon" && this.rng.chance(0.6)) {
+            const a = this.rng.range(0, Math.PI * 2), rr = this.rng.range(1, g.r);
+            this.events.push({ t: "explode", x: g.x + Math.cos(a) * rr, z: g.z + Math.sin(a) * rr, r: 1.8, el: "fire" });
+          }
+        }
+        if (g.kind === "field_armageddon" && owner) { g.x = owner.x; g.z = owner.z; }
+      } else if (g.kind.startsWith("sentry_")) {
+        this.stepSentry(g, owner);
       }
       if (this.t >= g.until) {
-        if (g.kind === "meteor" || g.kind === "smite") {
-          this.events.push({ t: "explode", x: g.x, z: g.z, r: g.r, el: g.kind === "meteor" ? "fire" : "holy" });
+        if (g.kind === "meteor" || g.kind === "smite" || g.kind === "bone_prison") {
+          const gel: Element = g.kind === "meteor" ? "fire" : g.kind === "smite" ? "holy" : "dark";
+          this.events.push({ t: "explode", x: g.x, z: g.z, r: g.r, el: gel });
+          if (g.kind === "meteor") this.addGround({ kind: "field_fire", x: g.x, z: g.z, r: g.r * 0.7, until: this.t + 3, owner: g.owner, team: "player", data: { dps: g.data.dmg * 0.15, elx: ELEMENT_LIST.indexOf("fire") } });
           this.breakInRadius(g.x, g.z, g.r, owner);
           for (const e of this.enemies.values()) {
             if (e.state === "dead" || e.team !== "enemy") continue;
             if (Math.hypot(e.x - g.x, e.z - g.z) < g.r + e.def.radius) {
-              this.damageEnemy(e, g.data.dmg, g.kind === "meteor" ? "fire" : "holy", owner, {
-                crit: !!g.data.crit, knock: 2, stun: g.kind === "smite" && e.def.undead ? g.data.undeadStun : 0,
+              this.damageEnemy(e, g.data.dmg, gel, owner, {
+                crit: !!g.data.crit, knock: g.kind === "bone_prison" ? 0 : 2,
+                stun: g.kind === "bone_prison" ? g.data.stun : g.kind === "smite" && e.def.undead ? g.data.undeadStun : g.data.stun || 0,
               });
             }
           }
@@ -1208,6 +1309,7 @@ export class Sim {
         atk: p.attack && !p.attack.done ? (p.attack.heavy ? 2 : 1) : 0,
         whirl: p.whirlUntil > this.t, absorb: Math.round(p.absorbUntil > this.t ? p.absorb : 0),
         buffs: p.buffs.map((b) => b.id),
+        move: Math.round(this.buffSum(p, "movePct") * 100) / 100,
         app: p.char.appearance,
         weapon: p.char.equipment.weapon ? BASE_BY_ID[p.char.equipment.weapon.base].icon : "fist",
         offhand: p.char.equipment.offhand ? BASE_BY_ID[p.char.equipment.offhand.base].icon : "",

@@ -23,6 +23,11 @@ export interface Rig {
   legR: THREE.Group;
   hand: THREE.Group;
   handL: THREE.Group;
+  /** Предплечья и голени — для сгиба локтей и коленей. */
+  foreL: THREE.Group;
+  foreR: THREE.Group;
+  shinL: THREE.Group;
+  shinR: THREE.Group;
   height: number;
   float: boolean;
   probe: { value: THREE.Color };
@@ -168,7 +173,7 @@ export function humanoid(s: HumanSpec): Rig {
     const hand = new THREE.Group();
     hand.position.y = -0.34;
     fore.add(hand);
-    return { arm, hand };
+    return { arm, hand, fore };
   };
   const R = mkArm(1), L = mkArm(-1);
   // ноги
@@ -178,11 +183,15 @@ export function humanoid(s: HumanSpec): Rig {
     hips.add(leg);
     const lm = s.bony ? skin : armor || pants;
     box(lw * 1.05, 0.42, lw * 1.05, lm, 0, -0.21, 0, leg);
-    box(lw, 0.4, lw, lm, 0, -0.62, 0, leg);
-    box(lw * 1.2, 0.08, lw * 1.6, s.bony ? skin : trim, 0, -0.81, -0.04, leg);
-    return leg;
+    const shin = new THREE.Group();
+    shin.position.y = -0.42;
+    leg.add(shin);
+    box(lw, 0.4, lw, lm, 0, -0.2, 0, shin);
+    box(lw * 1.2, 0.08, lw * 1.6, s.bony ? skin : trim, 0, -0.39, -0.04, shin);
+    return { leg, shin };
   };
-  const legR = mkLeg(1), legL = mkLeg(-1);
+  const LR = mkLeg(1), LL = mkLeg(-1);
+  const legR = LR.leg, legL = LL.leg;
   if (s.float || s.robe) {
     legL.visible = !s.float && !s.robe;
     legR.visible = !s.float && !s.robe;
@@ -190,7 +199,7 @@ export function humanoid(s: HumanSpec): Rig {
   root.traverse((o) => {
     o.castShadow = false;
   });
-  return { root, body, hips, torso, head, armL: L.arm, armR: R.arm, legL, legR, hand: R.hand, handL: L.hand, height: 1.8 * sc, float: !!s.float, probe, mats, eyes };
+  return { root, body, hips, torso, head, armL: L.arm, armR: R.arm, legL, legR, hand: R.hand, handL: L.hand, foreL: L.fore, foreR: R.fore, shinL: LL.shin, shinR: LR.shin, height: 1.8 * sc, float: !!s.float, probe, mats, eyes };
 }
 
 function hairStyle(head: THREE.Group, kind: string, m: THREE.Material) {
@@ -359,6 +368,36 @@ export function makeEnemy(type: string, elite?: string): EnemyModel {
       break;
     case "blood_abomination":
       rig = abomination("#8a2a2a", "#4a0e10", 2.0, true);
+      break;
+    case "summoned_mage":
+      rig = humanoid({ skin: bone, cloth: "#2a1a3a", trim: "#7aff9a", bony: true, robe: true, head: "skull", eyes: "#7aff9a" });
+      weapon = makeWeapon("wand", rig.probe);
+      break;
+    case "clay_golem":
+    case "blood_golem": {
+      const blood = type === "blood_golem";
+      rig = abomination(blood ? "#8a1a1a" : "#8a6a48", blood ? "#4a0a0a" : "#5a4430", 1.25);
+      if (!blood) rig.mats.forEach((m) => { if (m.map == null) m.map = stoneTexture(); });
+      if (blood) {
+        const drip = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#ff2a2a", transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+        drip.scale.set(1.6, 2.2, 1);
+        drip.position.y = 1.1;
+        rig.root.add(drip);
+      }
+      break;
+    }
+    case "shadow_clone":
+      rig = humanoid({ skin: "#1a1424", cloth: "#0e0a14", trim: "#3a2a5a", head: "hood", eyes: "#b06aff", opacity: 0.75 });
+      weapon = makeWeapon("dagger", rig.probe);
+      break;
+    case "guardian_spirit":
+      rig = humanoid({ skin: "#fff3d0", cloth: "#e8dcb8", trim: "#ffe9a0", robe: true, head: "hood", eyes: "#ffffff", float: true, opacity: 0.7 });
+      {
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 4, 14), new THREE.MeshBasicMaterial({ color: "#ffe9a0" }));
+        halo.position.set(0, 0.42, 0.12);
+        rig.head.add(halo);
+      }
+      for (const m of rig.mats) { m.depthWrite = false; m.blending = THREE.AdditiveBlending; }
       break;
     case "skeleton_archer":
       rig = humanoid({ skin: bone, cloth: "#3a3a2a", bony: true, head: "skull", hair: "hood", hairColor: "#2a2a22", eyes: "#ffd06a" });
@@ -541,6 +580,10 @@ export function poseRig(rig: Rig, p: PoseState) {
   const sw = Math.sin(p.phase) * 0.6 * p.moving;
   rig.legL.rotation.x = sw;
   rig.legR.rotation.x = -sw;
+  rig.shinL.rotation.set(Math.max(0, -sw) * 1.1 + 0.05 * p.moving, 0, 0);
+  rig.shinR.rotation.set(Math.max(0, sw) * 1.1 + 0.05 * p.moving, 0, 0);
+  rig.foreL.rotation.set(-0.25 * p.moving, 0, 0);
+  rig.foreR.rotation.set(-0.25 * p.moving, 0, 0);
   rig.armL.rotation.set(-sw * 0.6, 0, 0);
   rig.armR.rotation.set(sw * 0.6, 0, 0);
   rig.torso.rotation.set(0, 0, 0);

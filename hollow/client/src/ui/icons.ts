@@ -132,6 +132,24 @@ const SKILL_COLORS: Record<string, [string, string]> = {
   skeleton: ["#e8dcc0", "#0a1a0a"], spear: ["#e8dcc0", "#1a0a2a"], corpse: ["#c8343a", "#1a0a0a"], curse: ["#b06aff", "#100a1a"],
   soul: ["#7aff9a", "#0a1a10"], pact: ["#b06aff", "#1a0a10"], heal: ["#7fe07f", "#0a1a0a"], holy: ["#ffe9a0", "#2a2410"],
   sanctuary: ["#ffe9a0", "#1a1a10"], smite: ["#fff3a0", "#2a2410"], bane: ["#ffe9a0", "#1a0a0a"], devotion: ["#d8cdb2", "#1a1410"],
+  mastery_blade: ["#d8dce4", "#2a2420"], double: ["#e0e0e8", "#2a1a14"], quake: ["#c9a46a", "#2a1a0a"], leap: ["#e0c070", "#1a1a24"],
+  titan: ["#ffd06a", "#2a1a0a"], shout: ["#ffb04a", "#2a140a"], heart: ["#e0505a", "#1a0a0a"], roar: ["#ff7a3a", "#2a0a0a"],
+  fear: ["#9a6aff", "#100a1a"], banner: ["#c8343a", "#1a1410"], resist: ["#8fd0ff", "#1a1a1a"], thunder: ["#ffe06a", "#1a1420"],
+  frenzy: ["#ff5a3a", "#2a0a0a"], leech: ["#c8343a", "#0a0a0a"], rend: ["#ff3a3a", "#1a0a0a"], skull_red: ["#ff4a3a", "#140a0a"],
+  berserk: ["#b06aff", "#2a0a0a"], avatar: ["#ffd06a", "#3a0a0a"], shield_throw: ["#c9a46a", "#1a1a24"], wall: ["#a8a8b0", "#1a1a24"],
+  aegis: ["#9adfff", "#1a1a10"], zeal: ["#ffe9a0", "#2a1a0a"], trample: ["#e0c070", "#2a140a"], riposte: ["#d8dce4", "#101820"],
+  crush: ["#e0c070", "#2a0a0a"], aura_red: ["#ff5a4a", "#1a0a0a"], aura_grey: ["#c8c8d0", "#141418"], aura_fire: ["#ff8a2a", "#1a0a00"],
+  aura_green: ["#7fe07f", "#0a1a0a"], aura_blue: ["#7ab8ff", "#0a1020"], aura_white: ["#fff8e0", "#1a1a1a"], throw: ["#d8dce4", "#1a1420"],
+  vial: ["#8aff6a", "#101a10"], trap: ["#c8c8d0", "#1a1a1a"], cloud: ["#6aff5a", "#0a140a"], trap_fire: ["#ff8a2a", "#1a1010"],
+  gear: ["#c9a46a", "#141414"], poison_nova: ["#8aff6a", "#0a1a0a"], sentry: ["#bfe4ff", "#0a1020"], veil: ["#8a6aff", "#0a0a14"],
+  teleport: ["#d87aff", "#100a20"], clone: ["#6a6aa0", "#0a0a14"], firewall: ["#ff7a2a", "#1a0800"], mastery_fire: ["#ff8a2a", "#140a0a"],
+  inferno: ["#ffb03a", "#2a0800"], hydra: ["#ff6a2a", "#140a00"], ice_bolt: ["#8fd0ff", "#0a1420"], ice_armor: ["#bfe4ff", "#0a1420"],
+  spike: ["#8fd0ff", "#101a2a"], mastery_cold: ["#8fd0ff", "#0a0a1a"], blizzard: ["#d0ecff", "#0a1a2a"], shards: ["#aee0ff", "#0a1020"],
+  orb: ["#bfe4ff", "#0a1a2a"], spark: ["#ffe96a", "#141020"], chain: ["#bfe4ff", "#0a0a20"], mastery_light: ["#ffe96a", "#0a0a1a"],
+  storm: ["#bfe4ff", "#14141a"], skeleton_mage: ["#b06aff", "#0a1a0a"], golem: ["#a8865a", "#1a140a"], army: ["#e8dcc0", "#0a140a"],
+  golem_blood: ["#c8343a", "#1a0a0a"], mastery_bone: ["#e8dcc0", "#140a1a"], prison: ["#e8dcc0", "#1a1a14"], spirit: ["#e8dcc0", "#1a0a2a"],
+  mastery_curse: ["#b06aff", "#0a0a0a"], weaken: ["#8a8aff", "#0a0a14"], doom: ["#ff3a4a", "#0a0014"], renew: ["#7fe07f", "#101a10"],
+  spirit_holy: ["#fff3a0", "#1a1a24"], hammer: ["#ffe9a0", "#1a1410"], judgement: ["#fff3a0", "#2a1a0a"],
 };
 
 export function skillIcon(icon: string): string {
@@ -185,6 +203,46 @@ export function skillIcon(icon: string): string {
     case "heal": case "devotion": line(5, 2, 5, 9); line(6, 2, 6, 9); line(2, 5, 9, 5); line(2, 6, 9, 6); break;
     case "holy": case "smite": case "bane": line(5, 1, 5, 10); line(6, 1, 6, 10); line(3, 4, 8, 4); circle(5.5, 5.5, 4.5); break;
     case "sanctuary": circle(5.5, 7, 4); line(5, 1, 5, 6); line(3, 3, 8, 3); break;
+    case "mastery_blade": case "titan": line(5, 1, 5, 8); line(6, 1, 6, 8); line(3, 8, 8, 8); line(5, 9, 6, 10); if (icon === "titan") circle(5.5, 5.5, 5); break;
+    case "double": line(1, 9, 7, 3); line(4, 10, 10, 4); break;
+    case "quake": case "crush": line(5, 1, 5, 6); line(6, 1, 6, 6); line(1, 9, 4, 7); line(4, 7, 6, 9); line(6, 9, 10, 7); break;
+    case "leap": line(1, 10, 5, 3); line(5, 3, 10, 9); px(5, 2); break;
+    case "shout": case "roar": case "thunder": line(1, 4, 3, 4); line(1, 7, 3, 7); line(3, 3, 6, 1); line(3, 8, 6, 10); line(6, 1, 6, 10); for (const x of [8, 9, 10]) px(x, 3 + (x - 8) * 2); break;
+    case "heart": circle(4, 4, 2, fg, true); circle(7, 4, 2, fg, true); line(2, 6, 5, 9); line(9, 6, 6, 9); line(3, 6, 8, 6); line(4, 7, 7, 7); break;
+    case "fear": circle(5.5, 5, 3.5); px(4, 4); px(7, 4); line(4, 8, 7, 7); break;
+    case "banner": line(2, 1, 2, 10); line(3, 2, 9, 2); line(9, 2, 9, 6); line(3, 6, 9, 6); line(9, 6, 7, 8); break;
+    case "resist": case "aegis": case "wall": line(2, 2, 9, 2); line(2, 2, 2, 6); line(9, 2, 9, 6); line(2, 6, 5, 9); line(9, 6, 6, 9); line(5, 3, 5, 7); line(6, 3, 6, 7); break;
+    case "frenzy": case "zeal": for (let i = 0; i < 3; i++) line(1 + i * 3, 10, 4 + i * 3, 1); break;
+    case "leech": circle(5.5, 6, 3, fg, true); line(5, 1, 5, 3); px(2, 9); px(9, 9); break;
+    case "rend": for (let i = 0; i < 3; i++) line(2 + i * 3, 1, 4 + i * 2, 10); break;
+    case "skull_red": case "berserk": case "doom": circle(5.5, 5, 3.5, fg, true); px(4, 4, bg); px(7, 4, bg); line(4, 9, 7, 9); px(5, 6, bg); break;
+    case "avatar": case "judgement": circle(5.5, 5.5, 2, fg, true); for (const [x, y] of [[5, 0], [5, 11], [0, 5], [11, 5], [1, 1], [10, 10], [10, 1], [1, 10]]) line(5.5 as unknown as number, 5, x, y); break;
+    case "shield_throw": circle(4, 6, 3); line(7, 3, 10, 1); line(8, 5, 11, 4); break;
+    case "trample": case "riposte": line(1, 3, 9, 3); line(1, 8, 9, 8); line(7, 1, 10, 3); line(7, 10, 10, 8); break;
+    case "aura_red": case "aura_grey": case "aura_fire": case "aura_green": case "aura_blue": case "aura_white": circle(5.5, 5.5, 4.5); circle(5.5, 5.5, 2.5); circle(5.5, 5.5, 1, fg, true); break;
+    case "throw": for (let i = 0; i < 3; i++) line(1, 3 + i * 3, 9, 1 + i * 4); break;
+    case "vial": line(4, 1, 7, 1); line(5, 2, 5, 4); line(6, 2, 6, 4); circle(5.5, 7.5, 2.5, fg, true); break;
+    case "trap": case "trap_fire": case "gear": circle(5.5, 5.5, 3.5); for (const [x, y] of [[5, 0], [5, 11], [0, 5], [11, 5]]) px(x, y); circle(5.5, 5.5, 1, fg, true); break;
+    case "cloud": case "poison_nova": circle(4, 6, 2.5, fg, true); circle(7, 5, 2.5, fg, true); circle(6, 8, 2, fg, true); px(2, 2); px(9, 2); break;
+    case "sentry": line(5, 3, 5, 10); line(6, 3, 6, 10); circle(5.5, 2.5, 1.5, fg, true); line(3, 10, 8, 10); break;
+    case "veil": case "clone": circle(5, 4, 2, fg, true); line(3, 7, 3, 10); line(7, 7, 7, 10); line(3, 7, 7, 7); circle(8, 5, 1.5); break;
+    case "teleport": circle(5.5, 5.5, 4); circle(5.5, 5.5, 2); line(5, 1, 6, 1); line(5, 10, 6, 10); break;
+    case "firewall": case "inferno": for (let i = 0; i < 4; i++) line(1 + i * 3, 10, 2 + i * 3, 3 + (i % 2) * 2); line(1, 10, 10, 10); break;
+    case "mastery_fire": case "mastery_cold": case "mastery_light": case "mastery_bone": case "mastery_curse": circle(5.5, 5.5, 4); circle(5.5, 5.5, 2, fg, true); break;
+    case "hydra": for (let i = 0; i < 3; i++) { line(3 + i * 2, 10, 2 + i * 3, 3); px(2 + i * 3, 2); } break;
+    case "ice_bolt": case "spike": line(1, 10, 9, 2); line(2, 10, 10, 2); line(8, 1, 10, 3); break;
+    case "ice_armor": line(2, 2, 9, 2); line(2, 2, 2, 6); line(9, 2, 9, 6); line(2, 6, 5, 9); line(9, 6, 6, 9); line(3, 4, 8, 4); break;
+    case "blizzard": for (const [x, y] of [[2, 2], [6, 1], [9, 3], [3, 6], [7, 5], [5, 9], [9, 8], [1, 9]]) { px(x, y); px(x + 1, y + 1); } break;
+    case "shards": for (let i = 0; i < 5; i++) line(5, 10, 1 + i * 2, 2); break;
+    case "orb": circle(5.5, 5.5, 3.5, fg, true); circle(5.5, 5.5, 5); px(5, 5, bg); break;
+    case "spark": case "chain": case "storm": line(6, 1, 3, 6); line(3, 6, 7, 6); line(7, 6, 4, 10); if (icon === "storm") { circle(3, 2, 1.5, fg, true); circle(8, 2, 1.5, fg, true); } break;
+    case "skeleton_mage": case "spirit": case "army": circle(5.5, 4.5, 3, fg, true); px(4, 4, bg); px(7, 4, bg); line(4, 8, 7, 8); if (icon === "army") { px(1, 9); px(10, 9); px(1, 8); px(10, 8); } if (icon === "skeleton_mage") line(10, 1, 10, 10); break;
+    case "golem": case "golem_blood": line(3, 2, 8, 2); line(2, 3, 2, 8); line(9, 3, 9, 8); line(3, 9, 8, 9); px(4, 4); px(7, 4); line(4, 7, 7, 7); break;
+    case "prison": for (let i = 0; i < 4; i++) line(2 + i * 2.5 as unknown as number, 2, 2 + i * 2.5 as unknown as number, 10); line(1, 10, 10, 10); break;
+    case "weaken": circle(5.5, 5.5, 4); line(3, 7, 8, 4); break;
+    case "renew": circle(5.5, 5.5, 4); line(5, 3, 5, 8); line(3, 5, 8, 5); break;
+    case "spirit_holy": circle(5.5, 5, 3, fg, true); circle(5.5, 2, 2.5); break;
+    case "hammer": line(5, 4, 5, 10); line(6, 4, 6, 10); line(2, 1, 9, 1); line(2, 2, 9, 2); line(2, 3, 9, 3); break;
     default: circle(5.5, 5.5, 3, fg, true);
   }
   // рамка

@@ -5,10 +5,11 @@ import { RARITIES } from "@shared/data/items";
 import { makeAvatar, makeEnemy, makeFlame, makeWeapon, poseRig, setAvatarWeapons, type EnemyModel, type Rig } from "./models";
 import { decalTexture, glowTexture, pixelTexture, ringTexture, textTexture } from "./textures";
 import { probeAt, type LightField } from "./lighting";
+import { animateEnemy, styleOf, type AnimStyle } from "./anim";
 import type { Appearance } from "@shared/data/stats";
 
 export const ELEMENT_COLOR: Record<string, string> = {
-  physical: "#e8dcc0", fire: "#ff8a2a", cold: "#8fd0ff", dark: "#b06aff", holy: "#ffe9a0", arcane: "#d87aff", poison: "#8aff6a",
+  physical: "#e8dcc0", fire: "#ff8a2a", cold: "#8fd0ff", dark: "#b06aff", holy: "#ffe9a0", arcane: "#d87aff", poison: "#8aff6a", lightning: "#bfe4ff",
 };
 
 type SnapEnemy = Snapshot["enemies"][number];
@@ -24,6 +25,19 @@ interface EnemyView {
   x: number;
   z: number;
   yaw: number;
+  style: AnimStyle;
+  atkCount: number;
+  windupTotal: number;
+  recTotal: number;
+  noticeAt: number;
+  hitAt: number;
+  hitSide: number;
+  spawnAt: number;
+  fidgetAt: number;
+  fidgetStart: number;
+  fidgetKind: number;
+  deathVar: number;
+  frozenPose: boolean;
 }
 
 interface PlayerView {
@@ -69,6 +83,7 @@ export class Entities {
   particles: Particle[] = [];
   numbers: { s: THREE.Sprite; life: number; vy: number }[] = [];
   rings: { m: THREE.Mesh; life: number; max: number; r: number }[] = [];
+  bolts: { obj: THREE.Line; life: number; max: number }[] = [];
   splats: THREE.Mesh[] = [];
   private snapA: Snapshot | null = null;
   private snapB: Snapshot | null = null;
@@ -162,11 +177,19 @@ export class Entities {
         model.rig.root.position.set(e.x, 0, e.z);
         model.rig.root.rotation.y = e.yaw;
         this.scene.add(model.rig.root);
-        v = { model, prev: e, cur: e, phase: Math.random() * 6, flash: 0, deadAt: e.state === "dead" ? now - 1 : 0, x: e.x, z: e.z, yaw: e.yaw };
+        const h = [...e.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+        v = {
+          model, prev: e, cur: e, phase: Math.random() * 6, flash: 0, deadAt: e.state === "dead" ? now - 5 : 0, x: e.x, z: e.z, yaw: e.yaw,
+          style: styleOf(e.type), atkCount: h % 7, windupTotal: 0.5, recTotal: 0.4, noticeAt: -10, hitAt: -10, hitSide: 1,
+          spawnAt: this.pendingSpawn.delete(e.id) ? now : -10, fidgetAt: now + 1 + (h % 50) / 10, fidgetStart: -10, fidgetKind: h % 5, deathVar: h % 3, frozenPose: false,
+        };
         this.enemies.set(e.id, v);
       }
       v.prev = v.cur;
       v.cur = e;
+      if (e.state === "windup" && v.prev.state !== "windup") { v.atkCount++; v.windupTotal = Math.max(0.15, e.st); }
+      if (e.state === "recover" && v.prev.state !== "recover") v.recTotal = Math.max(0.15, e.st);
+      if (v.prev.state === "idle" && e.state === "chase") v.noticeAt = now;
       // время — по тем же часам игры, что и анимация (раньше бралось performance.now и труп «стоял»)
       if (e.state === "dead" && !v.deadAt) v.deadAt = now;
     }
@@ -223,6 +246,25 @@ export class Entities {
       g.add(shaft, tip);
       return g;
     }
+    if (kind === "knife") {
+      const g = new THREE.Group();
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.32), new THREE.MeshBasicMaterial({ color: "#d8dce4" }));
+      const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: "#3a2a1e" }));
+      hilt.position.z = 0.2;
+      blade.name = "core";
+      g.add(blade, hilt);
+      return g;
+    }
+    if (kind === "blessed_hammer") {
+      const g = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.18), new THREE.MeshBasicMaterial({ color: "#ffe9a0" }));
+      head.name = "core";
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#ffe9a0", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      glow.scale.setScalar(1.1);
+      g.add(head, glow);
+      g.userData.light = { color: new THREE.Color("#ffe9a0"), power: 0.7, radius: 7 };
+      return g;
+    }
     if (kind === "bone_spear") {
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.08, 1.1, 4), new THREE.MeshBasicMaterial({ color: "#e8e0d0" }));
       m.rotation.x = -Math.PI / 2;
@@ -232,12 +274,13 @@ export class Entities {
     }
     const g = new THREE.Group();
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    glow.scale.setScalar(kind === "fireball" ? 1.4 : 0.9);
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(kind === "fireball" ? 0.2 : 0.11), new THREE.MeshBasicMaterial({ color }));
+    const big = kind === "fireball" || kind === "frozen_orb" || kind === "bone_spirit" || kind === "glacial_spike";
+    glow.scale.setScalar(kind === "frozen_orb" ? 2.2 : big ? 1.4 : 0.9);
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(kind === "frozen_orb" ? 0.35 : big ? 0.2 : 0.11), new THREE.MeshBasicMaterial({ color }));
     core.name = "core";
     g.add(glow, core);
     // свет снаряда раздаётся из общего пула (см. updateLights)
-    g.userData.light = { color: new THREE.Color(color), power: kind === "fireball" ? 1.6 : kind === "ebolt" ? 0.8 : 1.0, radius: kind === "fireball" ? 13 : 8 };
+    g.userData.light = { color: new THREE.Color(color), power: big ? 1.6 : kind === "ebolt" ? 0.8 : 1.0, radius: big ? 13 : 8 };
     return g;
   }
 
@@ -266,7 +309,12 @@ export class Entities {
     const seen = new Set<number>();
     for (const g of s.grounds) {
       seen.add(g.id);
-      if (this.grounds.has(g.id)) continue;
+      const have = this.grounds.get(g.id);
+      if (have) {
+        have.obj.position.x = g.x;
+        have.obj.position.z = g.z;
+        continue;
+      }
       const grp = new THREE.Group();
       grp.position.set(g.x, 0.04, g.z);
       let color = "#ff3a2a";
@@ -298,6 +346,10 @@ export class Entities {
         else if (g.kind === "fire_pool" || g.kind === "vent_fire") color = "#ff6a1a";
         else if (g.kind === "vent_warn") color = "#ff9a3a";
         else if (g.kind === "chandelier_fall") color = "#ffd08a";
+        else if (g.kind === "bone_prison") color = "#d8cfb8";
+        else if (g.kind.startsWith("field_")) color = g.kind === "field_poison" ? "#5aff4a" : g.kind === "field_blizzard" ? "#8fd0ff" : "#ff6a1a";
+        else if (g.kind.startsWith("sentry_")) color = g.kind === "sentry_death_sentry" ? "#bfe4ff" : g.kind === "sentry_blade_trap" ? "#c8c8c8" : "#ff7a2a";
+        if (g.kind === "curse") color = g.data.style === 1 ? "#8a8aff" : g.data.style === 2 ? "#ff3a4a" : "#9a4aff";
         else if (g.data.el === 1) color = "#ffe9a0";
         const ring = flat(new THREE.PlaneGeometry(g.r * 2, g.r * 2), color, g.kind === "blood_pool" ? 0.0 : 0.85, ringTexture());
         if (g.kind === "blood_pool") {
@@ -306,11 +358,51 @@ export class Entities {
           grp.add(pool);
         }
         void ring;
-        if (g.kind === "fire_pool" || g.kind === "vent_fire") {
+        if (g.kind === "field_poison" || g.kind === "field_blizzard") {
+          // облако: клубы-спрайты, которые медленно кружатся
+          const n = Math.round(4 + g.r * 2);
+          for (let i = 0; i < n; i++) {
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: g.kind === "field_poison" ? "#3a8a2a" : "#a8d8ff", transparent: true, opacity: 0.35, depthWrite: false, blending: g.kind === "field_poison" ? THREE.NormalBlending : THREE.AdditiveBlending, fog: false }));
+            const a = (i / n) * Math.PI * 2, rr = g.r * (0.2 + Math.random() * 0.7);
+            sp.position.set(Math.cos(a) * rr, 0.4 + Math.random() * (g.kind === "field_blizzard" ? 2.5 : 0.9), Math.sin(a) * rr);
+            sp.scale.setScalar(1.2 + Math.random() * 1.2);
+            sp.userData.cloud = { a, rr, y: sp.position.y, sp: 0.3 + Math.random() * 0.4 };
+            grp.add(sp);
+          }
+          if (g.kind === "field_blizzard") grp.userData.light = { color: new THREE.Color("#8fd0ff"), power: 0.7, radius: 9 };
+        }
+        if (g.kind.startsWith("sentry_")) {
+          // ловушка/гидра на полу
+          const mat = new THREE.MeshBasicMaterial({ color: g.kind === "sentry_hydra" ? "#3a1a0a" : "#3a3a40" });
+          const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.5), mat);
+          box.position.y = 0.12;
+          grp.add(box);
+          const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+          eye.scale.setScalar(g.kind === "sentry_hydra" ? 1.2 : 0.6);
+          eye.position.y = g.kind === "sentry_death_sentry" ? 0.9 : 0.4;
+          eye.name = "eye";
+          grp.add(eye);
+          if (g.kind === "sentry_death_sentry") {
+            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.08), mat);
+            pole.position.y = 0.55;
+            grp.add(pole);
+          }
+          if (g.kind === "sentry_hydra") {
+            for (let i = 0; i < 3; i++) {
+              const f = makeFlame(1.3);
+              const a = (i / 3) * Math.PI * 2;
+              f.position.set(Math.cos(a) * 0.3, 0.6 + i * 0.1, Math.sin(a) * 0.3);
+              f.userData.flame = i;
+              grp.add(f);
+            }
+          }
+          grp.userData.light = { color: new THREE.Color(color), power: 0.5, radius: 6 };
+        }
+        if (g.kind === "fire_pool" || g.kind === "vent_fire" || g.kind === "field_fire" || g.kind === "field_armageddon") {
           // пламя: несколько языков-спрайтов над светящимся пятном
           const pool = flat(new THREE.CircleGeometry(g.r * 0.9, 16), "#ff5a10", 0.45);
           pool.name = "fire";
-          const n = g.kind === "vent_fire" ? 5 : 7;
+          const n = g.kind === "vent_fire" ? 5 : g.kind === "field_armageddon" ? 3 : 7;
           for (let i = 0; i < n; i++) {
             const f = makeFlame(g.kind === "vent_fire" ? 2.6 : 1.6);
             const a = (i / n) * Math.PI * 2, rr = i === 0 ? 0 : g.r * (0.35 + (i % 3) * 0.18);
@@ -320,7 +412,7 @@ export class Entities {
           }
           grp.userData.light = { color: new THREE.Color("#ff7a2a"), power: g.kind === "vent_fire" ? 1.3 : 0.9, radius: 9 };
         }
-        if (g.kind.startsWith("warn") || g.kind === "meteor" || g.kind === "smite" || g.kind === "vent_warn" || g.kind === "chandelier_fall") {
+        if (g.kind.startsWith("warn") || g.kind === "meteor" || g.kind === "smite" || g.kind === "vent_warn" || g.kind === "chandelier_fall" || g.kind === "bone_prison") {
           fill = flat(new THREE.CircleGeometry(g.r, 24), color, 0.35);
           fill.scale.setScalar(0.01);
         }
@@ -444,6 +536,26 @@ export class Entities {
     this.rings.push({ m, life: 0.45, max: 0.45, r });
   }
 
+  /** Ломаная молния по точкам (цепные навыки). */
+  bolt(pts: number[], color: string) {
+    const v: number[] = [];
+    for (let i = 0; i + 5 < pts.length; i += 3) {
+      const [ax, ay, az, bx, by, bz] = pts.slice(i, i + 6);
+      const n = 6;
+      for (let k = 0; k <= n; k++) {
+        const f = k / n;
+        const j = k === 0 || k === n ? 0 : 0.35;
+        v.push(ax + (bx - ax) * f + (Math.random() - 0.5) * j, ay + (by - ay) * f + (Math.random() - 0.5) * j, az + (bz - az) * f + (Math.random() - 0.5) * j);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    this.scene.add(line);
+    this.bolts.push({ obj: line, life: 0.28, max: 0.28 });
+    for (let i = 3; i + 2 < pts.length; i += 3) this.flash(pts[i], pts[i + 1], pts[i + 2], color, 0.9, 6, 0.25);
+  }
+
   number(x: number, y: number, z: number, text: string, color: string, big = false) {
     const { tex, w, h } = textTexture(text, color, big ? 22 : 16);
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, fog: false }));
@@ -474,10 +586,24 @@ export class Entities {
     }
   }
 
+  private pendingSpawn = new Set<string>();
+
   flashEnemy(id: string) {
     const v = this.enemies.get(id);
-    if (v) v.flash = 1;
+    if (v) {
+      v.flash = 1;
+      v.hitAt = performance.now() / 1000;
+      v.hitSide = Math.random() < 0.5 ? -1 : 1;
+    }
   }
+
+  /** Враг появится, поднимаясь из-под земли (призыв, некромант). */
+  markSpawn(id: string) {
+    const v = this.enemies.get(id);
+    if (v) v.spawnAt = this.clock;
+    else this.pendingSpawn.add(id);
+  }
+  private clock = 0;
 
   enemyPos(id: string) {
     const v = this.enemies.get(id);
@@ -487,6 +613,7 @@ export class Entities {
   // ------------------------------------------------------------ кадр
   update(now: number, dt: number, cam: { x: number; z: number }) {
     const t = now;
+    this.clock = now;
     // интерполяция между двумя последними снимками
     const span = Math.max(0.016, this.tB - this.tA);
     const k = Math.min(1.25, (now - this.tB) / span + 1) - 1;
@@ -510,7 +637,15 @@ export class Entities {
       const moving = Math.min(1, moved / 2);
       v.phase += dt * (4 + moved * 2.2);
       const dead = b.state === "dead" ? now - v.deadAt : 0;
-      poseRig(rig, { t, moving: b.frozen ? 0 : moving, phase: v.phase, state: b.state, st: b.st, atk: b.atk, dead: dead > 0 ? dead : 0, stun: b.stun });
+      if (now > v.fidgetAt) { v.fidgetStart = now; v.fidgetKind++; v.fidgetAt = now + 4 + Math.random() * 6; }
+      if (!b.frozen || dead > 0) {
+        animateEnemy(rig, v.style, {
+          t, moving, phase: v.phase, state: b.state, st: Math.max(0, b.st - Math.max(0, now - this.tB)), atk: b.atk, windup: b.state === "recover" ? v.recTotal : v.windupTotal,
+          variant: v.atkCount, dead: dead > 0 ? dead : 0, deathVar: v.deathVar, stun: b.stun,
+          hit: performance.now() / 1000 - v.hitAt, hitSide: v.hitSide, notice: now - v.noticeAt, spawn: now - v.spawnAt,
+          fidget: now - v.fidgetStart, fidgetKind: v.fidgetKind, fear: b.state === "retreat",
+        });
+      }
       // свет в точке + вспышка от удара, синева от заморозки
       probeAt(this.field, v.x, v.z, probe);
       if (b.frozen) probe.lerp(new THREE.Color(0.4, 0.7, 1.2), 0.6);
@@ -568,7 +703,15 @@ export class Entities {
         else g.fill.scale.setScalar(Math.max(0.01, k2));
       }
       if (d.kind === "sanctuary" || d.kind === "curse") g.obj.rotation.y = t * 0.5;
-      if (d.kind === "fire_pool" || d.kind === "vent_fire") {
+      for (const c of g.obj.children) {
+        const cl = c.userData.cloud;
+        if (cl) {
+          const a = cl.a + t * cl.sp;
+          c.position.set(Math.cos(a) * cl.rr, d.kind === "field_blizzard" ? ((cl.y - t * 2.5) % 2.6 + 2.6) % 2.6 + 0.2 : cl.y + Math.sin(t + cl.a) * 0.1, Math.sin(a) * cl.rr);
+        }
+        if (c.name === "eye") c.scale.setScalar((d.kind === "sentry_hydra" ? 1.2 : 0.6) * (0.85 + 0.15 * Math.sin(t * 8)));
+      }
+      if (d.kind === "fire_pool" || d.kind === "vent_fire" || d.kind === "field_fire" || d.kind === "field_armageddon" || d.kind === "sentry_hydra") {
         const fade = Math.min(1, (d.until - simT) / 0.8);
         for (const c of g.obj.children) {
           if (c instanceof THREE.Sprite) {
@@ -613,6 +756,12 @@ export class Entities {
         n.s.material.dispose();
         return false;
       }
+      return true;
+    });
+    this.bolts = this.bolts.filter((b) => {
+      b.life -= dt;
+      if (b.life <= 0) { this.scene.remove(b.obj); b.obj.geometry.dispose(); return false; }
+      (b.obj.material as THREE.LineBasicMaterial).opacity = b.life / b.max;
       return true;
     });
     this.rings = this.rings.filter((r) => {

@@ -255,7 +255,8 @@ def new_character_data(cls, appearance):
         "attrPoints": 0,
         "skillPoints": 0,
         "skills": {first_skill: 1},
-        "hotbar": [first_skill, None, None],
+        "hotbar": [first_skill, None, None, None, None, None],
+        "sp2": 1,
         "equipment": equipment,
         "inventory": [],
         "stash": [],
@@ -363,6 +364,28 @@ def stage_name(key):
 def stage_boss(key):
     p = parse_stage(key)
     return p[0]["boss"] if p else ""
+
+
+HOTBAR_SIZE = 6
+
+
+def respec_cost(level):
+    return 40 + level * level * 6
+
+
+def migrate_char(data):
+    """Обновляет старые сохранения: 6 ячеек навыков, 2 очка навыков за уровень, этапы кампании."""
+    changed = migrate_cleared(data)
+    hb = list(data.get("hotbar") or [])
+    if len(hb) < HOTBAR_SIZE:
+        data["hotbar"] = (hb + [None] * HOTBAR_SIZE)[:HOTBAR_SIZE]
+        changed = True
+    if not data.get("sp2"):
+        # раньше давали 1 очко за уровень — доплачиваем разницу
+        data["skillPoints"] = data.get("skillPoints", 0) + max(0, data.get("level", 1) - 1)
+        data["sp2"] = 1
+        changed = True
+    return changed
 
 
 def migrate_cleared(data):
@@ -546,9 +569,22 @@ def apply_op(char_id, data, op):
             data["hotbar"][data["hotbar"].index(None)] = sid
         return ""
 
+    if kind == "respec":
+        spent = sum(v for v in data["skills"].values() if isinstance(v, int))
+        if spent <= 0:
+            raise GameError("Нечего сбрасывать.")
+        cost = respec_cost(data["level"])
+        if data["gold"] < cost:
+            raise GameError(f"Нужно {cost} золота.")
+        data["gold"] -= cost
+        data["skills"] = {}
+        data["skillPoints"] += spent
+        data["hotbar"] = [None] * HOTBAR_SIZE
+        return f"Навыки забыты. Свободных очков: {data['skillPoints']}."
+
     if kind == "hotbar":
         slot, sid = op.get("slot"), op.get("id")
-        if slot not in (0, 1, 2):
+        if slot not in range(HOTBAR_SIZE):
             raise GameError("Неверная ячейка.")
         if sid is not None:
             s = SKILLS.get(sid)

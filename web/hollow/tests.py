@@ -128,6 +128,28 @@ class HollowApiTests(TestCase):
         r = post(self.client, "run_finish", {"success": True, "result": {"bosses": ["skeleton"]}}, cid=c["id"], rid=run["id"]).json()
         self.assertEqual(r["summary"]["unlocked"], ["n:a1s2"])
 
+    def test_skill_tree_hotbar_and_respec(self):
+        c = self.make("mage")
+        ch = HollowCharacter.objects.get(pk=c["id"])
+        # старое сохранение: 3 ячейки, 1 очко за уровень
+        ch.data = dict(ch.data, level=10, skillPoints=0, hotbar=["fireball", None, None], gold=5000)
+        ch.data.pop("sp2", None)
+        ch.save()
+        r = self.client.get(reverse("hollow:character", kwargs={"cid": c["id"]})).json()["character"]
+        self.assertEqual(len(r["hotbar"]), 6)
+        self.assertEqual(r["skillPoints"], 9)
+        for sid in ["ice_bolt", "charged_bolt", "chain_lightning"]:
+            self.assertTrue(post(self.client, "op", {"op": "skill", "id": sid}, cid=c["id"]).json()["ok"])
+        # ряд 3 требует 12 уровня
+        self.assertEqual(post(self.client, "op", {"op": "skill", "id": "teleport"}, cid=c["id"]).status_code, 400)
+        r = post(self.client, "op", {"op": "hotbar", "slot": 5, "id": "chain_lightning"}, cid=c["id"]).json()["character"]
+        self.assertEqual(r["hotbar"][5], "chain_lightning")
+        self.assertEqual(post(self.client, "op", {"op": "hotbar", "slot": 6, "id": "ice_bolt"}, cid=c["id"]).status_code, 400)
+        r = post(self.client, "op", {"op": "respec"}, cid=c["id"]).json()["character"]
+        self.assertEqual(r["skills"], {})
+        self.assertEqual(r["skillPoints"], 10)
+        self.assertEqual(r["gold"], 5000 - game.respec_cost(10))
+
     def test_death_halves_xp(self):
         c = self.make()
         run = post(self.client, "run_start", {"dungeon": "a1s1"}, cid=c["id"]).json()["run"]
@@ -175,12 +197,14 @@ class HollowApiTests(TestCase):
     def test_skills_and_attrs(self):
         c = self.make("mage")
         ch = HollowCharacter.objects.get(pk=c["id"])
-        ch.data["skillPoints"] = 3
+        ch.data["skillPoints"] = 4
         ch.data["attrPoints"] = 1
-        ch.data["level"] = 3
+        ch.data["level"] = 4
         ch.save()
         op = lambda **o: post(self.client, "op", o, cid=c["id"])
-        self.assertEqual(op(op="skill", id="meteor").status_code, 400)  # нужен 10 уровень
+        self.assertEqual(op(op="skill", id="meteor").status_code, 400)  # нужен 12 уровень
+        self.assertEqual(op(op="skill", id="frost_nova").status_code, 400)  # нужна ледяная стрела
+        op(op="skill", id="ice_bolt")
         r = op(op="skill", id="frost_nova").json()
         self.assertEqual(r["character"]["skills"]["frost_nova"], 1)
         self.assertIn("frost_nova", r["character"]["hotbar"])

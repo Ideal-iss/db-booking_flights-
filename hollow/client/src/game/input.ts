@@ -27,7 +27,7 @@ export class Input {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (!e.repeat) this.pressed.push(e.code);
       this.keys.add(e.code);
-      if (["Space", "Tab", "KeyQ", "KeyR", "KeyF", "KeyE", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code) && this.locked) e.preventDefault();
+      if (["Space", "Tab", "KeyQ", "KeyR", "KeyF", "KeyG", "KeyZ", "KeyX", "KeyE", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code) && this.locked) e.preventDefault();
       // в запасном режиме Esc браузер не перехватывает — выходим из управления сами
       if (e.code === "Escape" && this.soft && this.locked) this.setLocked(false);
     });

@@ -253,6 +253,46 @@ for (const th of STAGES) {
     ok(!!sim.finished && sim.finished.how === "entrance" && !sim.bossDead, "entrance leaves without clear");
   }
 }
+// Все навыки всех классов: каждый срабатывает и не ломает симуляцию
+{
+  const { skillsOf } = await import("../data/skills");
+  for (const cls of CLASS_IDS) {
+    const ch = makeChar(cls, 30);
+    for (const s of skillsOf(cls)) ch.skills[s.id] = 5;
+    const sim = new Sim(RAPIER, { dungeon: "a2s1", seed: 77, level: 10, players: [{ id: "a", name: "A", char: ch }] });
+    const p = sim.players.get("a")!;
+    for (const e of sim.enemies.values()) if (!e.boss) sim.killEnemy(e, null);
+    p.x = sim.d.start.x; p.z = sim.d.start.z;
+    let casts = 0;
+    for (const s of skillsOf(cls).filter((x) => x.kind === "active")) {
+      // свежие враги вокруг и труп для взрыва
+      for (const e of [...sim.enemies.values()]) if (!e.boss) sim.enemies.delete(e.id);
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+      const corpse = sim.spawnEnemy("c_" + s.id, "zombie", p.x + fx * 2.5, p.z + fz * 2.5, 10);
+      sim.killEnemy(corpse, null);
+      const foes = [1.8, 2.6, 3.4].map((d, i) => sim.spawnEnemy(`f_${s.id}_${i}`, "zombie", p.x + fx * d + (i - 1) * 0.8, p.z + fz * d, 10));
+      for (const f of foes) { f.awake = true; f.stunUntil = sim.t + 30; }
+      const hp0 = foes.reduce((a, f) => a + f.hp, 0);
+      p.char.hotbar = [s.id, null, null, null, null, null];
+      p.mana = p.stats.maxMana; p.stamina = p.stats.maxStamina; p.hp = p.stats.maxHp; p.cooldowns = {};
+      const ev0 = sim.events.length;
+      sim.action("a", { t: "skill", slot: 0, aim: { x: p.x + fx * 3, y: 0, z: p.z + fz * 3 } });
+      const cast = sim.events.slice(ev0).some((e) => e.t === "cast");
+      ok(cast, `${cls}/${s.id} casts`);
+      if (cast) casts++;
+      for (let i = 0; i < 60; i++) sim.step();
+      const hp1 = foes.reduce((a, f) => a + Math.max(0, f.hp), 0);
+      const ef = s.effect(5) as { type: string; auraDps?: number; dmg?: number };
+      const offensive = (!["buff", "heal", "shield", "taunt", "sanctuary", "curse", "blind", "summon", "blink", "warcry"].includes(ef.type)) || ef.auraDps || (ef.type === "warcry" && ef.dmg);
+      if (offensive) ok(hp1 < hp0, `${cls}/${s.id} hurts enemies`);
+      for (const e of sim.enemies.values()) ok(Number.isFinite(e.hp) && Number.isFinite(e.x), `${cls}/${s.id} finite`);
+      ok(Number.isFinite(p.hp) && Number.isFinite(p.x) && p.alive, `${cls}/${s.id} player ok`);
+      p.x = sim.d.start.x; p.z = sim.d.start.z; p.yaw = 0;
+      sim.drainEvents();
+    }
+    console.log(`${cls}: ${casts} active skills cast`);
+  }
+}
 // Смерть игрока → провал
 {
   const sim = new Sim(RAPIER, { dungeon: "a1s1", seed: 5, level: 1, players: [{ id: "a", name: "A", char: makeChar("mage") }] });

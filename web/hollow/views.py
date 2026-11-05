@@ -72,7 +72,7 @@ def get_char(request, cid, lock=False):
     if not c:
         raise game.GameError("Персонаж не найден.")
     data = dict(c.data)
-    if game.migrate_cleared(data):
+    if game.migrate_char(data):
         c.data = data
         c.save(update_fields=["data"])
     return c
@@ -234,7 +234,7 @@ def _finish(run, c, success, res):
     if run.finished:
         raise game.GameError("Забег уже завершён.")
     data = dict(c.data)
-    game.migrate_cleared(data)
+    game.migrate_char(data)
     boss = game.stage_boss(run.dungeon)
     summary = game.apply_run_result(data, run.level, success, res, boss)
     # этап засчитан, только если убит его страж и герой вышел через портал

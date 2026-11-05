@@ -12,7 +12,7 @@ export function makeChar(cls: (typeof CLASS_IDS)[number], level = 1): CharacterD
   for (const s of act) skills[s.id] = 3;
   return {
     id: 1, name: "t", cls, appearance: { skin: 0, hair: "short", hairColor: 0, cloth: 0, trim: 0, accessory: "none" },
-    level, xp: 0, attrs: { ...def.attrs }, attrPoints: 0, skillPoints: 0, skills, hotbar: act.slice(0, 3).map((s) => s.id),
+    level, xp: 0, attrs: { ...def.attrs }, attrPoints: 0, skillPoints: 0, skills, hotbar: [...act.slice(0, 6).map((s) => s.id), null, null, null, null, null, null].slice(0, 6),
     equipment, inventory: [], stash: [], gold: 0, potions: { health: 3, mana: 3 }, quests: [], cleared: [],
   };
 }

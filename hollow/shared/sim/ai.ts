@@ -59,7 +59,14 @@ function resolveTarget(sim: Sim, e: SimEnemy): Target | null {
 
 function hitTarget(sim: Sim, e: SimEnemy, t: Target, dmg: number, melee = true) {
   if (t.player) sim.damagePlayer(t.player, dmg, e.def.element, e, { melee });
-  else if (t.ally) sim.damageEnemy(t.ally, dmg, e.def.element, e, { knock: 1 });
+  else if (t.ally) {
+    sim.damageEnemy(t.ally, dmg, e.def.element, e, { knock: 1 });
+    // кровавый голем делится выпитым с хозяином
+    if (e.type === "blood_golem" && e.owner) {
+      const o = sim.players.get(e.owner);
+      if (o) sim.healPlayer(o, dmg * 0.3, false);
+    }
+  }
 }
 
 function moveTowards(sim: Sim, e: SimEnemy, tx: number, tz: number, dt: number, mul = 1) {
@@ -109,6 +116,17 @@ export function updateEnemy(sim: Sim, e: SimEnemy, dt: number) {
   const dx = t.x - e.x, dz = t.z - e.z;
   const dist = Math.hypot(dx, dz);
   const gap = dist - t.r - e.def.radius;
+
+  // страх: бежит прочь, не атакует
+  if ((e.fearUntil || 0) > sim.t && e.state !== "lunge") {
+    e.state = "retreat";
+    const l = dist || 1;
+    const bx = e.x - (dx / l) * 1.5, bz = e.z - (dz / l) * 1.5;
+    const s = speedOf(sim, e) * 0.9 * dt;
+    if (walkable(sim.d, worldToCell(bx), worldToCell(bz), sim.opened.secrets) || e.def.behavior === "phantom") sim.moveEnemy(e, (-dx / l) * s, (-dz / l) * s);
+    turnTowards(e, yawTo(-dx, -dz), dt, 6);
+    return;
+  }
 
   if (e.def.behavior === "boss") return bossUpdate(sim, e, t, dist, gap, dt);
 

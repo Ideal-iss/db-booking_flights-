@@ -1052,19 +1052,32 @@
    "requires": [],
    "name": "Рассечение"
   },
-  "blood_rage": {
+  "weapon_mastery": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Мастерство оружия"
+  },
+  "double_strike": {
    "cls": "warrior",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 3,
-   "requires": [],
-   "name": "Кровавая ярость"
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "cleave",
+     "rank": 1
+    }
+   ],
+   "name": "Двойной удар"
   },
   "whirlwind": {
    "cls": "warrior",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 6,
+   "reqLevel": 8,
    "requires": [
     {
      "id": "cleave",
@@ -1073,18 +1086,52 @@
    ],
    "name": "Вихрь"
   },
+  "ground_slam": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Раскол земли"
+  },
   "execution": {
    "cls": "warrior",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 10,
+   "reqLevel": 12,
    "requires": [
     {
-     "id": "cleave",
-     "rank": 3
+     "id": "double_strike",
+     "rank": 1
     }
    ],
    "name": "Казнь"
+  },
+  "leap_attack": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "ground_slam",
+     "rank": 1
+    }
+   ],
+   "name": "Прыжок-удар"
+  },
+  "titan_grip": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "weapon_mastery",
+     "rank": 3
+    }
+   ],
+   "name": "Хватка титана"
   },
   "iron_skin": {
    "cls": "warrior",
@@ -1094,9 +1141,105 @@
    "requires": [],
    "name": "Железная кожа"
   },
+  "battle_shout": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Боевой клич"
+  },
+  "toughness": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Закалка"
+  },
+  "war_cry": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "battle_shout",
+     "rank": 1
+    }
+   ],
+   "name": "Устрашающий рёв"
+  },
+  "howl": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Вой"
+  },
+  "battle_orders": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "war_cry",
+     "rank": 1
+    }
+   ],
+   "name": "Боевой приказ"
+  },
+  "natural_resistance": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "toughness",
+     "rank": 1
+    }
+   ],
+   "name": "Природная стойкость"
+  },
+  "thunder_cry": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "battle_orders",
+     "rank": 1
+    },
+    {
+     "id": "howl",
+     "rank": 1
+    }
+   ],
+   "name": "Боевой гром"
+  },
+  "blood_rage": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Кровавая ярость"
+  },
   "bloodlust": {
    "cls": "warrior",
    "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Жажда крови"
+  },
+  "frenzy": {
+   "cls": "warrior",
+   "kind": "active",
    "maxRank": 5,
    "reqLevel": 4,
    "requires": [
@@ -1105,7 +1248,66 @@
      "rank": 1
     }
    ],
-   "name": "Жажда крови"
+   "name": "Исступление"
+  },
+  "leech": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Пиявка"
+  },
+  "rend": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Разрыв"
+  },
+  "unyielding": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "bloodlust",
+     "rank": 2
+    }
+   ],
+   "name": "Неукротимость"
+  },
+  "berserk_strike": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "frenzy",
+     "rank": 2
+    }
+   ],
+   "name": "Удар берсерка"
+  },
+  "avatar": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "berserk_strike",
+     "rank": 1
+    },
+    {
+     "id": "unyielding",
+     "rank": 1
+    }
+   ],
+   "name": "Аватар войны"
   },
   "shield_bash": {
    "cls": "knight",
@@ -1115,23 +1317,213 @@
    "requires": [],
    "name": "Удар щитом"
   },
+  "bulwark": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Твердыня"
+  },
+  "shield_throw": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "shield_bash",
+     "rank": 1
+    }
+   ],
+   "name": "Бросок щита"
+  },
+  "retribution": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Возмездие"
+  },
+  "fortress": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "bulwark",
+     "rank": 1
+    }
+   ],
+   "name": "Бастион"
+  },
+  "heavy_armor": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "bulwark",
+     "rank": 2
+    }
+   ],
+   "name": "Латная выучка"
+  },
+  "shield_wall": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "shield_throw",
+     "rank": 1
+    },
+    {
+     "id": "fortress",
+     "rank": 1
+    }
+   ],
+   "name": "Стена щитов"
+  },
+  "aegis": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "heavy_armor",
+     "rank": 1
+    }
+   ],
+   "name": "Эгида"
+  },
   "charge": {
    "cls": "knight",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 3,
+   "reqLevel": 1,
    "requires": [],
    "name": "Натиск"
+  },
+  "swordsmanship": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Фехтование"
+  },
+  "zeal": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Рвение"
+  },
+  "trample": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "charge",
+     "rank": 1
+    }
+   ],
+   "name": "Таран"
+  },
+  "riposte": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Контратака"
+  },
+  "crushing_blow": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "zeal",
+     "rank": 1
+    }
+   ],
+   "name": "Сокрушающий удар"
+  },
+  "valor_leap": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "trample",
+     "rank": 1
+    }
+   ],
+   "name": "Доблестный прыжок"
+  },
+  "blade_storm": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "crushing_blow",
+     "rank": 1
+    }
+   ],
+   "name": "Стальной шквал"
   },
   "taunt": {
    "cls": "knight",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 5,
+   "reqLevel": 1,
    "requires": [],
    "name": "Вызов"
   },
-  "fortress": {
+  "oath_of_might": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Клятва силы"
+  },
+  "oath_of_iron": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "oath_of_might",
+     "rank": 1
+    }
+   ],
+   "name": "Клятва железа"
+  },
+  "vigor": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Неутомимость"
+  },
+  "holy_shield": {
    "cls": "knight",
    "kind": "active",
    "maxRank": 5,
@@ -1142,23 +1534,50 @@
      "rank": 1
     }
    ],
-   "name": "Бастион"
+   "name": "Святой щит"
   },
-  "bulwark": {
+  "oath_of_vengeance": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "oath_of_iron",
+     "rank": 1
+    }
+   ],
+   "name": "Клятва мести"
+  },
+  "conviction": {
    "cls": "knight",
    "kind": "passive",
    "maxRank": 5,
-   "reqLevel": 1,
-   "requires": [],
-   "name": "Твердыня"
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "vigor",
+     "rank": 1
+    }
+   ],
+   "name": "Убеждённость"
   },
-  "retribution": {
+  "last_stand": {
    "cls": "knight",
-   "kind": "passive",
+   "kind": "active",
    "maxRank": 5,
-   "reqLevel": 4,
-   "requires": [],
-   "name": "Возмездие"
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "holy_shield",
+     "rank": 1
+    },
+    {
+     "id": "oath_of_vengeance",
+     "rank": 1
+    }
+   ],
+   "name": "Последний рубеж"
   },
   "fan_of_knives": {
    "cls": "rogue",
@@ -1168,35 +1587,6 @@
    "requires": [],
    "name": "Веер клинков"
   },
-  "shadow_step": {
-   "cls": "rogue",
-   "kind": "active",
-   "maxRank": 5,
-   "reqLevel": 3,
-   "requires": [],
-   "name": "Шаг в тень"
-  },
-  "poison_blade": {
-   "cls": "rogue",
-   "kind": "active",
-   "maxRank": 5,
-   "reqLevel": 5,
-   "requires": [],
-   "name": "Отравленный клинок"
-  },
-  "smoke_bomb": {
-   "cls": "rogue",
-   "kind": "active",
-   "maxRank": 5,
-   "reqLevel": 8,
-   "requires": [
-    {
-     "id": "shadow_step",
-     "rank": 1
-    }
-   ],
-   "name": "Дымовая бомба"
-  },
   "assassin": {
    "cls": "rogue",
    "kind": "passive",
@@ -1205,13 +1595,250 @@
    "requires": [],
    "name": "Убийца"
   },
+  "throwing_knives": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Метательные ножи"
+  },
+  "flurry": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "throwing_knives",
+     "rank": 1
+    }
+   ],
+   "name": "Шквал клинков"
+  },
   "evasion": {
    "cls": "rogue",
    "kind": "passive",
    "maxRank": 5,
-   "reqLevel": 4,
+   "reqLevel": 8,
    "requires": [],
    "name": "Увёртливость"
+  },
+  "blade_dance": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "fan_of_knives",
+     "rank": 2
+    }
+   ],
+   "name": "Танец клинков"
+  },
+  "lethality": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "assassin",
+     "rank": 3
+    }
+   ],
+   "name": "Смертоносность"
+  },
+  "death_blossom": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "blade_dance",
+     "rank": 1
+    }
+   ],
+   "name": "Цветок смерти"
+  },
+  "poison_blade": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Отравленный клинок"
+  },
+  "toxicology": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Токсикология"
+  },
+  "blade_trap": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Ловушка-клинкомёт"
+  },
+  "poison_cloud": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "poison_blade",
+     "rank": 1
+    }
+   ],
+   "name": "Ядовитое облако"
+  },
+  "fire_trap": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "blade_trap",
+     "rank": 1
+    }
+   ],
+   "name": "Огненная ловушка"
+  },
+  "trap_mastery": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "blade_trap",
+     "rank": 1
+    }
+   ],
+   "name": "Мастер ловушек"
+  },
+  "venom_nova": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "poison_cloud",
+     "rank": 1
+    }
+   ],
+   "name": "Ядовитая вспышка"
+  },
+  "death_sentry": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "fire_trap",
+     "rank": 1
+    }
+   ],
+   "name": "Страж смерти"
+  },
+  "shadow_step": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Шаг в тень"
+  },
+  "fleet_foot": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Лёгкая поступь"
+  },
+  "smoke_bomb": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "shadow_step",
+     "rank": 1
+    }
+   ],
+   "name": "Дымовая бомба"
+  },
+  "shadow_veil": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Покров тени"
+  },
+  "blink_strike": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "smoke_bomb",
+     "rank": 1
+    }
+   ],
+   "name": "Мерцание"
+  },
+  "mark_for_death": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [],
+   "name": "Метка смерти"
+  },
+  "shadow_clone": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "shadow_veil",
+     "rank": 1
+    }
+   ],
+   "name": "Теневой двойник"
+  },
+  "assassinate": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "blink_strike",
+     "rank": 1
+    },
+    {
+     "id": "mark_for_death",
+     "rank": 1
+    }
+   ],
+   "name": "Устранение"
   },
   "fireball": {
    "cls": "mage",
@@ -1221,27 +1848,53 @@
    "requires": [],
    "name": "Огненный шар"
   },
-  "frost_nova": {
+  "warmth": {
    "cls": "mage",
-   "kind": "active",
+   "kind": "passive",
    "maxRank": 5,
-   "reqLevel": 3,
+   "reqLevel": 1,
    "requires": [],
-   "name": "Кольцо льда"
+   "name": "Тепло"
   },
-  "arcane_explosion": {
+  "fire_wall": {
    "cls": "mage",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "fireball",
+     "rank": 1
+    }
+   ],
+   "name": "Стена огня"
+  },
+  "fire_mastery": {
+   "cls": "mage",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 8,
    "requires": [],
-   "name": "Тайный взрыв"
+   "name": "Власть огня"
+  },
+  "inferno": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "fire_wall",
+     "rank": 1
+    }
+   ],
+   "name": "Инферно"
   },
   "meteor": {
    "cls": "mage",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 10,
+   "reqLevel": 12,
    "requires": [
     {
      "id": "fireball",
@@ -1249,6 +1902,129 @@
     }
    ],
    "name": "Метеор"
+  },
+  "hydra": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "inferno",
+     "rank": 1
+    }
+   ],
+   "name": "Гидра"
+  },
+  "armageddon": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "meteor",
+     "rank": 1
+    }
+   ],
+   "name": "Армагеддон"
+  },
+  "ice_bolt": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Ледяная стрела"
+  },
+  "frozen_armor": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Ледяной доспех"
+  },
+  "frost_nova": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "ice_bolt",
+     "rank": 1
+    }
+   ],
+   "name": "Кольцо льда"
+  },
+  "glacial_spike": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "ice_bolt",
+     "rank": 2
+    }
+   ],
+   "name": "Ледяной шип"
+  },
+  "cold_mastery": {
+   "cls": "mage",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Власть холода"
+  },
+  "blizzard": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "glacial_spike",
+     "rank": 1
+    }
+   ],
+   "name": "Метель"
+  },
+  "ice_shards": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "frost_nova",
+     "rank": 1
+    }
+   ],
+   "name": "Ледяной веер"
+  },
+  "frozen_orb": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "blizzard",
+     "rank": 1
+    }
+   ],
+   "name": "Ледяная сфера"
+  },
+  "arcane_explosion": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Тайный взрыв"
   },
   "elemental_mastery": {
    "cls": "mage",
@@ -1258,6 +2034,14 @@
    "requires": [],
    "name": "Власть стихий"
   },
+  "charged_bolt": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Заряд"
+  },
   "mana_flow": {
    "cls": "mage",
    "kind": "passive",
@@ -1265,6 +2049,66 @@
    "reqLevel": 4,
    "requires": [],
    "name": "Поток маны"
+  },
+  "chain_lightning": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "charged_bolt",
+     "rank": 1
+    }
+   ],
+   "name": "Цепная молния"
+  },
+  "teleport": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "arcane_explosion",
+     "rank": 1
+    }
+   ],
+   "name": "Телепорт"
+  },
+  "lightning_mastery": {
+   "cls": "mage",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [],
+   "name": "Власть молнии"
+  },
+  "thunder_storm": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "chain_lightning",
+     "rank": 1
+    }
+   ],
+   "name": "Гроза"
+  },
+  "energy_shield": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "teleport",
+     "rank": 1
+    }
+   ],
+   "name": "Энергетический щит"
   },
   "raise_skeleton": {
    "cls": "necromancer",
@@ -1274,34 +2118,94 @@
    "requires": [],
    "name": "Поднять скелета"
   },
-  "bone_spear": {
+  "skeleton_mastery": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Власть над костью"
+  },
+  "skeleton_mage": {
    "cls": "necromancer",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 3,
-   "requires": [],
-   "name": "Костяное копьё"
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "raise_skeleton",
+     "rank": 1
+    }
+   ],
+   "name": "Скелет-маг"
   },
-  "corpse_explosion": {
+  "dark_pact": {
    "cls": "necromancer",
-   "kind": "active",
+   "kind": "passive",
    "maxRank": 5,
-   "reqLevel": 5,
-   "requires": [],
-   "name": "Взрыв трупа"
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "skeleton_mastery",
+     "rank": 1
+    }
+   ],
+   "name": "Тёмный договор"
   },
-  "decrepify": {
+  "clay_golem": {
    "cls": "necromancer",
    "kind": "active",
    "maxRank": 5,
    "reqLevel": 8,
+   "requires": [],
+   "name": "Глиняный голем"
+  },
+  "summon_resist": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 12,
    "requires": [
     {
-     "id": "corpse_explosion",
+     "id": "dark_pact",
      "rank": 1
     }
    ],
-   "name": "Порча"
+   "name": "Нерушимые"
+  },
+  "bone_army": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "skeleton_mage",
+     "rank": 1
+    }
+   ],
+   "name": "Костяное воинство"
+  },
+  "blood_golem": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "clay_golem",
+     "rank": 1
+    }
+   ],
+   "name": "Кровавый голем"
+  },
+  "bone_spear": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Костяное копьё"
   },
   "soul_harvest": {
    "cls": "necromancer",
@@ -1311,13 +2215,153 @@
    "requires": [],
    "name": "Жатва душ"
   },
-  "dark_pact": {
+  "corpse_explosion": {
    "cls": "necromancer",
-   "kind": "passive",
+   "kind": "active",
    "maxRank": 5,
    "reqLevel": 4,
    "requires": [],
-   "name": "Тёмный договор"
+   "name": "Взрыв трупа"
+  },
+  "poison_nova": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "bone_spear",
+     "rank": 1
+    }
+   ],
+   "name": "Ядовитая волна"
+  },
+  "bone_mastery": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Власть кости"
+  },
+  "bone_prison": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "corpse_explosion",
+     "rank": 1
+    }
+   ],
+   "name": "Костяная тюрьма"
+  },
+  "bone_spirit": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "bone_spear",
+     "rank": 3
+    }
+   ],
+   "name": "Костяной дух"
+  },
+  "plague": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "poison_nova",
+     "rank": 1
+    }
+   ],
+   "name": "Мор"
+  },
+  "decrepify": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Порча"
+  },
+  "curse_mastery": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Знаток проклятий"
+  },
+  "weaken": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "decrepify",
+     "rank": 1
+    }
+   ],
+   "name": "Слабость"
+  },
+  "life_tap": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Кровопийца"
+  },
+  "terror": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "weaken",
+     "rank": 1
+    }
+   ],
+   "name": "Ужас"
+  },
+  "soul_siphon": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "curse_mastery",
+     "rank": 2
+    }
+   ],
+   "name": "Вытягивание душ"
+  },
+  "doom": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "life_tap",
+     "rank": 1
+    },
+    {
+     "id": "terror",
+     "rank": 1
+    }
+   ],
+   "name": "Рок"
   },
   "heal": {
    "cls": "cleric",
@@ -1327,21 +2371,198 @@
    "requires": [],
    "name": "Исцеление"
   },
-  "holy_bolt": {
+  "devotion": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Благочестие"
+  },
+  "renew": {
    "cls": "cleric",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 3,
-   "requires": [],
-   "name": "Святая стрела"
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "heal",
+     "rank": 1
+    }
+   ],
+   "name": "Обновление"
   },
   "sanctuary": {
    "cls": "cleric",
    "kind": "active",
    "maxRank": 5,
-   "reqLevel": 5,
+   "reqLevel": 8,
    "requires": [],
    "name": "Святилище"
+  },
+  "meditation": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Медитация"
+  },
+  "divine_shield": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "renew",
+     "rank": 1
+    }
+   ],
+   "name": "Божественный щит"
+  },
+  "guardian_spirit": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "sanctuary",
+     "rank": 1
+    }
+   ],
+   "name": "Дух-хранитель"
+  },
+  "resurrection_light": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "divine_shield",
+     "rank": 1
+    }
+   ],
+   "name": "Свет воскрешения"
+  },
+  "undead_bane": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Гроза нежити"
+  },
+  "aura_might": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Аура мощи"
+  },
+  "aura_prayer": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "aura_might",
+     "rank": 1
+    }
+   ],
+   "name": "Аура молитвы"
+  },
+  "aura_holy_fire": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [],
+   "name": "Аура святого огня"
+  },
+  "aura_resist": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "aura_prayer",
+     "rank": 1
+    }
+   ],
+   "name": "Аура стойкости"
+  },
+  "aura_speed": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "aura_holy_fire",
+     "rank": 1
+    }
+   ],
+   "name": "Аура рвения"
+  },
+  "aura_mastery": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "undead_bane",
+     "rank": 1
+    }
+   ],
+   "name": "Хранитель аур"
+  },
+  "aura_conviction": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "aura_resist",
+     "rank": 1
+    },
+    {
+     "id": "aura_speed",
+     "rank": 1
+    }
+   ],
+   "name": "Аура убеждения"
+  },
+  "holy_bolt": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Святая стрела"
+  },
+  "zealotry": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Фанатизм"
+  },
+  "holy_strike": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Святой удар"
   },
   "smite": {
    "cls": "cleric",
@@ -1356,21 +2577,44 @@
    ],
    "name": "Кара"
   },
-  "undead_bane": {
+  "blessed_hammer": {
    "cls": "cleric",
-   "kind": "passive",
+   "kind": "active",
    "maxRank": 5,
-   "reqLevel": 1,
-   "requires": [],
-   "name": "Гроза нежити"
+   "reqLevel": 12,
+   "requires": [
+    {
+     "id": "holy_strike",
+     "rank": 1
+    }
+   ],
+   "name": "Благословенный молот"
   },
-  "devotion": {
+  "holy_chain": {
    "cls": "cleric",
-   "kind": "passive",
+   "kind": "active",
    "maxRank": 5,
-   "reqLevel": 4,
-   "requires": [],
-   "name": "Благочестие"
+   "reqLevel": 18,
+   "requires": [
+    {
+     "id": "smite",
+     "rank": 1
+    }
+   ],
+   "name": "Небесная цепь"
+  },
+  "judgement": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 24,
+   "requires": [
+    {
+     "id": "blessed_hammer",
+     "rank": 1
+    }
+   ],
+   "name": "Суд"
   }
  },
  "xpTable": [
@@ -1418,7 +2662,7 @@
  ],
  "maxLevel": 40,
  "attrPerLevel": 5,
- "skillPerLevel": 1,
+ "skillPerLevel": 2,
  "potions": {
   "health": {
    "name": "Зелье здоровья",

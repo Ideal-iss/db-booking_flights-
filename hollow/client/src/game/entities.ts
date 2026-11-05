@@ -76,7 +76,7 @@ export class Entities {
     this.tA = this.tB;
     this.snapB = s;
     this.tB = now;
-    this.syncEnemies(s);
+    this.syncEnemies(s, now);
     this.syncPlayers(s);
     this.syncProjectiles(s, now);
     this.syncGrounds(s);
@@ -87,7 +87,7 @@ export class Entities {
     return this.snapB;
   }
 
-  private syncEnemies(s: Snapshot) {
+  private syncEnemies(s: Snapshot, now: number) {
     const seen = new Set<string>();
     for (const e of s.enemies) {
       seen.add(e.id);
@@ -97,12 +97,13 @@ export class Entities {
         model.rig.root.position.set(e.x, 0, e.z);
         model.rig.root.rotation.y = e.yaw;
         this.scene.add(model.rig.root);
-        v = { model, prev: e, cur: e, phase: Math.random() * 6, flash: 0, deadAt: e.state === "dead" ? -10 : 0, x: e.x, z: e.z, yaw: e.yaw };
+        v = { model, prev: e, cur: e, phase: Math.random() * 6, flash: 0, deadAt: e.state === "dead" ? now - 1 : 0, x: e.x, z: e.z, yaw: e.yaw };
         this.enemies.set(e.id, v);
       }
       v.prev = v.cur;
       v.cur = e;
-      if (e.state === "dead" && !v.deadAt) v.deadAt = performance.now() / 1000;
+      // время — по тем же часам игры, что и анимация (раньше бралось performance.now и труп «стоял»)
+      if (e.state === "dead" && !v.deadAt) v.deadAt = now;
     }
     for (const [id, v] of this.enemies) {
       if (!seen.has(id)) {

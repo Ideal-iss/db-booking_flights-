@@ -7,7 +7,7 @@ import { ACTS, stageLabel } from "@shared/data/dungeons";
 import type { Item } from "@shared/data/items";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { Hud } from "./Hud";
-import { TooltipLayer, markPanelSwitch } from "./common";
+import { TooltipLayer } from "./common";
 import { InventoryPanel, StashPanel } from "./Inventory";
 import { CharacterPanel } from "./CharacterPanel";
 import { SkillsPanel } from "./SkillsPanel";
@@ -213,7 +213,6 @@ export function GameScreen() {
       const map: Record<string, Panel> = { KeyI: "inventory", KeyC: "character", KeyB: "skills", KeyK: "skills", KeyM: "map", Tab: "map", KeyJ: "quests" };
       if (map[e.code] && cur !== "results" && cur !== "pause") {
         e.preventDefault();
-        if (cur !== map[e.code]) markPanelSwitch();
         togglePanel(map[e.code]);
       }
     };

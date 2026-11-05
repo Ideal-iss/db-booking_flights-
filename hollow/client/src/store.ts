@@ -139,9 +139,13 @@ export const NPC_PANELS: Partial<Record<Exclude<Panel, null>, string>> = {
 };
 
 let navHome: Panel = null;
+let fromPanel = false;
 useGame.subscribe((st, prev) => {
   if (st.panel === prev.panel) return;
+  fromPanel = !!st.panel && !!prev.panel;
   if (!st.panel) navHome = null;
   else if (NPC_PANELS[st.panel] && !NAV_TABS.some((t) => t.id === st.panel)) navHome = st.panel;
 });
 export const navHomePanel = () => navHome;
+/** Окно открыто переходом из другого окна (а не поверх игры). */
+export const openedFromPanel = () => fromPanel;

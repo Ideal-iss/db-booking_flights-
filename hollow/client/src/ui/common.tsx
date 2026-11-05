@@ -8,17 +8,17 @@ import { CLASSES } from "@shared/data/classes";
 import { deriveStats, type CharacterData } from "@shared/data/stats";
 import { itemIcon } from "./icons";
 import { audio } from "../game/audio";
-import { useGame, NAV_TABS, NPC_PANELS, navHomePanel, type Panel as GamePanel } from "../store";
+import { useGame, NAV_TABS, NPC_PANELS, navHomePanel, openedFromPanel, type Panel as GamePanel } from "../store";
 
-/** Время последнего перехода вкладкой: новое окно не проигрывает анимацию появления. */
-let lastSwitch = 0;
-export const markPanelSwitch = () => { lastSwitch = Date.now(); };
 
 export function Panel(props: { title: string; nav?: boolean; onClose?: () => void; children: ReactNode; className?: string; wide?: boolean }) {
   const nav = props.nav !== false;
+  // Анимация появления только когда окно открыто поверх игры; при переходе из другого окна оно сменяется мгновенно.
+  // Решаем один раз при монтировании, иначе любое обновление интерфейса проиграло бы анимацию заново.
+  const [rise] = useState(() => !openedFromPanel());
   return (
     <div
-      className={`panel relative flex max-h-[92vh] flex-col p-6 ${Date.now() - lastSwitch > 400 ? "rise" : ""} ${
+      className={`panel relative flex max-h-[92vh] flex-col p-6 ${rise ? "rise" : ""} ${
         nav ? "h-[min(800px,92vh)] w-[min(1080px,96vw)]" : props.wide ? "w-[min(1080px,96vw)]" : "w-[min(720px,96vw)]"
       } ${props.className || ""}`}
     >
@@ -31,7 +31,7 @@ export function Panel(props: { title: string; nav?: boolean; onClose?: () => voi
         )}
       </div>
       {nav && <PanelNav />}
-      <div className="scroll min-h-0 flex-1 overflow-y-auto pr-1">{props.children}</div>
+      <div className="scroll min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable]">{props.children}</div>
     </div>
   );
 }
@@ -45,7 +45,6 @@ function PanelNav() {
   const go = (id: GamePanel) => {
     if (id === panel) return;
     audio.play("click");
-    lastSwitch = Date.now();
     useGame.setState({ panel: id });
   };
   return (

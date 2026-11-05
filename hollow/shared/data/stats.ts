@@ -8,7 +8,7 @@ export const ATTR_POINTS_PER_LEVEL = 5;
 export const SKILL_POINTS_PER_LEVEL = 2;
 
 /** Опыт, нужный для перехода с уровня L на L+1. */
-export const xpForLevel = (level: number) => Math.round(80 * level ** 1.75 + 40 * level);
+export const xpForLevel = (level: number) => Math.round(55 * level ** 1.7 + 30 * level);
 
 export function levelFromXp(totalXp: number): { level: number; into: number; need: number } {
   let level = 1;
@@ -156,7 +156,7 @@ export function deriveStats(c: Pick<CharacterData, "cls" | "level" | "attrs" | "
     attackSpeed: wd.speed * (1 + attrs.dex * 0.005 + sum(mods, "atkSpeedPct")),
     critChance: Math.min(0.6, 0.05 + attrs.dex * 0.0015 + sum(mods, "critChance")),
     critDmg: 1.5 + sum(mods, "critDmg"),
-    moveSpeed: 4.6 * Math.max(0.6, 1 + sum(mods, "movePct")),
+    moveSpeed: 5.3 * Math.max(0.6, 1 + sum(mods, "movePct")),
     block: Math.min(0.9, offhand && offhand.type === "shield" ? sum(mods, "block") + sum(mods, "blockPct") : 0.35 + sum(mods, "blockPct")),
     dodge: Math.min(0.4, sum(mods, "dodge") + attrs.dex * 0.001),
     resFire: Math.min(0.75, sum(mods, "resFire")),

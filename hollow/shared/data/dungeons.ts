@@ -81,14 +81,14 @@ export interface QuestDef {
 }
 
 export const QUESTS: QuestDef[] = [
-  { id: "bones_rest", name: "Кости не спят", description: "Упокойте 15 скелетов в любом подземелье.", kind: "kill", target: "skeleton", count: 15, reward: { xp: 300, gold: 120 }, minLevel: 1 },
+  { id: "bones_rest", name: "Кости не спят", description: "Упокойте 8 скелетов в любом подземелье.", kind: "kill", target: "skeleton", count: 8, reward: { xp: 300, gold: 120 }, minLevel: 1 },
   { id: "priest", name: "Жрец без паствы", description: "Убейте Костяного Жреца в Забытом склепе.", kind: "boss", target: "bone_priest", count: 1, reward: { xp: 600, gold: 250 }, minLevel: 1 },
-  { id: "cultists", name: "Пепел ереси", description: "Убейте 10 культистов.", kind: "kill", target: "cultist", count: 10, reward: { xp: 450, gold: 180 }, minLevel: 3 },
-  { id: "wraiths", name: "Голоса в темноте", description: "Изгоните 12 призраков.", kind: "kill", target: "wraith", count: 12, reward: { xp: 900, gold: 300 }, minLevel: 5 },
+  { id: "cultists", name: "Пепел ереси", description: "Убейте 6 культистов.", kind: "kill", target: "cultist", count: 6, reward: { xp: 450, gold: 180 }, minLevel: 3 },
+  { id: "wraiths", name: "Голоса в темноте", description: "Изгоните 7 призраков.", kind: "kill", target: "wraith", count: 7, reward: { xp: 900, gold: 300 }, minLevel: 5 },
   { id: "hollow", name: "Страж катакомб", description: "Победите Полого Рыцаря.", kind: "boss", target: "hollow_knight", count: 1, reward: { xp: 1500, gold: 500 }, minLevel: 5 },
-  { id: "knights", name: "Разжалованные", description: "Сразите 10 рыцарей-мертвецов.", kind: "kill", target: "undead_knight", count: 10, reward: { xp: 1600, gold: 450 }, minLevel: 7 },
+  { id: "knights", name: "Разжалованные", description: "Сразите 6 рыцарей-мертвецов.", kind: "kill", target: "undead_knight", count: 6, reward: { xp: 1600, gold: 450 }, minLevel: 7 },
   { id: "saint", name: "Последняя молитва", description: "Упокойте Забытую Святую.", kind: "boss", target: "forgotten_saint", count: 1, reward: { xp: 3000, gold: 900 }, minLevel: 10 },
-  { id: "abominations", name: "Плоть без имени", description: "Уничтожьте 6 мерзостей.", kind: "kill", target: "abomination", count: 6, reward: { xp: 3200, gold: 900 }, minLevel: 10 },
+  { id: "abominations", name: "Плоть без имени", description: "Уничтожьте 4 мерзости.", kind: "kill", target: "abomination", count: 4, reward: { xp: 3200, gold: 900 }, minLevel: 10 },
   { id: "blood", name: "Сердце святилища", description: "Убейте Кровавую Мерзость.", kind: "boss", target: "blood_abomination", count: 1, reward: { xp: 6000, gold: 2000 }, minLevel: 15 },
 ];
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((q) => [q.id, q]));

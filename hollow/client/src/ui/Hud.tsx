@@ -202,6 +202,28 @@ function Minimap() {
       for (const n of data.npcs) pt(n.x, n.z, "#c9a46a", 2);
       for (const a of data.allies) pt(a.x, a.z, "#7fe07f", 2);
       if (data.exitOpen) pt(d.exit.x, d.exit.z, "#8fd0ff", 3);
+      // компас к логову босса (или к открытому порталу)
+      const boss = d.rooms[d.bossRoom];
+      if (boss && d.theme.id !== "hub") {
+        const tx = data.exitOpen ? d.exit.x / CELL : boss.x + boss.w / 2, tz = data.exitOpen ? d.exit.z / CELL : boss.y + boss.h / 2;
+        const dx = (tx - pcx) * S, dz = (tz - pcz) * S;
+        const half = c.width / 2 - 8;
+        const k = Math.max(Math.abs(dx), Math.abs(dz)) > half ? half / Math.max(Math.abs(dx), Math.abs(dz)) : 1;
+        const col = data.exitOpen ? "#8fd0ff" : "#e0505a";
+        g.save();
+        g.translate(c.width / 2 + dx * k, c.height / 2 + dz * k);
+        g.fillStyle = col;
+        if (k < 1) {
+          g.rotate(Math.atan2(dz, dx) + Math.PI / 2);
+          g.beginPath();
+          g.moveTo(0, -6);
+          g.lineTo(5, 4);
+          g.lineTo(-5, 4);
+          g.closePath();
+          g.fill();
+        } else g.fillRect(-3, -3, 6, 6);
+        g.restore();
+      }
       if (d.theme.id !== "hub") pt(d.entrance.x, d.entrance.z, "#6f9fd8", 2);
       // игрок — стрелка
       g.save();

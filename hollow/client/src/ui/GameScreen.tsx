@@ -273,7 +273,7 @@ export function GameScreen() {
           {panel === "settings" && <SettingsPanel onClose={() => openPanel("pause")} />}
           {panel === "help" && <HelpPanel onClose={closePanel} />}
           {panel === "note" && <NotePanel onClose={closePanel} />}
-          {panel === "results" && results && <ResultsPanel onClose={backToCamp} />}
+          {panel === "results" && results && <ResultsPanel onClose={backToCamp} onNext={(key) => { backToCamp(); audio.play("portal"); setTimeout(() => void gameApi.startRun(key), 250); }} />}
         </div>
       )}
       <TooltipLayer char={char} />

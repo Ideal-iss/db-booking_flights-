@@ -140,6 +140,6 @@ export function scaleEnemy(def: EnemyDef, level: number, players: number, elite?
     dmg: def.dmg * (1 + 0.15 * lv) * (em ? em.dmg : 1) * ch.dmg,
     speed: def.speed * (em ? em.speed : 1),
     armor: def.armor * (1 + 0.1 * lv),
-    xp: Math.round(def.xp * (1 + 0.18 * lv) * (em ? 3 : 1) * ch.xp),
+    xp: Math.round(def.xp * 1.8 * (1 + 0.18 * lv) * (em ? 3 : 1) * ch.xp),
   };
 }

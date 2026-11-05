@@ -111,7 +111,8 @@ export function generateDungeon(key: string, seed: number, level: number): Dunge
   const bossType = st ? st.stage.boss : theme.boss;
   const champion = st?.stage.champion;
   const rng = new Rng(`${key}:${seed}`);
-  const N = theme.size;
+  // компактные уровни: этап проходится за 5–8 минут
+  const N = Math.round(theme.size * 0.72);
   const cells = new Uint8Array(N * N);
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= N || y >= N ? Cell.Wall : cells[y * N + x]);
   const set = (x: number, y: number, v: Cell) => {

@@ -36,6 +36,8 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
       };
       if (d.theme.id !== "hub") pt(d.entrance.x, d.entrance.z, "#6f9fd8", 4);
       if (data.exitOpen) pt(d.exit.x, d.exit.z, "#8fd0ff", 5);
+      const boss = d.rooms[d.bossRoom];
+      if (boss && d.theme.id !== "hub" && !data.exitOpen) { g.fillStyle = "#e0505a"; g.fillRect((boss.x + boss.w / 2) * S - 5, (boss.y + boss.h / 2) * S - 5, 10, 10); }
       for (const ch of d.chests) if (!data.opened?.chests.includes(ch.id)) pt(ch.x, ch.z, "#c9a46a", 3);
       for (const sh of d.shrines) if (!data.opened?.shrines.includes(sh.id)) pt(sh.x, sh.z, "#7fe0b0", 3);
       for (const n of data.npcs) pt(n.x, n.z, "#c9a46a", 4);

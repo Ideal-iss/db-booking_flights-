@@ -39,6 +39,9 @@ export class LevelView {
     const ambient = new THREE.Color(pal.fog).multiplyScalar(2).add(d.theme.id === "hub" ? new THREE.Color(0.28, 0.24, 0.19) : new THREE.Color(0.17, 0.145, 0.12));
     this.field = new LightField(d, staticLights(d), ambient);
     this.explored = new Uint8Array(d.w * d.h);
+    // логово хозяина этажа видно на карте сразу — понятно, куда идти
+    const boss = d.rooms[d.bossRoom];
+    if (boss) for (let y = boss.y; y < boss.y + boss.h; y++) for (let x = boss.x; x < boss.x + boss.w; x++) this.explored[y * d.w + x] = 1;
     this.buildShell();
     this.buildProps();
     dressLevel(d, this.field, this.group);

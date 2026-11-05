@@ -116,10 +116,19 @@ export function GatePanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function ResultsPanel({ onClose }: { onClose: () => void }) {
-  const { results } = useGame();
+export function ResultsPanel({ onClose, onNext }: { onClose: () => void; onNext: (key: string) => void }) {
+  const { results, char } = useGame();
   if (!results) return null;
   const r = results;
+  // быстрый переход: следующий этап (если открыт) или ещё раз этот же
+  const pr = parseStage(r.dungeon);
+  let next: string | null = null;
+  if (pr && char) {
+    const pref = pr.nightmare ? "n:" : "";
+    const idx = STAGES.findIndex((s) => s.id === pr.stage.id);
+    const cand = STAGES[idx + 1];
+    if (cand && stageUnlocked(pref + cand.id, char.cleared)) next = pref + cand.id;
+  }
   // сюжет: конец акта (первое прохождение третьего этапа) или эпилог
   const p = parseStage(r.dungeon);
   let story: { title: string; text: string; next?: { title: string; text: string } } | null = null;
@@ -159,6 +168,16 @@ export function ResultsPanel({ onClose }: { onClose: () => void }) {
             </>
           )}
           {p?.stage.act === 5 && <div className="text-gold mt-3 text-sm">Открыт режим «Кошмар» — у Врат Глубин.</div>}
+        </div>
+      )}
+      {!r.pending && pr && (
+        <div className="mb-2 flex gap-2">
+          {next && (
+            <button className="btn btn-red flex-1 py-2" onClick={() => onNext(next!)}>
+              Дальше: {STAGES.find((s) => s.id === next!.replace("n:", ""))?.name}
+            </button>
+          )}
+          <button className="btn flex-1 py-2" onClick={() => onNext(r.dungeon)}>Ещё раз</button>
         </div>
       )}
       <button className="btn btn-gold w-full py-2 text-lg" disabled={r.pending} onClick={onClose}>

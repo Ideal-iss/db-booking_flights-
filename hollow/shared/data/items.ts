@@ -272,10 +272,10 @@ export type DropTier = "normal" | "elite" | "boss" | "chest" | "pot";
 /** Выпадение добычи. Возвращает предметы и золото. */
 export function rollLoot(rng: Rng, ilvl: number, tier: DropTier, magicFind = 0): { items: Item[]; gold: number; potion?: "health" | "mana" } {
   const items: Item[] = [];
-  const chanceItem = { normal: 0.16, elite: 0.85, boss: 1, chest: 1, pot: 0.05 }[tier];
+  const chanceItem = { normal: 0.24, elite: 0.85, boss: 1, chest: 1, pot: 0.05 }[tier];
   const count = { normal: 1, elite: 1, boss: 3, chest: 2, pot: 1 }[tier];
   const gold = rng.chance({ normal: 0.45, elite: 1, boss: 1, chest: 1, pot: 0.55 }[tier])
-    ? Math.round(rng.range(3, 9) * ilvl * { normal: 1, elite: 3, boss: 12, chest: 4, pot: 0.5 }[tier] * (1 + magicFind))
+    ? Math.round(rng.range(5, 13) * ilvl * { normal: 1, elite: 3, boss: 12, chest: 4, pot: 0.5 }[tier] * (1 + magicFind))
     : 0;
   for (let i = 0; i < count; i++) {
     if (!rng.chance(chanceItem)) continue;

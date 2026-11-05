@@ -76,8 +76,6 @@ for (const th of STAGES) for (let seed = 1; seed <= 8; seed++) {
 for (const th of STAGES) {
   const sim = new Sim(RAPIER, { dungeon: th.id, seed: 4242, level: th.level, players: [{ id: "a", name: "A", char: makeChar("knight", th.level) }] });
   const p = sim.players.get("a")!;
-  const c = sim.d.chests.find((x) => !x.mimic);
-  if (c) { p.x = c.x + 1.2; p.z = c.z; sim.action("a", { t: "interact" }); ok(sim.opened.chests.has(c.id), "chest opens"); ok(sim.drops.size > 0, "chest drops loot"); }
   const sec = sim.d.secrets[0];
   if (sec) {
     const sx = (sec.cx + 0.5) * 3, sz = (sec.cy + 0.5) * 3;
@@ -86,6 +84,8 @@ for (const th of STAGES) {
     ok(sim.opened.secrets.has(sec.id), "secret opens");
     ok(walkable(sim.d, sec.cx, sec.cy, sim.opened.secrets), "secret walkable after open");
   }
+  const c = sim.d.chests.find((x) => !x.mimic);
+  if (c) { p.x = c.x + 1.2; p.z = c.z; sim.action("a", { t: "interact" }); ok(sim.opened.chests.has(c.id), "chest opens"); ok(sim.drops.size > 0, "chest drops loot"); }
   // урны
   const pot = sim.d.breakables[0];
   ok(sim.d.breakables.length > 5, `${th.id} breakables placed`);

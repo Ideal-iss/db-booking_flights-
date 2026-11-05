@@ -106,6 +106,8 @@ export class Game {
   setUiOpen(open: boolean) {
     this.uiOpen = open;
     this.input.enabled = !open;
+    // нажатие, которое открыло/закрыло окно, не должно ещё раз сработать в игре
+    this.input.pressed = [];
     if (open) this.input.unlock();
     if (this.session && !this.session.coop) this.session.paused = open;
   }
@@ -505,6 +507,8 @@ export class Game {
   private handleInput(dt: number, t: number) {
     const inp = this.input;
     const c = this.ctl!;
+    // пока открыто окно интерфейса, его клавиши (I, C, Esc…) обрабатывает сам интерфейс
+    if (this.uiOpen) return;
     for (const code of inp.pressed) {
       if (code === "Escape") { this.cb.pauseToggle(); continue; }
       if (code === "KeyI") this.cb.togglePanel("inventory");
@@ -604,7 +608,6 @@ export class Game {
     const c = this.ctl;
     const paused = !!this.session?.paused;
     if (!paused) this.handleInput(dt, t);
-    else for (const code of this.input.pressed) if (code === "Escape") this.cb.pauseToggle();
 
     if (this.session) {
       this.session.update(dt);

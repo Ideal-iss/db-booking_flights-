@@ -40,6 +40,7 @@ export function useSkill(sim: Sim, p: SimPlayer, slot: number, aim?: { x: number
   let used = true;
   switch (e.type) {
     case "arc": {
+      sim.breakInArc(p, e.range, e.arc);
       const targets = sim.enemiesInArc(p, e.range, e.arc);
       for (const en of targets) {
         let mult = e.dmg;
@@ -64,6 +65,7 @@ export function useSkill(sim: Sim, p: SimPlayer, slot: number, aim?: { x: number
       break;
     }
     case "nova": {
+      sim.breakInRadius(p.x, p.z, e.radius, p);
       const physical = e.element === "physical";
       for (const en of sim.enemies.values()) {
         if (en.state === "dead" || en.team !== "enemy") continue;

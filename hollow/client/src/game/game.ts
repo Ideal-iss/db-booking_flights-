@@ -4,6 +4,8 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { Engine, disposeTree } from "./engine";
 import { LevelView } from "./level";
 import { LightPool, probeAt } from "./lighting";
+import { AmbientFx } from "./dressing";
+import { NOTES } from "@shared/data/lore";
 import { FpsController, EYE } from "./controller";
 import { Input } from "./input";
 import { ViewModel } from "./viewmodel";
@@ -32,6 +34,7 @@ export interface GameCallbacks {
   hud: (h: Hud) => void;
   say: (text: string, color?: string) => void;
   openPanel: (p: string) => void;
+  readNote: (title: string, text: string) => void;
   pickup: (item: Item) => Promise<boolean>;
   bagFull: () => boolean;
   runEnded: (success: boolean) => void;
@@ -52,6 +55,8 @@ export class Game {
   ents: Entities | null = null;
   pool: LightPool;
   lantern: THREE.PointLight;
+  ambient: AmbientFx | null = null;
+  readNotes = new Set<string>();
   session: Session | null = null;
   npcs: Npc[] = [];
   dungeonName = "";
@@ -81,7 +86,7 @@ export class Game {
     this.pool = new LightPool(this.engine.scene, 4);
     this.engine.scene.add(new THREE.AmbientLight(0xffffff, 0.08));
     // фонарь героя: тёплый свет вокруг, чтобы коридоры не тонули в черноте
-    this.lantern = new THREE.PointLight(0xffd8b0, 2.4, 9, 1.4);
+    this.lantern = new THREE.PointLight(0xffd8b0, 2.4, 10, 2);
     this.engine.scene.add(this.lantern);
     this.engine.canvas.addEventListener("click", () => {
       if (!this.uiOpen) this.input.lock();
@@ -134,6 +139,7 @@ export class Game {
     }
     this.ents?.clear();
     this.ctl?.dispose();
+    this.ambient = null;
     this.level = null;
     this.ents = null;
     this.ctl = null;
@@ -145,6 +151,10 @@ export class Game {
     this.engine.scene.fog = new THREE.Fog(pal.fog, 3, d.theme.id === "hub" ? 30 : 21);
     this.level = new LevelView(d);
     this.engine.scene.add(this.level.group);
+    this.ambient = new AmbientFx(this.level.group, d, this.level.field, this.level.flamePos, (x, z) => {
+      this.ents?.burst(x, 0.05, z, "#8aa0b0", 4, { speed: 0.8, up: 1.2, size: 0.04, life: 0.35 });
+      audio.play("drip", { x, z }, 0.7);
+    });
     this.ctl = new FpsController(RAPIER, d);
   }
 
@@ -165,6 +175,7 @@ export class Game {
     this.clearScene();
     this.mode = "dungeon";
     this.session = session;
+    this.readNotes.clear();
     this.dungeonName = name;
     this.bossId = null;
     this.setupScene(session.dungeon);
@@ -210,6 +221,7 @@ export class Game {
           ents.burst(e.x as number, e.y as number, e.z as number, undead ? "#d8cfb8" : "#8a0a10", big ? 14 : 7, { speed: 3, size: 0.07 });
           audio.play(e.blocked ? "block" : big ? "crit" : undead ? "bone" : "hit", pos, mine ? 1 : 0.6);
           if (mine && big) this.shake = Math.max(this.shake, 0.25);
+          if (big && !undead) ents.splat(e.x as number, e.z as number, "blood", 0.9);
           break;
         }
         case "phit":
@@ -272,10 +284,20 @@ export class Game {
         case "potion":
           if (e.p === me) { this.view.potion(); audio.play("potion"); }
           break;
+        case "break": {
+          const wood = e.kind !== "urn";
+          ents.burst(e.x as number, 0.4, e.z as number, wood ? "#6a4a2a" : "#8a5a3a", 18, { speed: 3, up: 2.5, size: 0.08, life: 0.8 });
+          ents.burst(e.x as number, 0.3, e.z as number, "#5a4a3a", 10, { speed: 1, up: 0.8, g: 0.5, size: 0.3, life: 1.2 });
+          audio.play(wood ? "wood" : "break", pos);
+          if (e.p === me) this.shake = Math.max(this.shake, 0.12);
+          break;
+        }
         case "death": {
           const type = e.type as string;
-          ents.burst(e.x as number, 0.8, e.z as number, ENEMIES[type]?.undead ? "#d8cfb8" : "#6a0a0e", e.boss ? 60 : 16, { speed: e.boss ? 6 : 3, size: 0.09 });
-          audio.play(ENEMIES[type]?.undead ? "bone" : "death", pos);
+          const undead = ENEMIES[type]?.undead;
+          ents.splat(e.x as number, e.z as number, undead ? "bonedust" : "blood", e.boss ? 3.5 : 1.8);
+          ents.burst(e.x as number, 0.8, e.z as number, undead ? "#d8cfb8" : "#6a0a0e", e.boss ? 60 : 16, { speed: e.boss ? 6 : 3, size: 0.09 });
+          audio.play(undead ? "bone" : "death", pos);
           audio.play("death", pos, 0.6);
           if (e.boss) {
             this.cb.say(`${ENEMIES[type].name} повержен${type === "forgotten_saint" ? "а" : ""}!`, "#ffd84a");
@@ -324,6 +346,7 @@ export class Game {
           }
           break;
         case "explode":
+          ents.splat(e.x as number, e.z as number, "soot", Math.min(4, (e.r as number) * 1.4));
           ents.burst(e.x as number, 0.6, e.z as number, ELEMENT_COLOR[e.el as string] || "#ff8a2a", 30, { speed: (e.r as number) * 1.6, additive: true, size: 0.35, life: 0.5 });
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, ELEMENT_COLOR[e.el as string] || "#ff8a2a");
           audio.play(e.el === "holy" ? "holy" : "explode", pos);
@@ -479,6 +502,20 @@ export class Game {
         },
       };
     }
+    for (const n of d.notes) {
+      if (near(n.x, n.z, 1.9)) {
+        const note = NOTES[n.note % NOTES.length];
+        return {
+          label: this.readNotes.has(n.id) ? `Перечитать: «${note.title}»` : "Прочитать записку",
+          act: () => {
+            this.readNotes.add(n.id);
+            this.level?.markNoteRead(n.id);
+            audio.play("paper");
+            this.cb.readNote(note.title, note.text);
+          },
+        };
+      }
+    }
     for (const ch of d.chests) if (!s.opened.chests.includes(ch.id) && near(ch.x, ch.z, 2.6)) return { label: "Открыть сундук", act: () => this.act({ t: "interact" }) };
     for (const sec of d.secrets) {
       if (!s.opened.secrets.includes(sec.id) && near((sec.cx + 0.5) * CELL, (sec.cy + 0.5) * CELL, 3.2)) return { label: "Осмотреть треснувшую кладку", act: () => this.act({ t: "interact" }) };
@@ -632,11 +669,14 @@ export class Game {
     cam.rotation.set(c.pitch, c.yaw, dead ? 0.6 : 0);
     audio.listener = { x: c.x, z: c.z, yaw: c.yaw };
     this.lantern.position.set(c.x - Math.sin(c.yaw) * 0.6, c.y + 1.9, c.z - Math.cos(c.yaw) * 0.6);
-    this.lantern.intensity = 2.2 + Math.sin(t * 7) * 0.1 + Math.sin(t * 13) * 0.06;
+    const torch = this.view.offIcon === "torch";
+    this.lantern.intensity = (torch ? 2.6 : 2.0) + Math.sin(t * 7) * (torch ? 0.3 : 0.1) + Math.sin(t * 13) * (torch ? 0.18 : 0.06);
+    this.lantern.color.set(torch ? 0xffb878 : 0xffd8b0);
 
     const opened = this.ents?.latest?.opened;
     this.level.update(t, dt, opened, this.session ? (id) => this.session!.trapActive(id) : undefined, this.ents?.latest?.exitOpen);
     this.level.explore(c.x, c.z);
+    this.ambient?.update(dt, t, c.x, c.z);
     this.ents?.update(t, dt, { x: c.x, z: c.z });
     this.pool.update(this.level.field, c.x, c.z, t);
     for (const n of this.level.npcRigs) {

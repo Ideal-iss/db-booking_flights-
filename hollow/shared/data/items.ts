@@ -267,15 +267,15 @@ export function starterItem(baseId: string, uid: string): Item {
   return { uid, base: baseId, rarity: "common", ilvl: 1, affixes: [], upgrade: 0, name: base.name };
 }
 
-export type DropTier = "normal" | "elite" | "boss" | "chest";
+export type DropTier = "normal" | "elite" | "boss" | "chest" | "pot";
 
 /** Выпадение добычи. Возвращает предметы и золото. */
 export function rollLoot(rng: Rng, ilvl: number, tier: DropTier, magicFind = 0): { items: Item[]; gold: number; potion?: "health" | "mana" } {
   const items: Item[] = [];
-  const chanceItem = { normal: 0.16, elite: 0.85, boss: 1, chest: 1 }[tier];
-  const count = { normal: 1, elite: 1, boss: 3, chest: 2 }[tier];
-  const gold = rng.chance({ normal: 0.45, elite: 1, boss: 1, chest: 1 }[tier])
-    ? Math.round(rng.range(3, 9) * ilvl * { normal: 1, elite: 3, boss: 12, chest: 4 }[tier] * (1 + magicFind))
+  const chanceItem = { normal: 0.16, elite: 0.85, boss: 1, chest: 1, pot: 0.05 }[tier];
+  const count = { normal: 1, elite: 1, boss: 3, chest: 2, pot: 1 }[tier];
+  const gold = rng.chance({ normal: 0.45, elite: 1, boss: 1, chest: 1, pot: 0.55 }[tier])
+    ? Math.round(rng.range(3, 9) * ilvl * { normal: 1, elite: 3, boss: 12, chest: 4, pot: 0.5 }[tier] * (1 + magicFind))
     : 0;
   for (let i = 0; i < count; i++) {
     if (!rng.chance(chanceItem)) continue;
@@ -284,12 +284,12 @@ export function rollLoot(rng: Rng, ilvl: number, tier: DropTier, magicFind = 0):
     const base = rng.pick(candidates.length ? candidates : BASES.filter((b) => b.req <= ilvl + 2));
     items.push(makeItem(rng, base.id, rarity, ilvl));
   }
-  const potion = rng.chance(tier === "normal" ? 0.12 : 0.5) ? (rng.chance(0.6) ? "health" : "mana") : undefined;
+  const potion = rng.chance(tier === "normal" ? 0.12 : tier === "pot" ? 0.16 : 0.5) ? (rng.chance(0.6) ? "health" : "mana") : undefined;
   return { items, gold, potion };
 }
 
 function rollRarity(rng: Rng, tier: DropTier, mf: number, first: boolean): Rarity {
-  const boost = { normal: 1, elite: 2.2, boss: 4, chest: 2 }[tier] * (1 + mf);
+  const boost = { normal: 1, elite: 2.2, boss: 4, chest: 2, pot: 1 }[tier] * (1 + mf);
   const w: [Rarity, number][] = [
     ["common", 55],
     ["uncommon", 30 * boost],

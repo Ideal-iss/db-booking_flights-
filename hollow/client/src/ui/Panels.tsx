@@ -195,3 +195,15 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
     </Panel>
   );
 }
+
+export function NotePanel({ onClose }: { onClose: () => void }) {
+  const { note } = useGame();
+  if (!note) return null;
+  return (
+    <div className="rise relative w-[min(460px,92vw)] p-7 text-[#2a1a0e]" style={{ background: "linear-gradient(#cdbf98, #b8a67c)", boxShadow: "inset 0 0 40px #6a4a2a88, 0 8px 0 #00000080", clipPath: "polygon(0 2%, 4% 0, 30% 1%, 62% 0, 97% 2%, 100% 30%, 99% 70%, 100% 97%, 70% 100%, 35% 99%, 3% 100%, 0 70%, 1% 35%)" }}>
+      <div className="mb-3 text-center text-lg" style={{ fontFamily: "var(--font-head)" }}>{note.title}</div>
+      <div className="text-[15px] leading-6">{note.text}</div>
+      <button className="btn mt-5 w-full" onClick={onClose}>Убрать записку [E / Esc]</button>
+    </div>
+  );
+}

@@ -48,6 +48,13 @@ function glowEyes(parent: THREE.Object3D, color: string, y: number, z: number, s
   const m = new THREE.MeshBasicMaterial({ color });
   const a = box(size, size, 0.02, m, -sep, y, z, parent);
   const b = box(size, size, 0.02, m, sep, y, z, parent);
+  // ореол: глаза светятся в темноте коридора
+  const halo = new THREE.SpriteMaterial({ map: glowTexture(), color, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  for (const e of [a, b]) {
+    const sp = new THREE.Sprite(halo);
+    sp.scale.setScalar(size * 4.5);
+    e.add(sp);
+  }
   return [a, b];
 }
 

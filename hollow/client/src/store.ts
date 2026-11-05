@@ -5,7 +5,7 @@ import type { ServerCharacter } from "./api";
 export type Screen = "boot" | "auth" | "select" | "create" | "game";
 export type Panel =
   | null | "inventory" | "character" | "skills" | "map" | "merchant" | "blacksmith" | "stash"
-  | "quests" | "gate" | "party" | "pause" | "settings" | "results" | "help";
+  | "quests" | "gate" | "party" | "pause" | "settings" | "results" | "help" | "note";
 
 export interface Settings {
   vhs: number;
@@ -79,6 +79,7 @@ interface State {
   hud: Hud | null;
   log: LogLine[];
   results: Results | null;
+  note: { title: string; text: string } | null;
   busy: boolean;
   toast: string;
   set: (p: Partial<State>) => void;
@@ -99,6 +100,7 @@ export const useGame = create<State>((set, get) => ({
   hud: null,
   log: [],
   results: null,
+  note: null,
   busy: false,
   toast: "",
   set: (p) => set(p),

@@ -62,6 +62,18 @@ for (const th of DUNGEONS) {
     ok(sim.opened.secrets.has(sec.id), "secret opens");
     ok(walkable(sim.d, sec.cx, sec.cy, sim.opened.secrets), "secret walkable after open");
   }
+  // урны
+  const pot = sim.d.breakables[0];
+  ok(sim.d.breakables.length > 5, `${th.id} breakables placed`);
+  ok(sim.d.notes.length >= 1, `${th.id} notes placed`);
+  if (pot) {
+    const before = sim.drops.size;
+    p.x = pot.x + 1.2; p.z = pot.z; p.yaw = Math.atan2(-(pot.x - p.x), -(pot.z - p.z)); p.nextAttackAt = 0;
+    sim.action("a", { t: "attack" });
+    for (let i = 0; i < 20; i++) sim.step();
+    ok(sim.opened.broken.has(pot.id), `${th.id} pot breaks`);
+    void before;
+  }
   // подбор предмета
   const dr = [...sim.drops.values()].find((d) => d.item);
   if (dr) { p.x = dr.x; p.z = dr.z; sim.action("a", { t: "interact" }); ok(p.loot.length === 1, "item picked"); }

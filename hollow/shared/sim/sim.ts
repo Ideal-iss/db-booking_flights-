@@ -60,7 +60,7 @@ export class Sim {
   grounds: Ground[] = [];
   drops = new Map<string, Drop>();
   events: SimEvent[] = [];
-  opened = { chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>() };
+  opened = { chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>(), broken: new Set<string>() };
   colliderOwner = new Map<number, string>();
   controller: RAPIER_NS.KinematicCharacterController;
   flow: Int16Array;
@@ -315,10 +315,38 @@ export class Sim {
       this.damageEnemy(e, dmg, "physical", p, { crit, knock: atk.heavy ? 3.5 : 1.2, melee: true });
       hitAny = true;
     }
-    if (!hitAny) {
-      // Удар по сундуку или тайной стене тоже что-то делает: просто звук.
-      this.events.push({ t: "whiff", p: p.id });
+    if (this.breakInArc(p, reach, atk.heavy ? 2.0 : 1.5)) hitAny = true;
+    if (!hitAny) this.events.push({ t: "whiff", p: p.id });
+  }
+
+  /** Разбить урну или ящик. by — кто разбил (для золота и событий). */
+  breakObject(id: string, by: SimPlayer | null) {
+    if (this.opened.broken.has(id)) return;
+    const b = this.d.breakables.find((x) => x.id === id);
+    if (!b) return;
+    this.opened.broken.add(id);
+    this.events.push({ t: "break", id, x: b.x, z: b.z, kind: b.kind, p: by?.id });
+    this.spawnLoot(b.x, b.z, "pot", `pot:${id}`, by ? by.stats.goldFind : 0);
+  }
+
+  breakInArc(p: SimPlayer, range: number, arc: number) {
+    const f = this.forward(p);
+    let any = false;
+    for (const b of this.d.breakables) {
+      if (this.opened.broken.has(b.id)) continue;
+      const dx = b.x - p.x, dz = b.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > range + 0.3) continue;
+      const ang = Math.acos(clamp((dx * f.x + dz * f.z) / Math.max(0.001, dist), -1, 1));
+      if (dist > 0.6 && ang > arc / 2) continue;
+      this.breakObject(b.id, p);
+      any = true;
     }
+    return any;
+  }
+
+  breakInRadius(x: number, z: number, r: number, by: SimPlayer | null) {
+    for (const b of this.d.breakables) if (!this.opened.broken.has(b.id) && Math.hypot(b.x - x, b.z - z) < r + 0.3) this.breakObject(b.id, by);
   }
 
   isBehind(p: SimPlayer, e: SimEnemy) {
@@ -782,6 +810,7 @@ export class Sim {
     }
     if (p.whirlUntil > this.t && this.t >= p.whirlNext) {
       p.whirlNext = this.t + 0.3;
+      this.breakInRadius(p.x, p.z, 3.2, p);
       for (const e of this.enemies.values()) {
         if (e.state === "dead" || e.team !== "enemy") continue;
         if (Math.hypot(e.x - p.x, e.z - p.z) < 3.2 + e.def.radius) {
@@ -865,6 +894,14 @@ export class Sim {
           this.damageEnemy(e, pr.dmg, pr.element, owner, { crit: pr.crit, slow: pr.slow, undeadBonus: pr.undeadBonus, knock: pr.kind === "arrow" ? 0.5 : 0.3 });
           if (!pr.pierce) { alive = false; break; }
         }
+        if (alive) {
+          for (const b of this.d.breakables) {
+            if (this.opened.broken.has(b.id) || !hitTest(b.x, 0, 0.9, b.z, 0.35)) continue;
+            this.breakObject(b.id, owner);
+            if (pr.explode) { this.explode(pr, owner, b.x, b.z); alive = false; break; }
+            if (!pr.pierce) { alive = false; break; }
+          }
+        }
         if (alive && pr.healAlly) {
           for (const p of this.players.values()) {
             if (p.id === pr.owner || !p.alive || pr.hit.has(p.id)) continue;
@@ -905,6 +942,7 @@ export class Sim {
   private explode(pr: Projectile, owner: SimPlayer | null, x: number, z: number) {
     const r = pr.explode!;
     this.events.push({ t: "explode", x, z, r, el: pr.element });
+    this.breakInRadius(x, z, r, owner);
     if (pr.team === "player") {
       for (const e of this.enemies.values()) {
         if (e.state === "dead" || e.team !== "enemy") continue;
@@ -943,6 +981,7 @@ export class Sim {
       if (this.t >= g.until) {
         if (g.kind === "meteor" || g.kind === "smite") {
           this.events.push({ t: "explode", x: g.x, z: g.z, r: g.r, el: g.kind === "meteor" ? "fire" : "holy" });
+          this.breakInRadius(g.x, g.z, g.r, owner);
           for (const e of this.enemies.values()) {
             if (e.state === "dead" || e.team !== "enemy") continue;
             if (Math.hypot(e.x - g.x, e.z - g.z) < g.r + e.def.radius) {
@@ -1038,7 +1077,7 @@ export class Sim {
         id: d.id, x: r2(d.x), z: r2(d.z), kind: d.item ? "item" : d.gold ? "gold" : "potion",
         rarity: d.item?.rarity, name: d.item?.name, icon: d.item ? BASE_BY_ID[d.item.base].icon : d.potion, amount: d.gold,
       })),
-      opened: { chests: [...this.opened.chests], secrets: [...this.opened.secrets], shrines: [...this.opened.shrines] },
+      opened: { chests: [...this.opened.chests], secrets: [...this.opened.secrets], shrines: [...this.opened.shrines], broken: [...this.opened.broken] },
       bossDead: this.bossDead,
       exitOpen: this.bossDead,
     };

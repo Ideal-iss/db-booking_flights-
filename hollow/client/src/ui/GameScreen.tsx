@@ -13,7 +13,7 @@ import { CharacterPanel } from "./CharacterPanel";
 import { SkillsPanel } from "./SkillsPanel";
 import { MapPanel } from "./MapPanel";
 import { MerchantPanel, BlacksmithPanel } from "./Shops";
-import { QuestsPanel, GatePanel, ResultsPanel, PausePanel, SettingsPanel, HelpPanel } from "./Panels";
+import { QuestsPanel, GatePanel, ResultsPanel, PausePanel, SettingsPanel, HelpPanel, NotePanel } from "./Panels";
 import { PartyPanel } from "./Party";
 import { audio } from "../game/audio";
 import { party } from "../game/net";
@@ -124,6 +124,10 @@ export function GameScreen() {
           hud: (h) => useGame.setState({ hud: h }),
           say: (t, col) => useGame.getState().say(t, col),
           openPanel: (p) => openPanel(p as Panel),
+          readNote: (title, text) => {
+            useGame.setState({ note: { title, text } });
+            openPanel("note");
+          },
           togglePanel: (p) => togglePanel(p as Panel),
           pauseToggle: () => {
             const cur = useGame.getState().panel;
@@ -194,7 +198,7 @@ export function GameScreen() {
     const onKey = (e: KeyboardEvent) => {
       const cur = useGame.getState().panel;
       if (!cur || (e.target as HTMLElement)?.tagName === "INPUT") return;
-      if (e.code === "Escape") closePanel();
+      if (e.code === "Escape" || (e.code === "KeyE" && cur === "note")) closePanel();
       const map: Record<string, Panel> = { KeyI: "inventory", KeyC: "character", KeyB: "skills", KeyK: "skills", KeyM: "map", Tab: "map" };
       if (map[e.code] && cur !== "results" && cur !== "pause") {
         e.preventDefault();
@@ -257,6 +261,7 @@ export function GameScreen() {
           {panel === "pause" && <PausePanel onClose={closePanel} onSettings={() => openPanel("settings")} onHelp={() => openPanel("help")} />}
           {panel === "settings" && <SettingsPanel onClose={() => openPanel("pause")} />}
           {panel === "help" && <HelpPanel onClose={closePanel} />}
+          {panel === "note" && <NotePanel onClose={closePanel} />}
           {panel === "results" && results && <ResultsPanel onClose={backToCamp} />}
         </div>
       )}

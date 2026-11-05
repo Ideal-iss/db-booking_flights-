@@ -95,7 +95,7 @@ export function buildHub(): { d: Dungeon; npcs: Npc[] } {
   lights.push({ x: c(13.1), y: 1.0, z: c(6.5) + 1, color: "#ff6a20", kind: "brazier" });
   const d: Dungeon = {
     theme: HUB_THEME, seed: 1, level: 1, w: W, h: W, cells, rooms: [], start: { x: c(7.5), z: c(10.6), yaw: 0 }, bossRoom: -1,
-    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [],
+    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [], breakables: [], notes: [],
     entrance: { x: c(7.5), z: c(12.6) }, exit: { x: -100, z: -100 },
   };
   // NPC и предметы тоже твёрдые

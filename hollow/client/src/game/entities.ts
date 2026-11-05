@@ -3,7 +3,7 @@ import * as THREE from "three";
 import type { Snapshot } from "@shared/sim/types";
 import { RARITIES } from "@shared/data/items";
 import { makeAvatar, makeEnemy, makeWeapon, poseRig, setAvatarWeapons, type EnemyModel, type Rig } from "./models";
-import { glowTexture, pixelTexture, ringTexture, textTexture } from "./textures";
+import { decalTexture, glowTexture, pixelTexture, ringTexture, textTexture } from "./textures";
 import { probeAt, type LightField } from "./lighting";
 import type { Appearance } from "@shared/data/stats";
 
@@ -46,6 +46,17 @@ interface Particle {
   size: number;
 }
 
+const shadowMat = new THREE.MeshBasicMaterial({ map: glowTexture(), color: "#000000", transparent: true, opacity: 0.55, depthWrite: false });
+const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+/** Мягкое пятно тени — без него фигуры «парят» над полом. */
+function blobShadow(size: number) {
+  const m = new THREE.Mesh(shadowGeo, shadowMat);
+  m.scale.set(size, 1, size);
+  m.position.y = 0.025;
+  m.renderOrder = 2;
+  return m;
+}
+
 export class Entities {
   scene: THREE.Scene;
   field: LightField;
@@ -58,6 +69,7 @@ export class Entities {
   particles: Particle[] = [];
   numbers: { s: THREE.Sprite; life: number; vy: number }[] = [];
   rings: { m: THREE.Mesh; life: number; max: number; r: number }[] = [];
+  splats: THREE.Mesh[] = [];
   private snapA: Snapshot | null = null;
   private snapB: Snapshot | null = null;
   private tA = 0;
@@ -94,6 +106,7 @@ export class Entities {
       let v = this.enemies.get(e.id);
       if (!v) {
         const model = makeEnemy(e.type, e.elite);
+        model.rig.root.add(blobShadow(model.rig.height * 0.75 + 0.4));
         model.rig.root.position.set(e.x, 0, e.z);
         model.rig.root.rotation.y = e.yaw;
         this.scene.add(model.rig.root);
@@ -121,6 +134,7 @@ export class Entities {
       let v = this.players.get(p.id);
       if (!v) {
         const rig = makeAvatar(p.cls, p.app as Appearance);
+        rig.root.add(blobShadow(1.2));
         this.scene.add(rig.root);
         const { tex, w, h } = textTexture(p.name, "#d8cdb2", 14);
         const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
@@ -306,6 +320,7 @@ export class Entities {
         neck.position.y = 0.29;
         g.add(b, neck);
       }
+      g.add(blobShadow(d.kind === "item" ? 0.8 : 0.5));
       this.scene.add(g);
       this.drops.set(d.id, { obj: g, label, kind: d.kind, name: d.name, rarity: d.rarity, x: d.x, z: d.z });
     }
@@ -367,6 +382,25 @@ export class Entities {
     s.renderOrder = 20;
     this.scene.add(s);
     this.numbers.push({ s, life: 1, vy: 1.4 });
+  }
+
+  /** Пятно на полу, которое остаётся после боя (кровь, костная пыль, ожог). */
+  splat(x: number, z: number, kind: "blood" | "bonedust" | "soot", size = 1.6) {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: decalTexture(kind, Math.floor(Math.random() * 3)), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, color: "#9a9088" }),
+    );
+    m.rotation.y = Math.random() * Math.PI * 2;
+    m.position.set(x, 0.018 + (this.splats.length % 9) * 0.001, z);
+    m.renderOrder = 1;
+    this.scene.add(m);
+    this.splats.push(m);
+    if (this.splats.length > 70) {
+      const old = this.splats.shift()!;
+      this.scene.remove(old);
+      old.geometry.dispose();
+      (old.material as THREE.Material).dispose();
+    }
   }
 
   flashEnemy(id: string) {
@@ -527,6 +561,8 @@ export class Entities {
     for (const p of this.particles) this.scene.remove(p.s);
     for (const n of this.numbers) this.scene.remove(n.s);
     for (const r of this.rings) this.scene.remove(r.m);
+    for (const m of this.splats) this.scene.remove(m);
+    this.splats = [];
     this.enemies.clear();
     this.players.clear();
     this.projectiles.clear();

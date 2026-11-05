@@ -228,6 +228,21 @@ class AudioEngine {
       case "dodge":
         this.noiseHit(out, t, { type: "bandpass", f: 600, f2: 1800, q: 1, a: 0.02, d: 0.2, gain: 0.25 * v });
         break;
+      case "break":
+        this.noiseHit(out, t, { type: "bandpass", f: 1800, q: 1.2, d: 0.18, gain: 0.55 * v });
+        for (let i = 0; i < 4; i++) this.noiseHit(out, t + 0.04 + i * 0.05, { type: "highpass", f: 2500 + i * 400, d: 0.05, gain: 0.25 * v });
+        this.tone(out, t, { type: "triangle", f: 420, f2: 180, d: 0.12, gain: 0.12 * v });
+        break;
+      case "wood":
+        this.noiseHit(out, t, { type: "lowpass", f: 900, f2: 300, d: 0.22, gain: 0.6 * v });
+        this.tone(out, t, { type: "square", f: 140, f2: 70, d: 0.1, gain: 0.14 * v });
+        break;
+      case "drip":
+        this.tone(out, t, { type: "sine", f: 1600 + Math.random() * 900, f2: 700, d: 0.09, gain: 0.05 * v });
+        break;
+      case "paper":
+        this.noiseHit(out, t, { type: "highpass", f: 3000, a: 0.03, d: 0.2, gain: 0.18 * v });
+        break;
       case "nomana":
         this.tone(out, t, { type: "square", f: 180, d: 0.12, gain: 0.06 * v });
         break;

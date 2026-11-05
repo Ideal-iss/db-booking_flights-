@@ -1,6 +1,6 @@
 /** Руки и оружие от первого лица: покачивание, удары, блок, натяжение лука, заклинания. */
 import * as THREE from "three";
-import { makeWeapon } from "./models";
+import { makeWeapon, makeFlame } from "./models";
 import { litMaterial } from "./lighting";
 import { SKIN, CLOTH } from "./models";
 import type { Appearance } from "@shared/data/stats";
@@ -77,11 +77,18 @@ export class ViewModel {
       }
       this.weaponIcon = weapon;
     }
+    // свободная левая рука держит факел (кроме лучника — ему нужны обе руки)
+    if (!offhand && mode !== "bow") offhand = "torch";
     if (offhand !== this.offIcon) {
       if (this.offhand) this.left.remove(this.offhand);
-      this.offhand = offhand ? makeWeapon(offhand, this.probe) : null;
+      this.torchFlame = null;
+      this.offhand = offhand === "torch" ? this.makeTorch() : offhand ? makeWeapon(offhand, this.probe) : null;
       if (this.offhand) {
-        if (offhand === "shield") {
+        if (offhand === "torch") {
+          this.offhand.position.set(-0.04, -0.06, -0.02);
+          this.offhand.rotation.set(-0.5, 0, 0.25);
+          this.offhand.scale.setScalar(0.5);
+        } else if (offhand === "shield") {
           this.offhand.position.set(0.02, 0.05, -0.08);
           this.offhand.scale.setScalar(0.8);
         } else {
@@ -93,6 +100,27 @@ export class ViewModel {
       }
       this.offIcon = offhand;
     }
+  }
+
+  private torchFlame: THREE.Sprite | null = null;
+
+  private makeTorch(): THREE.Group {
+    const g = new THREE.Group();
+    const wood = litMaterial({ color: "#6b4a2a", probe: this.probe, fog: false });
+    const iron = litMaterial({ color: "#3a3a3e", probe: this.probe, fog: false });
+    const stick = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.035), wood);
+    stick.position.y = 0.1;
+    const wrap = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.06), litMaterial({ color: "#2a1a10", probe: this.probe, fog: false }));
+    wrap.position.y = 0.3;
+    const cup = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, 0.07), iron);
+    cup.position.y = 0.26;
+    g.add(stick, wrap, cup);
+    const flame = makeFlame(0.55);
+    (flame.material as THREE.SpriteMaterial).fog = false;
+    flame.position.y = 0.42;
+    g.add(flame);
+    this.torchFlame = flame;
+    return g;
   }
 
   attack(heavy: boolean, interval: number) {
@@ -187,7 +215,13 @@ export class ViewModel {
       this.root.position.y += (Math.random() - 0.5) * 0.03 * this.hurtShake;
       this.hurtShake = Math.max(0, this.hurtShake - dt * 4);
     }
-    // сияние навершия посоха
+    if (this.torchFlame) {
+      const map = (this.torchFlame.material as THREE.SpriteMaterial).map!;
+      map.offset.x = (Math.floor(t * 10) % 4) * 0.25;
+      const k = 0.9 + 0.15 * Math.sin(t * 11);
+      this.torchFlame.scale.set(0.2 * k, 0.32 * (2 - k), 1);
+    }
+        // сияние навершия посоха
     this.root.traverse((o) => {
       if (o.name === "orb") {
         o.rotation.y = t * 2;

@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CELL, Cell, WALL_H, type Dungeon } from "@shared/dungeon/generate";
 import { LightField, litMaterial, probeAt, staticLights } from "./lighting";
-import { ceilingTexture, floorTexture, wallTexture, glowTexture, metalTexture } from "./textures";
+import { ceilingTexture, floorTexture, wallTexture, glowTexture, metalTexture, crateTexture, paperTexture, woodTexture } from "./textures";
+import { dressLevel } from "./dressing";
 import { humanoid, makeChest, makeFlame, makeProp, makeWeapon, type Rig } from "./models";
 
 interface Flame {
@@ -25,6 +26,9 @@ export class LevelView {
   exitPortal: THREE.Group;
   npcRigs: { rig: Rig; id: string }[] = [];
   explored: Uint8Array;
+  flamePos: THREE.Vector3[] = [];
+  breakables = new Map<string, { whole: THREE.Object3D; broken: THREE.Object3D; done: boolean }>();
+  notes = new Map<string, { obj: THREE.Group; glow: THREE.Sprite; read: boolean }>();
 
   constructor(d: Dungeon) {
     this.d = d;
@@ -34,6 +38,9 @@ export class LevelView {
     this.explored = new Uint8Array(d.w * d.h);
     this.buildShell();
     this.buildProps();
+    dressLevel(d, this.field, this.group);
+    this.buildBreakables();
+    this.buildNotes();
     this.buildChests();
     this.buildSecrets();
     this.buildTraps();
@@ -48,8 +55,22 @@ export class LevelView {
   private buildShell() {
     const d = this.d;
     const pal = d.theme.palette;
-    const walls: number[] = [], wallUv: number[] = [], wallN: number[] = [];
-    const floors: number[] = [], floorUv: number[] = [], floorN: number[] = [];
+    // несколько вариантов текстур: трещины, мох, выпавшие кирпичи — стены перестают быть одинаковыми
+    const wallSets = Array.from({ length: 4 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
+    const floorSets = Array.from({ length: 3 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
+    const hash = (a: number, b: number, c: number) => {
+      let h = (a * 374761393 + b * 668265263 + c * 2147483647 + d.seed * 97) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return ((h ^ (h >>> 16)) >>> 0) % 100;
+    };
+    const wv = (x: number, y: number, side: number) => {
+      const h = hash(x, y, side);
+      return h < 55 ? 0 : h < 72 ? 1 : h < 90 ? 2 : 3;
+    };
+    const fv = (x: number, y: number) => {
+      const h = hash(x, y, 9);
+      return h < 62 ? 0 : h < 84 ? 1 : 2;
+    };
     const ceils: number[] = [], ceilUv: number[] = [], ceilN: number[] = [];
     // Квад, разбитый на сетку, чтобы запечённый свет давал плавный градиент.
     const quad = (pos: number[], uv: number[], nor: number[], o: THREE.Vector3, ux: THREE.Vector3, vy: THREE.Vector3, n: THREE.Vector3, su: number, sv: number, uvScale: [number, number], uvOff: [number, number]) => {
@@ -71,13 +92,15 @@ export class LevelView {
       for (let x = 0; x < d.w; x++) {
         if (!this.isFloor(x, y)) continue;
         const x0 = x * CELL, z0 = y * CELL, x1 = x0 + CELL, z1 = z0 + CELL;
-        quad(floors, floorUv, floorN, V(x0, 0, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [0, 0]);
+        const F = floorSets[fv(x, y)];
+        quad(F.p, F.u, F.n, V(x0, 0, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [0, 0]);
         quad(ceils, ceilUv, ceilN, V(x0, WALL_H, z0), V(CELL, 0, 0), V(0, 0, CELL), V(0, -1, 0), 2, 2, [1, 1], [0, 0]);
         // стены смотрят внутрь клетки
-        if (!this.isFloor(x, y - 1)) quad(walls, wallUv, wallN, V(x0, 0, z0), V(CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, 1), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x, y + 1)) quad(walls, wallUv, wallN, V(x1, 0, z1), V(-CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, -1), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x - 1, y)) quad(walls, wallUv, wallN, V(x0, 0, z1), V(0, 0, -CELL), V(0, WALL_H, 0), V(1, 0, 0), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x + 1, y)) quad(walls, wallUv, wallN, V(x1, 0, z0), V(0, 0, CELL), V(0, WALL_H, 0), V(-1, 0, 0), 2, 4, [1, wallV], [0, 0]);
+        const Wn = wallSets[wv(x, y, 0)], Ws = wallSets[wv(x, y, 1)], Ww = wallSets[wv(x, y, 2)], We = wallSets[wv(x, y, 3)];
+        if (!this.isFloor(x, y - 1)) quad(Wn.p, Wn.u, Wn.n, V(x0, 0, z0), V(CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, 1), 2, 4, [1, wallV], [0, 0]);
+        if (!this.isFloor(x, y + 1)) quad(Ws.p, Ws.u, Ws.n, V(x1, 0, z1), V(-CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, -1), 2, 4, [1, wallV], [0, 0]);
+        if (!this.isFloor(x - 1, y)) quad(Ww.p, Ww.u, Ww.n, V(x0, 0, z1), V(0, 0, -CELL), V(0, WALL_H, 0), V(1, 0, 0), 2, 4, [1, wallV], [0, 0]);
+        if (!this.isFloor(x + 1, y)) quad(We.p, We.u, We.n, V(x1, 0, z0), V(0, 0, CELL), V(0, WALL_H, 0), V(-1, 0, 0), 2, 4, [1, wallV], [0, 0]);
       }
     const mk = (pos: number[], uv: number[], nor: number[], map: THREE.Texture, color = "#ffffff") => {
       const g = new THREE.BufferGeometry();
@@ -89,8 +112,8 @@ export class LevelView {
       this.group.add(mesh);
       return mesh;
     };
-    mk(walls, wallUv, wallN, wallTexture(d.theme.wallStyle, pal.wall, pal.wall2));
-    mk(floors, floorUv, floorN, floorTexture(d.theme.floorStyle, pal.floor, pal.floor2));
+    wallSets.forEach((w, i) => w.p.length && mk(w.p, w.u, w.n, wallTexture(d.theme.wallStyle, pal.wall, pal.wall2, i)));
+    floorSets.forEach((f, i) => f.p.length && mk(f.p, f.u, f.n, floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, i)));
     mk(ceils, ceilUv, ceilN, ceilingTexture(pal.ceil));
   }
 
@@ -144,6 +167,7 @@ export class LevelView {
   }
 
   addFlame(pos: THREE.Vector3, scale: number) {
+    if (scale >= 0.9) this.flamePos.push(pos.clone());
     const sprite = makeFlame(scale);
     sprite.position.copy(pos);
     sprite.position.y += 0.15 * scale;
@@ -153,6 +177,99 @@ export class LevelView {
     halo.position.copy(sprite.position);
     this.group.add(halo);
     this.flames.push({ sprite, base: scale, phase: Math.random() * 10 });
+  }
+
+  private buildBreakables() {
+    const clay = (probe: { value: THREE.Color }) => litMaterial({ color: "#8a5a3a", probe });
+    for (const b of this.d.breakables) {
+      const probe = { value: probeAt(this.field, b.x, b.z, new THREE.Color()) };
+      const whole = new THREE.Group();
+      const broken = new THREE.Group();
+      if (b.kind === "urn") {
+        const m = clay(probe);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.5, 7), m);
+        body.position.y = 0.25;
+        const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.2, 0.22, 7), m);
+        belly.position.y = 0.32;
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.14, 7), m);
+        neck.position.y = 0.56;
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.265, 0.265, 0.04, 7), litMaterial({ color: "#3a2416", probe }));
+        band.position.y = 0.4;
+        whole.add(body, belly, neck, band);
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.12, 7, 1, true), m);
+        base.position.y = 0.06;
+        broken.add(base);
+        for (let i = 0; i < 5; i++) {
+          const sh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.08), m);
+          sh.position.set(Math.cos(i * 1.3) * 0.35, 0.015, Math.sin(i * 1.3) * 0.35);
+          sh.rotation.y = i;
+          broken.add(sh);
+        }
+      } else if (b.kind === "crate") {
+        const m = litMaterial({ map: crateTexture(), probe });
+        const c = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), m);
+        c.position.y = 0.31;
+        whole.add(c);
+        for (let i = 0; i < 4; i++) {
+          const pl = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.14), m);
+          pl.position.set(Math.cos(i * 1.7) * 0.3, 0.02 + i * 0.03, Math.sin(i * 1.7) * 0.3);
+          pl.rotation.y = i * 0.8;
+          broken.add(pl);
+        }
+      } else {
+        const m = litMaterial({ map: woodTexture(), color: "#9a7a5a", probe });
+        const ring = litMaterial({ color: "#3a3a3e", probe });
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.8, 8), m);
+        c.position.y = 0.4;
+        const bulge = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.4, 8), m);
+        bulge.position.y = 0.4;
+        whole.add(c, bulge);
+        for (const y of [0.12, 0.68]) {
+          const r = new THREE.Mesh(new THREE.CylinderGeometry(0.295, 0.295, 0.05, 8), ring);
+          r.position.y = y;
+          whole.add(r);
+        }
+        for (let i = 0; i < 5; i++) {
+          const st = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.7), m);
+          st.position.set(Math.cos(i * 1.25) * 0.3, 0.02, Math.sin(i * 1.25) * 0.3);
+          st.rotation.y = i * 1.25;
+          broken.add(st);
+        }
+      }
+      broken.visible = false;
+      for (const o of [whole, broken]) {
+        o.position.set(b.x, 0, b.z);
+        o.rotation.y = b.rot;
+        this.group.add(o);
+      }
+      this.breakables.set(b.id, { whole, broken, done: false });
+    }
+  }
+
+  private buildNotes() {
+    for (const n of this.d.notes) {
+      const g = new THREE.Group();
+      const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.44), litMaterial({ map: paperTexture(), probe: { value: probeAt(this.field, n.x, n.z, new THREE.Color()).addScalar(0.15) } }));
+      paper.rotation.x = -Math.PI / 2;
+      paper.position.y = 0.02;
+      g.add(paper);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#e8d8a8", transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      glow.scale.setScalar(0.9);
+      glow.position.y = 0.15;
+      g.add(glow);
+      g.position.set(n.x, 0, n.z);
+      g.rotation.y = n.rot;
+      this.group.add(g);
+      this.notes.set(n.id, { obj: g, glow, read: false });
+    }
+  }
+
+  markNoteRead(id: string) {
+    const n = this.notes.get(id);
+    if (n) {
+      n.read = true;
+      n.glow.visible = false;
+    }
   }
 
   private buildChests() {
@@ -291,7 +408,7 @@ export class LevelView {
     }
   }
 
-  update(t: number, dt: number, opened?: { chests: string[]; secrets: string[]; shrines: string[] }, trapActive?: (id: string) => boolean, exitOpen?: boolean) {
+  update(t: number, dt: number, opened?: { chests: string[]; secrets: string[]; shrines: string[]; broken?: string[] }, trapActive?: (id: string) => boolean, exitOpen?: boolean) {
     for (const f of this.flames) {
       const frame = Math.floor(t * 10 + f.phase * 3) % 4;
       const map = (f.sprite.material as THREE.SpriteMaterial).map!;
@@ -299,6 +416,7 @@ export class LevelView {
       const k = 0.9 + 0.15 * Math.sin(t * 11 + f.phase);
       f.sprite.scale.set(0.35 * f.base * k, 0.55 * f.base * (2 - k), 1);
     }
+    for (const n of this.notes.values()) if (!n.read) (n.glow.material as THREE.SpriteMaterial).opacity = 0.25 + 0.15 * Math.sin(t * 3);
     for (const a of this.animated) {
       if (a.name === "gem") {
         a.rotation.y = t * 1.5;
@@ -314,6 +432,14 @@ export class LevelView {
       for (const id of opened.secrets) {
         const s = this.secrets.get(id);
         if (s && !s.open) s.open = true;
+      }
+      for (const id of opened.broken || []) {
+        const b = this.breakables.get(id);
+        if (b && !b.done) {
+          b.done = true;
+          b.whole.visible = false;
+          b.broken.visible = true;
+        }
       }
       for (const id of opened.shrines) {
         const gem = this.shrines.get(id);

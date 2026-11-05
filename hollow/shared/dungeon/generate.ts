@@ -62,6 +62,10 @@ export interface Dungeon {
   chests: { id: string; x: number; z: number; rot: number; tier: "chest" | "elite" | "boss" }[];
   traps: { id: string; x: number; z: number }[];
   secrets: { id: string; cx: number; cy: number }[];
+  /** Разбиваемые урны, ящики и бочки с мелкой добычей. */
+  breakables: { id: string; x: number; z: number; kind: "urn" | "crate" | "barrel"; rot: number }[];
+  /** Записки с историей мира (номер в NOTES). */
+  notes: { id: string; x: number; z: number; note: number; rot: number }[];
   shrines: { id: string; x: number; z: number; buff: string }[];
   entrance: { x: number; z: number };
   exit: { x: number; z: number };
@@ -328,6 +332,44 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     }
   }
 
+  // разбиваемые вещи у стен и записки — отдельный поток случайностей, чтобы не сдвигать остальное
+  const r2 = new Rng((seed ^ 0x2f6b1d) >>> 0);
+  const breakables: Dungeon["breakables"] = [];
+  const notes: Dungeon["notes"] = [];
+  const clear = (x: number, z: number, rad: number) =>
+    !props.some((o) => o.solid && Math.abs(o.x - x) < o.solid[0] + rad && Math.abs(o.z - z) < o.solid[1] + rad) &&
+    !chests.some((c) => Math.hypot(c.x - x, c.z - z) < 1.2 + rad) &&
+    !shrines.some((c) => Math.hypot(c.x - x, c.z - z) < 1.2 + rad) &&
+    !breakables.some((b) => Math.hypot(b.x - x, b.z - z) < 0.7);
+  for (const r of rooms) {
+    if (r.kind === "boss") continue;
+    const n = r.kind === "secret" || r.kind === "treasure" ? 4 : r2.int(1, 3);
+    for (let i = 0, tries = 0; i < n && tries < 30; tries++) {
+      // точка вдоль случайной стены комнаты
+      const side = r2.int(0, 3);
+      const t = r2.range(0.15, 0.85);
+      const x = side < 2 ? (r.x + t * r.w) * CELL : side === 2 ? r.x * CELL + 0.6 : (r.x + r.w) * CELL - 0.6;
+      const z = side >= 2 ? (r.y + t * r.h) * CELL : side === 0 ? r.y * CELL + 0.6 : (r.y + r.h) * CELL - 0.6;
+      if (!isFloor(Math.floor(x / CELL), Math.floor(z / CELL)) || !clear(x, z, 0.5)) continue;
+      const cluster = r2.int(1, 3);
+      for (let k = 0; k < cluster; k++) {
+        const bx = x + (k ? r2.range(-0.7, 0.7) : 0), bz = z + (k ? r2.range(-0.7, 0.7) : 0);
+        if (!isFloor(Math.floor(bx / CELL), Math.floor(bz / CELL)) || (k && !clear(bx, bz, 0.4))) continue;
+        breakables.push({ id: `b${breakables.length}`, x: bx, z: bz, kind: r2.pick(["urn", "urn", "crate", "barrel"] as const), rot: r2.range(0, 6.28) });
+      }
+      i++;
+    }
+  }
+  const noteRooms = r2.shuffle(rooms.filter((r) => r.kind !== "boss" && r.kind !== "start"));
+  const noteCount = Math.min(noteRooms.length, r2.int(2, 3) + (noteRooms.some((r) => r.kind === "secret") ? 1 : 0));
+  const picked = r2.shuffle(Array.from({ length: 16 }, (_, i) => i));
+  for (let i = 0; i < noteCount; i++) {
+    const r = noteRooms[i];
+    const x = (r.x + r2.range(0.8, r.w - 0.8)) * CELL, z = (r.y + r2.range(0.8, r.h - 0.8)) * CELL;
+    if (!clear(x, z, 0.4)) continue;
+    notes.push({ id: `n${i}`, x, z, note: picked[i], rot: r2.range(0, 6.28) });
+  }
+
   const boss = rooms[1];
   const entrance = { x: startC.x, z: (start.y + 0.7) * CELL };
   props.push({ kind: "portal", x: entrance.x, z: entrance.z, rot: 0 });
@@ -337,7 +379,7 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     theme, seed, level, w: N, h: N, cells, rooms,
     start: { x: startC.x, z: startC.z + 1.5, yaw: 0 },
     bossRoom: 1,
-    spawns, props, lights, chests, traps, secrets, shrines,
+    spawns, props, lights, chests, traps, secrets, shrines, breakables, notes,
     entrance,
     exit: { x: (boss.x + boss.w / 2) * CELL, z: (boss.y + 1.5) * CELL },
   };

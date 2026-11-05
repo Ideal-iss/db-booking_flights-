@@ -515,6 +515,11 @@ export class Game {
     }
     if (!inp.locked) return;
     c.look(inp.mouse.dx, inp.mouse.dy, this.engine.settings.sensitivity, this.engine.settings.invertY);
+    // поворот стрелками (всегда) и у края экрана (если мышь не захвачена)
+    const turn = (inp.down("ArrowLeft") ? 1 : 0) - (inp.down("ArrowRight") ? 1 : 0) - (inp.soft ? inp.edge : 0);
+    c.yaw += turn * dt * 2.4;
+    const tilt = (inp.down("ArrowUp") ? 1 : 0) - (inp.down("ArrowDown") ? 1 : 0);
+    c.pitch = Math.max(-1.45, Math.min(1.45, c.pitch + tilt * dt * 1.6));
     const alive = this.mode === "hub" || (this.self ? this.self.alive : true);
     const move = {
       f: (inp.down("KeyW") ? 1 : 0) - (inp.down("KeyS") ? 1 : 0),

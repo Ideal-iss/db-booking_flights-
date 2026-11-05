@@ -21,11 +21,12 @@ function useClock() {
 export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
   const { hud, char, log, panel } = useGame();
   const clock = useClock();
-  const [locked, setLocked] = useState(false);
+  const [lock, setLock] = useState({ locked: false, soft: false });
+  const locked = lock.locked;
   useEffect(() => {
-    const f = () => setLocked(!!document.pointerLockElement);
-    document.addEventListener("pointerlockchange", f);
-    return () => document.removeEventListener("pointerlockchange", f);
+    const f = (e: Event) => setLock((e as CustomEvent<{ locked: boolean; soft: boolean }>).detail);
+    window.addEventListener("hollow-lock", f);
+    return () => window.removeEventListener("hollow-lock", f);
   }, []);
   if (!hud || !char) return null;
   const now = performance.now();
@@ -38,6 +39,8 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
         <div className="text-xs opacity-80">SP {clock}</div>
         <div className="text-gold mt-1 text-xs">{hud.dungeonName}</div>
       </div>
+
+      {locked && lock.soft && <div className="absolute top-3 left-1/2 -translate-x-1/2 text-xs text-[#e0a84a] [text-shadow:1px_1px_0_#000]">мышь не захвачена · поворот: курсор у края или стрелки · Esc — пауза</div>}
 
       {/* босс */}
       {hud.boss && (
@@ -135,6 +138,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
             <div className="text-parch mt-1 text-sm">WASD — ходить · мышь — смотреть · ЛКМ — атака (зажать — сильная) · ПКМ — блок/прицел</div>
             <div className="text-parch text-sm">Shift — бег · Пробел — уклонение · E — действие · Q/R/F — навыки · 1/2 — зелья</div>
             <div className="text-parch text-sm">I — сумка · C — персонаж · B — навыки · M — карта · Esc — пауза · F1 — помощь</div>
+            {lock.soft && <div className="mt-2 text-xs text-[#e0a84a]">Браузер не разрешил захват мыши — включён режим без захвата: поворачивайтесь мышью, подводя курсор к краю экрана, или стрелками.</div>}
           </div>
         </div>
       )}

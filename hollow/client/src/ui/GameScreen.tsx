@@ -216,7 +216,6 @@ export function GameScreen() {
       runRef.current = { id: r.run.id, dungeon, coop: false, items: 0, kills: 0 };
       closePanel();
       g.enterDungeon(session, `${DUNGEON_BY_ID[dungeon].name} (ур. ${r.run.level})`);
-      setTimeout(() => g.input.lock(), 50);
     } catch (x) {
       say(x instanceof ApiError ? x.message : "Ошибка.", "#e0505a");
     }

@@ -123,3 +123,25 @@ export const useGame = create<State>((set, get) => ({
     set({ log });
   },
 }));
+
+/** Окна, между которыми можно переходить вкладками, и их клавиши. */
+export const NAV_TABS: { id: Exclude<Panel, null>; name: string; key: string }[] = [
+  { id: "inventory", name: "Сумка", key: "I" },
+  { id: "character", name: "Персонаж", key: "C" },
+  { id: "skills", name: "Навыки", key: "B" },
+  { id: "map", name: "Карта", key: "M" },
+  { id: "quests", name: "Поручения", key: "J" },
+];
+
+/** Окна у жителей лагеря: остаются вкладкой, пока открыт интерфейс, чтобы к ним можно было вернуться. */
+export const NPC_PANELS: Partial<Record<Exclude<Panel, null>, string>> = {
+  merchant: "Торговец", blacksmith: "Кузнец", stash: "Сундук", gate: "Врата", quests: "Поручения",
+};
+
+let navHome: Panel = null;
+useGame.subscribe((st, prev) => {
+  if (st.panel === prev.panel) return;
+  if (!st.panel) navHome = null;
+  else if (NPC_PANELS[st.panel] && !NAV_TABS.some((t) => t.id === st.panel)) navHome = st.panel;
+});
+export const navHomePanel = () => navHome;

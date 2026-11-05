@@ -94,6 +94,25 @@ canvas {
   color: var(--color-bone);
 }
 
+/* Переход между окнами: тихие вкладки с подчёркиванием, без фона. */
+.navtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 2px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-parch);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+}
+.navtab:hover { color: var(--color-bone); }
+.navtab.is-on { color: var(--color-bone); border-bottom-color: var(--color-bone); }
+.navtab:focus-visible { outline: 2px solid var(--color-flame); outline-offset: 2px; }
+.navtab .kbd { opacity: 0.8; }
+
 /* Кнопки: спокойная поверхность; один яркий вариант — главное действие. */
 .btn {
   display: inline-flex;

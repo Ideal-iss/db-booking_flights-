@@ -8,11 +8,21 @@ import { CLASSES } from "@shared/data/classes";
 import { deriveStats, type CharacterData } from "@shared/data/stats";
 import { itemIcon } from "./icons";
 import { audio } from "../game/audio";
+import { useGame, NAV_TABS, NPC_PANELS, navHomePanel, type Panel as GamePanel } from "../store";
 
-export function Panel(props: { title: string; onClose?: () => void; children: ReactNode; className?: string; wide?: boolean }) {
+/** Время последнего перехода вкладкой: новое окно не проигрывает анимацию появления. */
+let lastSwitch = 0;
+export const markPanelSwitch = () => { lastSwitch = Date.now(); };
+
+export function Panel(props: { title: string; nav?: boolean; onClose?: () => void; children: ReactNode; className?: string; wide?: boolean }) {
+  const nav = props.nav !== false;
   return (
-    <div className={`panel rise relative flex max-h-[92vh] flex-col p-6 ${props.wide ? "w-[min(1080px,96vw)]" : "w-[min(720px,96vw)]"} ${props.className || ""}`}>
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <div
+      className={`panel relative flex max-h-[92vh] flex-col p-6 ${Date.now() - lastSwitch > 400 ? "rise" : ""} ${
+        nav ? "h-[min(800px,92vh)] w-[min(1080px,96vw)]" : props.wide ? "w-[min(1080px,96vw)]" : "w-[min(720px,96vw)]"
+      } ${props.className || ""}`}
+    >
+      <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="panel-title">{props.title}</h2>
         {props.onClose && (
           <button className="btn" onClick={() => { audio.play("click"); props.onClose!(); }}>
@@ -20,8 +30,33 @@ export function Panel(props: { title: string; onClose?: () => void; children: Re
           </button>
         )}
       </div>
+      {nav && <PanelNav />}
       <div className="scroll min-h-0 flex-1 overflow-y-auto pr-1">{props.children}</div>
     </div>
+  );
+}
+
+/** Вкладки для перехода между окнами прямо из открытого окна. */
+function PanelNav() {
+  const panel = useGame((s) => s.panel);
+  const home = navHomePanel();
+  const tabs: { id: Exclude<GamePanel, null>; name: string; key?: string }[] = [...NAV_TABS];
+  if (home && NPC_PANELS[home]) tabs.unshift({ id: home, name: NPC_PANELS[home]! });
+  const go = (id: GamePanel) => {
+    if (id === panel) return;
+    audio.play("click");
+    lastSwitch = Date.now();
+    useGame.setState({ panel: id });
+  };
+  return (
+    <nav className="border-line mb-5 flex flex-wrap gap-x-6 border-b" aria-label="Окна">
+      {tabs.map((t) => (
+        <button key={t.id} className={`navtab ${t.id === panel ? "is-on" : ""}`} aria-current={t.id === panel ? "page" : undefined} onClick={() => go(t.id)}>
+          {t.name}
+          {t.key && <span className="kbd">{t.key}</span>}
+        </button>
+      ))}
+    </nav>
   );
 }
 

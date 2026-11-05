@@ -639,6 +639,7 @@ export class Game {
       if (code === "KeyC") this.cb.togglePanel("character");
       if (code === "KeyB" || code === "KeyK") this.cb.togglePanel("skills");
       if (code === "KeyM" || code === "Tab") this.cb.togglePanel("map");
+      if (code === "KeyJ") this.cb.togglePanel("quests");
       if (code === "F1") this.cb.togglePanel("help");
     }
     if (!inp.locked) return;

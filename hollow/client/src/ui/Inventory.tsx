@@ -83,7 +83,7 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
   const st = deriveStats(char);
   const inDungeon = hud?.where === "dungeon";
   return (
-    <Panel title="Снаряжение и сумка" onClose={onClose} className="!w-[min(760px,96vw)]">
+    <Panel title="Снаряжение и сумка" onClose={onClose}>
       <div className="flex flex-wrap gap-6">
         <div className="flex flex-col items-center gap-3">
           <EquipDoll />

@@ -7,8 +7,9 @@ import { ENEMIES } from "@shared/data/enemies";
 import { audio } from "../game/audio";
 
 export function QuestsPanel({ onClose }: { onClose: () => void }) {
-  const { char } = useGame();
+  const { char, hud } = useGame();
   if (!char) return null;
+  const inDungeon = hud?.where === "dungeon";
   const states = new Map(char.quests.map((q) => [q.id, q]));
   return (
     <Panel title="Доска поручений" onClose={onClose}>
@@ -27,7 +28,8 @@ export function QuestsPanel({ onClose }: { onClose: () => void }) {
                 <div className="text-parch text-sm">{q.description}</div>
                 <div className="text-dim mt-1 text-xs">Награда {q.reward.xp.toLocaleString("ru-RU")} опыта и {q.reward.gold.toLocaleString("ru-RU")} золота</div>
               </div>
-              {st?.done && !st.claimed && (
+              {st?.done && !st.claimed && inDungeon && <div className="text-dim shrink-0 text-xs">Награда в лагере</div>}
+              {st?.done && !st.claimed && !inDungeon && (
                 <button className="btn btn-primary shrink-0" onClick={() => { audio.play("levelup"); void gameApi.op({ op: "quest_claim", id: q.id }); }}>
                   Получить
                 </button>
@@ -225,7 +227,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   );
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   return (
-    <Panel title="Настройки" onClose={onClose}>
+    <Panel title="Настройки" onClose={onClose} nav={false}>
       <div className="flex flex-col gap-2">
         <h3 className="label">Изображение</h3>
         {slider("brightness", "Яркость", 0.8, 2.2, 0.05, (v) => `${Math.round(v * 100)}%`)}
@@ -263,7 +265,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
     ["Пробел", "уклонение — короткий рывок с неуязвимостью"], ["ЛКМ", "атака; зажать и отпустить — сильный удар; лук — натянуть и отпустить; посох/жезл — заряд"],
     ["ПКМ", "блок щитом или оружием (в начале блока — парирование), у магов — магический заслон, у лучника — прицел"],
     ["Q R F G Z X", "навыки из книги навыков"], ["1 / 2", "зелье здоровья / маны"], ["E", "действие: поднять, открыть, поговорить, осмотреть стену"],
-    ["I", "сумка и снаряжение"], ["C", "персонаж и атрибуты"], ["B", "книга навыков"], ["M / Tab", "карта"], ["Esc", "пауза"],
+    ["I", "сумка и снаряжение"], ["C", "персонаж и атрибуты"], ["B", "книга навыков"], ["M / Tab", "карта"], ["J", "поручения"], ["Esc", "пауза"],
   ];
   return (
     <Panel title="Управление и советы" onClose={onClose}>
@@ -277,6 +279,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
       </div>
       <div className="label mt-6 mb-2">Советы</div>
       <ul className="text-parch flex list-disc flex-col gap-1 pl-5 text-sm">
+        <li>Открыв любое окно, переходите в другое вкладками сверху или той же клавишей</li>
         <li>Враги заносят оружие перед ударом, в это время можно отпрыгнуть или поднять щит</li>
         <li>Красные круги и полосы на полу показывают, куда ударит босс</li>
         <li>Треснувшая кладка звучит пусто: осмотрите её, за ней бывает тайник</li>

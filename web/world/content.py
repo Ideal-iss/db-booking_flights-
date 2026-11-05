@@ -121,6 +121,8 @@ def layout(code):
         else:
             pond = None
 
+    fountain = [765, 560, 70, 70]  # фонтан на площади перед терминалом
+    blocked.append(fountain)
     keep_clear = [gate, shop_zone, [lm_x - STAMP_RADIUS, lm_y - STAMP_RADIUS, 2 * STAMP_RADIUS, 2 * STAMP_RADIUS],
                   [700, 450, 200, 160]]
     trees = []
@@ -151,7 +153,7 @@ def layout(code):
         "runway": runway, "terminal": terminal, "gate": gate,
         "shop": shop_building, "shop_zone": shop_zone,
         "landmark": landmark, "pond": pond, "trees": trees, "benches": benches,
-        "blocked": blocked, "spawn": [800, 520], "palette": palette,
+        "blocked": blocked, "spawn": [800, 525], "palette": palette, "fountain": fountain,
     }
 
 

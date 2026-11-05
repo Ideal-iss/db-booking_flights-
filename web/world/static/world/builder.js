@@ -14,8 +14,9 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const t = ms / 1000;
-      const sc = Math.min(w, h) / 120;
-      A.drawAvatar(ctx, getAvatar(), w / 2, h * 0.86, { scale: sc, phase: t, moving: Math.floor(t / 3) % 2 === 1 });
+      const moving = Math.floor(t / 3) % 2 === 1;
+      if (window.SkyAvatar3D) window.SkyAvatar3D.draw(ctx, getAvatar(), w, h, t, { dpr, moving });
+      else A.drawAvatar(ctx, getAvatar(), w / 2, h * 0.86, { scale: Math.min(w, h) / 120, phase: t, moving });
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);

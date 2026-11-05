@@ -24,6 +24,7 @@
 {{ owned|json_script:"owned-data" }}
 {% endblock %}
 {% block scripts %}
+{% include "world/_three.html" %}
 <script src="{% static 'world/scene.js' %}" defer></script>
 <script src="{% static 'world/shop.js' %}" defer></script>
 {% endblock %}

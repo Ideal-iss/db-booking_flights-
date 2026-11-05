@@ -219,7 +219,7 @@ def process_landing(profile, now=None):
         trip.save(update_fields=["landed"])
         lay = content.layout(dest.code)
         profile.airport = dest
-        profile.x, profile.y = lay["spawn"][0] + random.randint(-50, 50), lay["spawn"][1] + random.randint(-20, 30)
+        profile.x, profile.y = lay["spawn"][0] + random.randint(-50, 50), lay["spawn"][1] + random.randint(-8, 8)
         profile.flights_count += 1
         profile.km_flown += trip.route.distance_km
         _, first = Visit.objects.get_or_create(profile=profile, airport=dest)
@@ -438,6 +438,15 @@ def _player(p, now):
             "facing": p.facing, "moving": p.moving, "emote": emote}
 
 
+def _facing(value):
+    """Направление взгляда в градусах (−180…180)."""
+    try:
+        deg = int(float(value))
+    except (TypeError, ValueError):
+        return 0
+    return ((deg + 180) % 360) - 180
+
+
 def tick(profile, pos=None):
     """Главный запрос игры: сохраняет моё положение и возвращает всё, что видно вокруг."""
     now = timezone.now()
@@ -453,7 +462,7 @@ def tick(profile, pos=None):
         fields.update(
             x=min(max(float(pos.get("x", profile.x)), 0), lay["w"]),
             y=min(max(float(pos.get("y", profile.y)), 0), lay["h"]),
-            facing=1 if pos.get("facing", 1) >= 0 else -1,
+            facing=_facing(pos.get("facing", 0)),
             moving=bool(pos.get("moving")),
         )
     Profile.objects.filter(pk=profile.pk).update(**fields)

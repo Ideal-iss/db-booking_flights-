@@ -1,12 +1,14 @@
 {% extends "booking/base.html" %}
 {% load static %}
 {% block title %}Мир SkyBook{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'world/world.css' %}">
+<link rel="modulepreload" href="{% static 'world/vendor/three.min.js' %}">{% endblock %}
 {% block footer %}{% endblock %}
 {% block content %}
 <div class="world" id="world" data-mode="loading">
   {% csrf_token %}
-  <canvas id="scene" class="world__scene" aria-label="Игровой мир: территория аэропорта или салон самолёта"></canvas>
+  <canvas id="scene" class="world__scene" aria-label="Игровой мир в 3D: территория аэропорта или салон самолёта"></canvas>
+  <div class="joystick ground-only" id="joystick" aria-hidden="true"><i id="joystick-knob"></i></div>
 
   <!-- HUD -->
   <div class="hud hud--left">
@@ -45,6 +47,7 @@
   <!-- Салон -->
   <div class="cabin-hud flying-only">
     <b id="cabin-route"></b>
+    <button type="button" class="chip cabin-hud__view" id="view-toggle">Вид снаружи</button>
     <div class="cabin-hud__bar"><i id="cabin-bar"></i></div>
     <span id="cabin-left" class="mono"></span>
     <span id="cabin-alt" class="mono"></span>
@@ -81,7 +84,7 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="controls-hint ground-only">WASD / стрелки или нажмите на карту, чтобы идти</div>
+  <div class="controls-hint">WASD — идти · тяни мышью — повернуть камеру · колесо — приблизить · клик по земле — идти туда</div>
 </div>
 {{ urls|json_script:"world-urls" }}
 {% endblock %}
@@ -90,6 +93,6 @@
 <script src="{% static 'booking/vendor/d3-geo.min.js' %}" defer></script>
 <script src="{% static 'booking/vendor/topojson-client.min.js' %}" defer></script>
 <script src="{% static 'booking/globe.js' %}" defer></script>
-<script src="{% static 'world/scene.js' %}" defer></script>
-<script src="{% static 'world/play.js' %}" defer></script>
+<script type="importmap">{"imports": {"three": "{% static 'world/vendor/three.min.js' %}", "sky/models": "{% static 'world/models3d.js' %}"}}</script>
+<script type="module" src="{% static 'world/play3d.js' %}"></script>
 {% endblock %}

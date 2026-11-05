@@ -53,7 +53,8 @@
       const ctx = c.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
       const av = { ...avatar, [card.dataset.slot]: card.dataset.code };
-      A.drawAvatar(ctx, av, w / 2, h * 0.9, { scale: h / 115, phase: ms / 1000 });
+      if (window.SkyAvatar3D) window.SkyAvatar3D.draw(ctx, av, w, h, ms / 1000 + cards.indexOf(card), { dpr });
+      else A.drawAvatar(ctx, av, w / 2, h * 0.9, { scale: h / 115, phase: ms / 1000 });
     });
     requestAnimationFrame(loop);
   }

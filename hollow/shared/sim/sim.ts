@@ -2,7 +2,7 @@
  *  В одиночной игре работает в браузере, в кооперативе — на сервере Colyseus. */
 import type RAPIER_NS from "@dimforge/rapier3d-compat";
 import { Rng, clamp, hashString } from "../rng";
-import { CELL, Cell, generateDungeon, walkable, worldToCell, type Dungeon } from "../dungeon/generate";
+import { CELL, Cell, ceilAt, generateDungeon, walkable, worldToCell, type Dungeon } from "../dungeon/generate";
 import { buildDungeonPhysics, groups, lineOfSight, openSecret, rayToWall, GROUP_ENEMY, GROUP_PLAYER, GROUP_WALL, type DungeonPhysics, type Rapier } from "../physics";
 import { ENEMIES, scaleEnemy } from "../data/enemies";
 import { BASE_BY_ID, POTIONS, rollLoot, type DropTier } from "../data/items";
@@ -933,6 +933,12 @@ export class Sim {
       pr.y = sy + (my / len) * travel;
       pr.z = sz + (mz / len) * travel;
       if (pr.y < 0.05) alive = false;
+      // низкий потолок коридора останавливает снаряд, как стена
+      if (alive && pr.y > ceilAt(this.d, pr.x, pr.z) - 0.1) {
+        alive = false;
+        if (pr.explode) this.explode(pr, pr.team === "player" ? this.players.get(pr.owner) || null : null, pr.x, pr.z);
+        else this.events.push({ t: "impact", x: pr.x, y: pr.y, z: pr.z, el: pr.element, kind: pr.kind });
+      }
       if (alive) keep.push(pr);
       else this.events.push({ t: "proj_end", id: pr.id });
     }

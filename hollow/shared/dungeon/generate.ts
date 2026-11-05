@@ -13,7 +13,7 @@ export const enum Cell {
   Secret = 2,
 }
 
-export type RoomKind = "start" | "hall" | "gallery" | "crypt" | "shrine" | "treasure" | "small" | "boss" | "secret";
+export type RoomKind = "start" | "hall" | "gallery" | "crypt" | "shrine" | "treasure" | "small" | "boss" | "secret" | "cave";
 
 export interface Room {
   id: number;
@@ -64,6 +64,8 @@ export interface Dungeon {
   secrets: { id: string; cx: number; cy: number }[];
   /** Разбиваемые урны, ящики и бочки с мелкой добычей. */
   breakables: { id: string; x: number; z: number; kind: "urn" | "crate" | "barrel"; rot: number }[];
+  /** Высота потолка в каждой клетке (м). */
+  ceil: Float32Array;
   /** Записки с историей мира (номер в NOTES). */
   notes: { id: string; x: number; z: number; note: number; rot: number }[];
   shrines: { id: string; x: number; z: number; buff: string }[];
@@ -83,7 +85,16 @@ const TEMPLATES: { kind: RoomKind; w: [number, number]; h: [number, number]; wei
   { kind: "shrine", w: [3, 4], h: [3, 4], weight: 1 },
   { kind: "treasure", w: [3, 3], h: [3, 3], weight: 1 },
   { kind: "small", w: [3, 4], h: [3, 4], weight: 3 },
+  { kind: "cave", w: [5, 8], h: [5, 8], weight: 3 },
 ];
+
+/** Высота потолка (м) по типу комнаты: в залах — своды, в коридорах — низко. */
+const ROOM_CEIL: Record<RoomKind, number> = {
+  start: 5.0, hall: 7.2, gallery: 5.4, crypt: 5.6, shrine: 6.2, treasure: 4.6, small: 4.6, boss: 8.0, secret: 4.2, cave: 6.4,
+};
+export const CORRIDOR_CEIL = 3.6;
+/** Максимальная высота потолка — по ней строятся стены физики. */
+export const MAX_CEIL = 8.2;
 
 export function generateDungeon(themeId: string, seed: number, level: number): Dungeon {
   const theme = DUNGEON_BY_ID[themeId];
@@ -127,6 +138,56 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) set(x, y, Cell.Floor);
 
+  // --- формы комнат: пещеры, срезанные углы ---
+  for (const r of rooms) {
+    if (r.kind === "cave") {
+      // клеточный автомат внутри прямоугольника, центр всегда открыт
+      const W = r.w, H = r.h;
+      let g = Array.from({ length: W * H }, () => rng.chance(0.62));
+      const cxr = Math.floor(W / 2), cyr = Math.floor(H / 2);
+      for (let k = 0; k < 3; k++) {
+        const ng = g.slice();
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            let n = 0;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+              const xx = x + dx, yy = y + dy;
+              if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+              if (g[yy * W + xx]) n++;
+            }
+            ng[y * W + x] = n >= 5;
+          }
+        g = ng;
+      }
+      for (let y = cyr - 1; y <= cyr + 1; y++) for (let x = cxr - 1; x <= cxr + 1; x++) g[y * W + x] = true;
+      // оставляем только связную с центром часть
+      const keep = new Uint8Array(W * H);
+      const q = [cyr * W + cxr];
+      keep[q[0]] = 1;
+      for (let i = 0; i < q.length; i++) {
+        const c = q[i], x = c % W, y = (c / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          const j = yy * W + xx;
+          if (g[j] && !keep[j]) { keep[j] = 1; q.push(j); }
+        }
+      }
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!keep[y * W + x]) set(r.x + x, r.y + y, Cell.Wall);
+    } else if (r.kind === "boss" || ((r.kind === "hall" || r.kind === "crypt" || r.kind === "small" || r.kind === "start") && r.w >= 4 && r.h >= 4 && rng.chance(0.65))) {
+      // восьмиугольник: срезаем углы (у больших — треугольником в две клетки)
+      const big = r.w >= 6 && r.h >= 6;
+      const corners: [number, number, number, number][] = [[r.x, r.y, 1, 1], [r.x + r.w - 1, r.y, -1, 1], [r.x, r.y + r.h - 1, 1, -1], [r.x + r.w - 1, r.y + r.h - 1, -1, -1]];
+      for (const [x, y, dx, dy] of corners) {
+        set(x, y, Cell.Wall);
+        if (big) {
+          set(x + dx, y, Cell.Wall);
+          set(x, y + dy, Cell.Wall);
+        }
+      }
+    }
+  }
+
   // --- коридоры: минимальное остовное дерево + несколько петель ---
   const centers = rooms.map((r) => [r.x + Math.floor(r.w / 2), r.y + Math.floor(r.h / 2)]);
   const inTree = new Set([0]);
@@ -155,10 +216,30 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     let [x, y] = centers[a];
     const [tx, ty] = centers[b];
     const wide = rng.chance(0.25);
-    const horizFirst = rng.chance(0.5);
-    const stepX = () => { while (x !== tx) { x += Math.sign(tx - x); carve(x, y, false); } };
-    const stepY = () => { while (y !== ty) { y += Math.sign(ty - y); carve(x, y, wide); } };
-    if (horizFirst) { stepX(); stepY(); } else { stepY(); stepX(); }
+    // извилистый путь: идём к цели, иногда делаем боковой шаг на клетку-две
+    let guard = 0;
+    let horiz = rng.chance(0.5);
+    while ((x !== tx || y !== ty) && guard++ < 400) {
+      if (x === tx) horiz = false;
+      else if (y === ty) horiz = true;
+      else if (rng.chance(0.18)) horiz = !horiz;
+      if (rng.chance(0.08) && Math.abs(tx - x) + Math.abs(ty - y) > 4) {
+        // боковой шаг поперёк направления
+        const jog = rng.chance(0.5) ? 1 : -1;
+        for (let k = 0; k < rng.int(1, 2); k++) {
+          if (horiz) { const ny = y + jog; if (ny > 1 && ny < N - 2) { y = ny; carve(x, y, false); } }
+          else { const nx = x + jog; if (nx > 1 && nx < N - 2) { x = nx; carve(x, y, false); } }
+        }
+        continue;
+      }
+      if (horiz) x += Math.sign(tx - x);
+      else y += Math.sign(ty - y);
+      carve(x, y, false);
+      if (wide) {
+        if (horiz) set(x, y + 1, Cell.Floor);
+        else set(x + 1, y, Cell.Floor);
+      }
+    }
   }
 
   // --- тайная комната за ложной стеной ---
@@ -182,6 +263,35 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     secrets.push({ id: "s0", cx: door[0], cy: door[1] });
   }
 
+  // --- ниши в стенах комнат: тупички на одну клетку ---
+  const alcoves: { x: number; y: number; dx: number; dy: number; room: number }[] = [];
+  for (const r of rooms) {
+    if (r.kind === "secret" || r.kind === "boss") continue;
+    const n = rng.int(0, r.kind === "cave" ? 1 : 3);
+    for (let i = 0, tries = 0; i < n && tries < 20; tries++) {
+      const sideA = rng.int(0, 3);
+      const [dx, dy] = [[0, -1], [0, 1], [-1, 0], [1, 0]][sideA];
+      const ax = sideA < 2 ? rng.int(r.x + 1, r.x + r.w - 2) : sideA === 2 ? r.x - 1 : r.x + r.w;
+      const ay = sideA >= 2 ? rng.int(r.y + 1, r.y + r.h - 2) : sideA === 0 ? r.y - 1 : r.y + r.h;
+      if (at(ax - dx, ay - dy) !== Cell.Floor || at(ax, ay) !== Cell.Wall) continue;
+      // вокруг ниши должен остаться камень, чтобы она не прорезала соседние залы
+      let ok = true;
+      for (const [ox, oy] of [[dx, dy], [dy, dx], [-dy, -dx], [dx + dy, dy + dx], [dx - dy, dy - dx]]) if (at(ax + ox, ay + oy) !== Cell.Wall) ok = false;
+      if (!ok || ax < 2 || ay < 2 || ax > N - 3 || ay > N - 3) continue;
+      set(ax, ay, Cell.Floor);
+      alcoves.push({ x: ax, y: ay, dx, dy, room: r.id });
+      i++;
+    }
+  }
+
+  // --- высота потолков ---
+  const ceil = new Float32Array(N * N).fill(CORRIDOR_CEIL);
+  for (const r of rooms) {
+    const h = ROOM_CEIL[r.kind] + (r.kind === "cave" || r.kind === "hall" ? rng.range(-0.4, 0.4) : 0);
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) ceil[y * N + x] = h;
+  }
+  for (const a of alcoves) ceil[a.y * N + a.x] = Math.min(3.4, ceil[(a.y - a.dy) * N + a.x - a.dx]);
+
   // --- наполнение ---
   const props: Prop[] = [];
   const lights: Dungeon["lights"] = [];
@@ -195,12 +305,12 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
   const wallTorches = (r: Room, count: number) => {
     const spots: { x: number; z: number; rot: number }[] = [];
     for (let x = r.x; x < r.x + r.w; x++) {
-      if (!isFloor(x, r.y - 1)) spots.push({ x: cellCenter(x), z: r.y * CELL + 0.25, rot: 0 });
-      if (!isFloor(x, r.y + r.h)) spots.push({ x: cellCenter(x), z: (r.y + r.h) * CELL - 0.25, rot: Math.PI });
+      if (isFloor(x, r.y) && !isFloor(x, r.y - 1)) spots.push({ x: cellCenter(x), z: r.y * CELL + 0.25, rot: 0 });
+      if (isFloor(x, r.y + r.h - 1) && !isFloor(x, r.y + r.h)) spots.push({ x: cellCenter(x), z: (r.y + r.h) * CELL - 0.25, rot: Math.PI });
     }
     for (let y = r.y; y < r.y + r.h; y++) {
-      if (!isFloor(r.x - 1, y)) spots.push({ x: r.x * CELL + 0.25, z: cellCenter(y), rot: Math.PI / 2 });
-      if (!isFloor(r.x + r.w, y)) spots.push({ x: (r.x + r.w) * CELL - 0.25, z: cellCenter(y), rot: -Math.PI / 2 });
+      if (isFloor(r.x, y) && !isFloor(r.x - 1, y)) spots.push({ x: r.x * CELL + 0.25, z: cellCenter(y), rot: Math.PI / 2 });
+      if (isFloor(r.x + r.w - 1, y) && !isFloor(r.x + r.w, y)) spots.push({ x: (r.x + r.w) * CELL - 0.25, z: cellCenter(y), rot: -Math.PI / 2 });
     }
     rng.shuffle(spots);
     for (const s of spots.slice(0, count)) {
@@ -223,15 +333,17 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
   /** Случайная точка комнаты, не занятая твёрдыми декорациями и сундуками. */
   const freeFloor = (r: Room, margin: number, clearance: number) => {
     let p = randomFloor(r, margin);
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) {
       const blocked =
+        !isFloor(Math.floor(p.x / CELL), Math.floor(p.z / CELL)) ||
         props.some((o) => o.solid && Math.abs(o.x - p.x) < o.solid[0] + clearance && Math.abs(o.z - p.z) < o.solid[1] + clearance) ||
         chests.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < 0.9 + clearance) ||
         shrines.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < 0.9 + clearance);
       if (!blocked) return p;
       p = randomFloor(r, margin);
     }
-    return p;
+    // центр комнаты всегда на полу (у пещер он открыт принудительно)
+    return { x: (r.x + Math.floor(r.w / 2) + 0.5) * CELL, z: (r.y + Math.floor(r.h / 2) + 0.5) * CELL };
   };
 
   for (const r of rooms) {
@@ -309,6 +421,14 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     }
   }
 
+  // содержимое ниш: свечи, черепа, урны
+  for (const a of alcoves) {
+    const x = cellCenter(a.x) + a.dx * 0.6, z = cellCenter(a.y) + a.dy * 0.6;
+    const kind = rng.pick(["candles", "candles", "skulls", "bones"]);
+    props.push({ kind, x, z, rot: rng.range(0, 6.28), room: a.room });
+    if (kind === "candles") lights.push({ x, y: 0.6, z, color: "#ffb36a", kind: "candle" });
+  }
+
   // ловушки в коридорах подальше от старта
   const start = rooms[0];
   const startC = { x: (start.x + 2) * CELL, z: (start.y + 2) * CELL };
@@ -366,7 +486,7 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
   for (let i = 0; i < noteCount; i++) {
     const r = noteRooms[i];
     const x = (r.x + r2.range(0.8, r.w - 0.8)) * CELL, z = (r.y + r2.range(0.8, r.h - 0.8)) * CELL;
-    if (!clear(x, z, 0.4)) continue;
+    if (!isFloor(Math.floor(x / CELL), Math.floor(z / CELL)) || !clear(x, z, 0.4)) continue;
     notes.push({ id: `n${i}`, x, z, note: picked[i], rot: r2.range(0, 6.28) });
   }
 
@@ -379,10 +499,17 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     theme, seed, level, w: N, h: N, cells, rooms,
     start: { x: startC.x, z: startC.z + 1.5, yaw: 0 },
     bossRoom: 1,
-    spawns, props, lights, chests, traps, secrets, shrines, breakables, notes,
+    spawns, props, lights, chests, traps, secrets, shrines, breakables, notes, ceil,
     entrance,
     exit: { x: (boss.x + boss.w / 2) * CELL, z: (boss.y + 1.5) * CELL },
   };
+}
+
+/** Высота потолка в точке мира. */
+export function ceilAt(d: Dungeon, x: number, z: number): number {
+  const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+  if (cx < 0 || cz < 0 || cx >= d.w || cz >= d.h) return WALL_H;
+  return d.ceil ? d.ceil[cz * d.w + cx] : WALL_H;
 }
 
 /** Клетка проходима для существ (тайная стена — нет, пока не открыта). */

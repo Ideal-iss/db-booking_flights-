@@ -46,6 +46,7 @@ uniform float uScan;
 uniform float uHurt;
 uniform float uFade;
 uniform float uDesat;
+uniform float uGamma;
 varying vec2 vUv;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -85,6 +86,8 @@ void main() {
   vec3 smear = texture2D(tDiffuse, uv - vec2(1.5 / uRes.x, 0.0)).rgb;
   col = mix(col, max(col, smear * 0.92), 0.35 * uVhs);
 
+  // яркость: гамма поднимает тени, не пересвечивая огонь
+  col = pow(max(col, vec3(0.0)), vec3(1.0 / uGamma));
   // цвет: тёплый, приглушённый, чуть поднятый чёрный
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(col, vec3(lum), 0.18 * uVhs + uDesat);
@@ -150,7 +153,7 @@ export class Engine {
       uniforms: {
         tDiffuse: { value: this.rt.texture }, uRes: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() },
         uTime: { value: 0 }, uVhs: { value: 0 }, uGrain: { value: 0 }, uChroma: { value: 0 }, uCurve: { value: 0 },
-        uScan: { value: 0 }, uHurt: { value: 0 }, uFade: { value: 0 }, uDesat: { value: 0 },
+        uScan: { value: 0 }, uHurt: { value: 0 }, uFade: { value: 0 }, uDesat: { value: 0 }, uGamma: { value: 1.35 },
       },
       depthTest: false,
       depthWrite: false,
@@ -211,6 +214,7 @@ export class Engine {
     u.uHurt.value = this.hurt;
     u.uFade.value = this.fade;
     u.uDesat.value = this.desat;
+    u.uGamma.value = s.brightness || 1.35;
     r.render(this.postScene, this.postCam);
   }
 

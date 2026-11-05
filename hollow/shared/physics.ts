@@ -1,6 +1,7 @@
 /** Физика подземелья на Rapier: стены, колонны, саркофаги, тайные стены. */
 import type RAPIER_NS from "@dimforge/rapier3d-compat";
-import { CELL, Cell, WALL_H, type Dungeon } from "./dungeon/generate";
+import { CELL, Cell, MAX_CEIL, type Dungeon } from "./dungeon/generate";
+const WALL_H = MAX_CEIL;
 
 export type Rapier = typeof RAPIER_NS;
 

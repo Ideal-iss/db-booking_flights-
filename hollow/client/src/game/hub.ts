@@ -93,9 +93,12 @@ export function buildHub(): { d: Dungeon; npcs: Npc[] } {
   lights.push({ x: c(7.5), y: 1.8, z: c(1.6), color: "#6f9fd8", kind: "magic" });
   lights.push({ x: c(7.5), y: 1.2, z: c(7.2), color: "#c46aff", kind: "magic" });
   lights.push({ x: c(13.1), y: 1.0, z: c(6.5) + 1, color: "#ff6a20", kind: "brazier" });
+  // высокий неф часовни, низкие ниши
+  const ceil = new Float32Array(W * W).fill(4.4);
+  for (let y = 3; y < 11; y++) for (let x = 3; x < 12; x++) ceil[y * W + x] = 7.6;
   const d: Dungeon = {
     theme: HUB_THEME, seed: 1, level: 1, w: W, h: W, cells, rooms: [], start: { x: c(7.5), z: c(10.6), yaw: 0 }, bossRoom: -1,
-    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [], breakables: [], notes: [],
+    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [], breakables: [], notes: [], ceil,
     entrance: { x: c(7.5), z: c(12.6) }, exit: { x: -100, z: -100 },
   };
   // NPC и предметы тоже твёрдые

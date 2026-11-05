@@ -22,11 +22,12 @@ export interface Settings {
   volume: number;
   music: number;
   bob: boolean;
+  brightness: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   vhs: 0.7, grain: 0.5, pixel: 1, chroma: 0.5, curve: 0.35, scanlines: 0.5, resolution: 240, jitter: 0.5,
-  fov: 72, sensitivity: 1, invertY: false, volume: 0.8, music: 0.6, bob: true,
+  fov: 72, sensitivity: 1, invertY: false, volume: 0.8, music: 0.6, bob: true, brightness: 1.35,
 };
 
 function loadSettings(): Settings {

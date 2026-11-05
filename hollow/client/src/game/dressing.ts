@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Rng } from "@shared/rng";
-import { CELL, Cell, WALL_H, type Dungeon } from "@shared/dungeon/generate";
+import { CELL, Cell, ceilAt, type Dungeon } from "@shared/dungeon/generate";
 import { litMaterial, type LightField } from "./lighting";
 import { cobwebTexture, decalTexture, glowTexture, pixelTexture, stoneTexture, woodTexture, metalTexture } from "./textures";
 
@@ -67,16 +67,17 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
       const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
       const ns = wallAt(x, y - 1) && wallAt(x, y + 1) && floor(x - 1, y) && floor(x + 1, y);
       const ew = wallAt(x - 1, y) && wallAt(x + 1, y) && floor(x, y - 1) && floor(x, y + 1);
+      const hc = d.ceil[y * W + x];
       if ((ns || ew) && (x + y) % 3 === 0) {
         const t = 0.24;
         if (ns) {
-          box(solid, support, t, WALL_H - 0.5, t, cx, (WALL_H - 0.5) / 2, cz - CELL / 2 + t / 2 + 0.02);
-          box(solid, support, t, WALL_H - 0.5, t, cx, (WALL_H - 0.5) / 2, cz + CELL / 2 - t / 2 - 0.02);
-          box(solid, support, t + 0.06, 0.3, CELL, cx, WALL_H - 0.55, cz);
+          box(solid, support, t, hc - 0.5, t, cx, (hc - 0.5) / 2, cz - CELL / 2 + t / 2 + 0.02);
+          box(solid, support, t, hc - 0.5, t, cx, (hc - 0.5) / 2, cz + CELL / 2 - t / 2 - 0.02);
+          box(solid, support, t + 0.06, 0.3, CELL, cx, hc - 0.55, cz);
         } else {
-          box(solid, support, t, WALL_H - 0.5, t, cx - CELL / 2 + t / 2 + 0.02, (WALL_H - 0.5) / 2, cz);
-          box(solid, support, t, WALL_H - 0.5, t, cx + CELL / 2 - t / 2 - 0.02, (WALL_H - 0.5) / 2, cz);
-          box(solid, support, CELL, 0.3, t + 0.06, cx, WALL_H - 0.55, cz);
+          box(solid, support, t, hc - 0.5, t, cx - CELL / 2 + t / 2 + 0.02, (hc - 0.5) / 2, cz);
+          box(solid, support, t, hc - 0.5, t, cx + CELL / 2 - t / 2 - 0.02, (hc - 0.5) / 2, cz);
+          box(solid, support, CELL, 0.3, t + 0.06, cx, hc - 0.55, cz);
         }
       }
     }
@@ -87,8 +88,10 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
     const count = alongX ? r.h : r.w;
     for (let i = 1; i < count; i += 2) {
       const len = span * CELL;
-      if (alongX) box(solid, support, len, 0.32, 0.3, (r.x + r.w / 2) * CELL, WALL_H - 0.16, (r.y + i) * CELL);
-      else box(solid, support, 0.3, 0.32, len, (r.x + i) * CELL, WALL_H - 0.16, (r.y + r.h / 2) * CELL);
+      const rh = ceilAt(d, (r.x + r.w / 2) * CELL, (r.y + r.h / 2) * CELL);
+      if (r.kind === "cave") continue;
+      if (alongX) box(solid, support, len, 0.32, 0.3, (r.x + r.w / 2) * CELL, rh - 0.16, (r.y + i) * CELL);
+      else box(solid, support, 0.3, 0.32, len, (r.x + i) * CELL, rh - 0.16, (r.y + r.h / 2) * CELL);
     }
   }
 
@@ -120,17 +123,19 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
     const n = theme === "hub" ? 0 : rng.int(1, 3);
     for (let i = 0; i < n; i++) {
       const x = (r.x + rng.range(0.3, r.w - 0.3)) * CELL, z = (r.y + rng.range(0.3, r.h - 0.3)) * CELL;
+      if (!floor(Math.floor(x / CELL), Math.floor(z / CELL))) continue;
+      const top = ceilAt(d, x, z);
       if (theme === "sanctum" || theme === "cathedral") {
         const len = rng.range(0.8, 2.0);
-        for (let k = 0; k < len / 0.17; k++) box(solid, iron, 0.05, 0.15, 0.05, x + Math.sin(k) * 0.02, WALL_H - 0.08 - k * 0.17, z, (k % 2) * 1.57);
-        if (rng.chance(0.5)) box(solid, iron, 0.18, 0.18, 0.04, x, WALL_H - 0.2 - len, z);
+        for (let k = 0; k < len / 0.17; k++) box(solid, iron, 0.05, 0.15, 0.05, x + Math.sin(k) * 0.02, top - 0.08 - k * 0.17, z, (k % 2) * 1.57);
+        if (rng.chance(0.5)) box(solid, iron, 0.18, 0.18, 0.04, x, top - 0.2 - len, z);
       } else {
         // корни свисают сквозь потолок
         let px = x, pz = z;
         const len = rng.range(0.6, 1.8);
         for (let k = 0; k < 5; k++) {
           const seg = len / 5;
-          box(solid, root, 0.05 - k * 0.006, seg, 0.05 - k * 0.006, px, WALL_H - seg * (k + 0.5), pz, 0, rng.range(-0.3, 0.3), rng.range(-0.3, 0.3));
+          box(solid, root, 0.05 - k * 0.006, seg, 0.05 - k * 0.006, px, top - seg * (k + 0.5), pz, 0, rng.range(-0.3, 0.3), rng.range(-0.3, 0.3));
           px += rng.range(-0.06, 0.06);
           pz += rng.range(-0.06, 0.06);
         }
@@ -175,7 +180,7 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
         const cx = (x + 0.5) * CELL + dx * (CELL / 2 - 0.02), cz = (y + 0.5) * CELL + dy * (CELL / 2 - 0.02);
         g.rotateY(Math.atan2(-dx, -dy));
         const along = rng.range(-0.8, 0.8);
-        g.translate(cx + (dx ? 0 : along), kind === "moss" ? h / 2 + 0.05 : WALL_H - h / 2 - rng.range(0, 1.2), cz + (dy ? 0 : along));
+        g.translate(cx + (dx ? 0 : along), kind === "moss" ? h / 2 + 0.05 : Math.max(h / 2 + 0.3, d.ceil[y * W + x] - h / 2 - rng.range(0, 1.2)), cz + (dy ? 0 : along));
         addDecal(`${kind}:${rng.int(0, 2)}`, g);
       }
     }
@@ -213,7 +218,7 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
         if (!wallAt(x + sx, y) || !wallAt(x, y + sy) || !rng.chance(theme === "hub" ? 0.2 : 0.45)) continue;
         const cx = (x + 0.5 + sx * 0.5) * CELL - sx * 0.03, cz = (y + 0.5 + sy * 0.5) * CELL - sy * 0.03;
         const s = rng.range(0.9, 1.6);
-        const top = WALL_H - 0.02;
+        const top = d.ceil[y * W + x] - 0.02;
         const pos = [cx, top, cz, cx - sx * s, top - rng.range(0, 0.25), cz, cx, top - s, cz - sy * s * 0.6];
         const g = new THREE.BufferGeometry();
         g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -299,7 +304,7 @@ export class AmbientFx {
         let x = px + r.range(-9, 9), z = pz + r.range(-9, 9);
         if (Math.hypot(x - px, z - pz) < 1.2) x += 2;
         if (!this.floorAt(x, z)) { m.y = -10; m.life = 0.3; }
-        else Object.assign(m, { x, y: r.range(0.3, WALL_H - 0.4), z, vx: r.range(-0.06, 0.06), vy: r.range(-0.03, 0.04), vz: r.range(-0.06, 0.06), life: r.range(4, 9), max: 8 });
+        else Object.assign(m, { x, y: r.range(0.3, ceilAt(this.d, x, z) - 0.4), z, vx: r.range(-0.06, 0.06), vy: r.range(-0.03, 0.04), vz: r.range(-0.06, 0.06), life: r.range(4, 9), max: 8 });
       }
       m.x += (m.vx + Math.sin(t * 0.7 + i) * 0.03) * dt;
       m.y += m.vy * dt;
@@ -343,7 +348,7 @@ export class AmbientFx {
       this.dripAcc = 0;
       const x = px + r.range(-6, 6), z = pz + r.range(-6, 6);
       const free = this.sparks.find((q) => q.life <= 0);
-      if (free && this.floorAt(x, z)) Object.assign(free, { kind: 2, x, y: WALL_H - 0.05, z, vx: 0, vy: 0, vz: 0, life: 3, max: 3 });
+      if (free && this.floorAt(x, z)) Object.assign(free, { kind: 2, x, y: ceilAt(this.d, x, z) - 0.05, z, vx: 0, vy: 0, vz: 0, life: 3, max: 3 });
     }
     (this.points.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     (this.points.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;

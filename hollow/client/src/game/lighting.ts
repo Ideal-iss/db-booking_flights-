@@ -11,10 +11,10 @@ export interface StaticLight {
 }
 
 const LIGHT_RADIUS: Record<string, [number, number]> = {
-  torch: [12, 1.9],
-  brazier: [13, 2.2],
-  candle: [5, 0.9],
-  magic: [8, 1.3],
+  torch: [13, 2.1],
+  brazier: [14, 2.4],
+  candle: [5.5, 1.0],
+  magic: [9, 1.4],
 };
 
 export function staticLights(d: Dungeon): StaticLight[] {

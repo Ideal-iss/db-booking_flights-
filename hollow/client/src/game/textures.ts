@@ -99,6 +99,26 @@ function cracks(g: CanvasRenderingContext2D, rng: Rng, s: number, color: string,
 }
 
 function drawWall(g: CanvasRenderingContext2D, rng: Rng, s: number, style: string, c1: string, c2: string) {
+  if (style === "rock") {
+    // грубая скала: пласты и сколы вместо кладки
+    g.fillStyle = c2;
+    g.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 1) {
+      const band = Math.sin(y * 0.35 + rng.range(-0.2, 0.2)) * 0.12 + Math.sin(y * 0.09) * 0.1;
+      g.fillStyle = shade(c1, 0.85 + band, 0.05, rng);
+      g.fillRect(0, y, s, 1);
+    }
+    for (let i = 0; i < 28; i++) {
+      const x = rng.int(0, s - 1), y = rng.int(0, s - 1), w = rng.int(4, 14), h = rng.int(3, 8);
+      g.fillStyle = shade(c1, rng.range(0.75, 1.2));
+      for (let k = 0; k < h; k++) g.fillRect(x + rng.int(-1, 1), y + k, Math.max(1, w - Math.abs(k - h / 2) * 2), 1);
+      g.fillStyle = "rgba(0,0,0,0.45)";
+      g.fillRect(x, y + h, w, 1);
+    }
+    cracks(g, rng, s, shade(c2, 0.4), 5);
+    grime(g, rng, s, 0.2);
+    return;
+  }
   {
     g.fillStyle = c2;
     g.fillRect(0, 0, s, s);

@@ -33,7 +33,7 @@ export class LevelView {
   constructor(d: Dungeon) {
     this.d = d;
     const pal = d.theme.palette;
-    const ambient = new THREE.Color(pal.fog).multiplyScalar(2).add(d.theme.id === "hub" ? new THREE.Color(0.24, 0.2, 0.16) : new THREE.Color(0.1, 0.085, 0.07));
+    const ambient = new THREE.Color(pal.fog).multiplyScalar(2).add(d.theme.id === "hub" ? new THREE.Color(0.28, 0.24, 0.19) : new THREE.Color(0.17, 0.145, 0.12));
     this.field = new LightField(d, staticLights(d), ambient);
     this.explored = new Uint8Array(d.w * d.h);
     this.buildShell();
@@ -56,8 +56,11 @@ export class LevelView {
     const d = this.d;
     const pal = d.theme.palette;
     // несколько вариантов текстур: трещины, мох, выпавшие кирпичи — стены перестают быть одинаковыми
-    const wallSets = Array.from({ length: 4 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
-    const floorSets = Array.from({ length: 3 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
+    // наборы 0–3 — кладка с вариантами, 4 — скала пещер; пол 0–2 + 3 — земля пещер
+    const wallSets = Array.from({ length: 5 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
+    const floorSets = Array.from({ length: 4 }, () => ({ p: [] as number[], u: [] as number[], n: [] as number[] }));
+    const caveCells = new Uint8Array(d.w * d.h);
+    for (const r of d.rooms) if (r.kind === "cave") for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) caveCells[y * d.w + x] = 1;
     const hash = (a: number, b: number, c: number) => {
       let h = (a * 374761393 + b * 668265263 + c * 2147483647 + d.seed * 97) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -87,20 +90,37 @@ export class LevelView {
         }
     };
     const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-    const wallV = WALL_H / CELL;
+    const ceilOf = (x: number, y: number) => d.ceil[y * d.w + x];
     for (let y = 0; y < d.h; y++)
       for (let x = 0; x < d.w; x++) {
         if (!this.isFloor(x, y)) continue;
         const x0 = x * CELL, z0 = y * CELL, x1 = x0 + CELL, z1 = z0 + CELL;
-        const F = floorSets[fv(x, y)];
+        const h = ceilOf(x, y);
+        const sv = Math.max(3, Math.round(h / 1.15));
+        const inCave = caveCells[y * d.w + x] === 1;
+        const F = floorSets[inCave ? 3 : fv(x, y)];
         quad(F.p, F.u, F.n, V(x0, 0, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [0, 0]);
-        quad(ceils, ceilUv, ceilN, V(x0, WALL_H, z0), V(CELL, 0, 0), V(0, 0, CELL), V(0, -1, 0), 2, 2, [1, 1], [0, 0]);
-        // стены смотрят внутрь клетки
-        const Wn = wallSets[wv(x, y, 0)], Ws = wallSets[wv(x, y, 1)], Ww = wallSets[wv(x, y, 2)], We = wallSets[wv(x, y, 3)];
-        if (!this.isFloor(x, y - 1)) quad(Wn.p, Wn.u, Wn.n, V(x0, 0, z0), V(CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, 1), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x, y + 1)) quad(Ws.p, Ws.u, Ws.n, V(x1, 0, z1), V(-CELL, 0, 0), V(0, WALL_H, 0), V(0, 0, -1), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x - 1, y)) quad(Ww.p, Ww.u, Ww.n, V(x0, 0, z1), V(0, 0, -CELL), V(0, WALL_H, 0), V(1, 0, 0), 2, 4, [1, wallV], [0, 0]);
-        if (!this.isFloor(x + 1, y)) quad(We.p, We.u, We.n, V(x1, 0, z0), V(0, 0, CELL), V(0, WALL_H, 0), V(-1, 0, 0), 2, 4, [1, wallV], [0, 0]);
+        quad(ceils, ceilUv, ceilN, V(x0, h, z0), V(CELL, 0, 0), V(0, 0, CELL), V(0, -1, 0), 2, 2, [1, 1], [0, 0]);
+        // стены смотрят внутрь клетки; их высота — высота потолка этой клетки
+        const faces: [number, number, THREE.Vector3, THREE.Vector3, THREE.Vector3, number][] = [
+          [0, -1, V(x0, 0, z0), V(CELL, 0, 0), V(0, 0, 1), 0],
+          [0, 1, V(x1, 0, z1), V(-CELL, 0, 0), V(0, 0, -1), 1],
+          [-1, 0, V(x0, 0, z1), V(0, 0, -CELL), V(1, 0, 0), 2],
+          [1, 0, V(x1, 0, z0), V(0, 0, CELL), V(-1, 0, 0), 3],
+        ];
+        for (const [dx, dy, o, ux, n, side] of faces) {
+          const W = wallSets[inCave ? 4 : wv(x, y, side)];
+          if (!this.isFloor(x + dx, y + dy)) {
+            quad(W.p, W.u, W.n, o, ux, V(0, h, 0), n, 2, sv, [1, h / CELL], [0, 0]);
+          } else {
+            // соседний пол с потолком ниже: перемычка над проходом (арка в коридор)
+            const h2 = ceilOf(x + dx, y + dy);
+            if (h2 < h - 0.05) {
+              const oo = o.clone().setY(h2);
+              quad(W.p, W.u, W.n, oo, ux, V(0, h - h2, 0), n, 2, Math.max(1, Math.round((h - h2) / 1.15)), [1, (h - h2) / CELL], [0, h2 / CELL]);
+            }
+          }
+        }
       }
     const mk = (pos: number[], uv: number[], nor: number[], map: THREE.Texture, color = "#ffffff") => {
       const g = new THREE.BufferGeometry();
@@ -112,8 +132,33 @@ export class LevelView {
       this.group.add(mesh);
       return mesh;
     };
-    wallSets.forEach((w, i) => w.p.length && mk(w.p, w.u, w.n, wallTexture(d.theme.wallStyle, pal.wall, pal.wall2, i)));
-    floorSets.forEach((f, i) => f.p.length && mk(f.p, f.u, f.n, floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, i)));
+    // скала в пещерах: сдвигаем вершины плавным шумом от позиции (у общих вершин сдвиг одинаковый — без щелей)
+    const cave = new Uint8Array(d.w * d.h);
+    for (const r of d.rooms) if (r.kind === "cave") for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) cave[y * d.w + x] = 1;
+    const isCave = (cx: number, cz: number) => cx >= 0 && cz >= 0 && cx < d.w && cz < d.h && cave[cz * d.w + cx] === 1;
+    const amp = (x: number, z: number) => {
+      const cx = Math.round(x / CELL), cz = Math.round(z / CELL);
+      let n = 0;
+      for (const [ox, oz] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) if (isCave(cx + ox, cz + oz)) n++;
+      return n ? 0.42 : 0;
+    };
+    const noise = (x: number, y: number, z: number, k: number) =>
+      Math.sin(x * 1.31 + z * 0.73 + y * 0.97 + k * 1.7) * 0.55 + Math.sin(x * 0.47 - z * 1.63 + y * 0.41 + k * 3.1) * 0.45;
+    const rockify = (pos: number[], keepFloor: boolean) => {
+      for (let i = 0; i < pos.length; i += 3) {
+        const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+        const a = amp(x, z);
+        if (!a) continue;
+        pos[i] += noise(x, y, z, 1) * a;
+        pos[i + 2] += noise(x, y, z, 2) * a;
+        if (!keepFloor || y > 0.01) pos[i + 1] = Math.max(y > 0.01 ? 2.6 : 0, y + noise(x, y, z, 3) * a * (y > 0.01 ? 1.4 : 0));
+      }
+    };
+    wallSets.forEach((w) => rockify(w.p, true));
+    floorSets.forEach((f) => rockify(f.p, true));
+    rockify(ceils, true);
+    wallSets.forEach((w, i) => w.p.length && mk(w.p, w.u, w.n, i === 4 ? wallTexture("rock", pal.wall, pal.wall2) : wallTexture(d.theme.wallStyle, pal.wall, pal.wall2, i)));
+    floorSets.forEach((f, i) => f.p.length && mk(f.p, f.u, f.n, i === 3 ? floorTexture("dirt", pal.floor, pal.floor2) : floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, i)));
     mk(ceils, ceilUv, ceilN, ceilingTexture(pal.ceil));
   }
 
@@ -288,8 +333,10 @@ export class LevelView {
     for (const s of this.d.secrets) {
       // тайная стена чуть отличается: трещины и более тёмный камень — внимательный игрок заметит
       const tex = wallTexture(this.d.theme.wallStyle, pal.wall2, pal.wall2);
-      const g = new THREE.BoxGeometry(CELL, WALL_H, CELL);
-      g.translate((s.cx + 0.5) * CELL, WALL_H / 2, (s.cy + 0.5) * CELL);
+      let sh = 4.6;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (this.isFloor(s.cx + dx, s.cy + dy)) sh = Math.max(sh, this.d.ceil[(s.cy + dy) * this.d.w + s.cx + dx]);
+      const g = new THREE.BoxGeometry(CELL, sh, CELL);
+      g.translate((s.cx + 0.5) * CELL, sh / 2, (s.cy + 0.5) * CELL);
       this.field.bakeGeometry(g, 1.6);
       const mesh = new THREE.Mesh(g, litMaterial({ map: tex, baked: true, color: "#c8bca8" }));
       this.group.add(mesh);
@@ -453,7 +500,7 @@ export class LevelView {
     for (const s of this.secrets.values()) {
       if (s.open && s.sink < 1) {
         s.sink = Math.min(1, s.sink + dt * 0.5);
-        s.mesh.position.y = -WALL_H * s.sink;
+        s.mesh.position.y = -8 * s.sink;
         s.mesh.position.x = Math.sin(t * 60) * 0.03 * (1 - s.sink);
         if (s.sink >= 1) s.mesh.visible = false;
       }

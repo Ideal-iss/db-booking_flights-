@@ -148,7 +148,7 @@ export class Game {
   private setupScene(d: Dungeon) {
     const pal = d.theme.palette;
     this.engine.scene.background = new THREE.Color(pal.fog);
-    this.engine.scene.fog = new THREE.Fog(pal.fog, 3, d.theme.id === "hub" ? 30 : 21);
+    this.engine.scene.fog = new THREE.Fog(pal.fog, 4, d.theme.id === "hub" ? 34 : 26);
     this.level = new LevelView(d);
     this.engine.scene.add(this.level.group);
     this.ambient = new AmbientFx(this.level.group, d, this.level.field, this.level.flamePos, (x, z) => {

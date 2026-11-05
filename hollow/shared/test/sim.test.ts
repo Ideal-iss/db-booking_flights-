@@ -5,7 +5,7 @@ import { starterItem, slotOf, BASE_BY_ID } from "../data/items";
 import { skillsOf } from "../data/skills";
 import { DUNGEONS } from "../data/dungeons";
 import { makeChar } from "./chars";
-import { walkable, worldToCell } from "../dungeon/generate";
+import { generateDungeon, walkable, worldToCell } from "../dungeon/generate";
 
 await RAPIER.init();
 let fails = 0;
@@ -48,6 +48,29 @@ for (const th of DUNGEONS) for (let seed = 1; seed <= 6; seed++) {
     sim.phys.world.free();
   }
 }
+// Новые формы: всё важное достижимо от старта
+for (const th of DUNGEONS) for (let seed = 1; seed <= 25; seed++) {
+  const d = generateDungeon(th.id, seed * 7919, th.level);
+  const reach = new Uint8Array(d.w * d.h);
+  const q = [worldToCell(d.start.z) * d.w + worldToCell(d.start.x)];
+  reach[q[0]] = 1;
+  for (let i = 0; i < q.length; i++) {
+    const c = q[i], x = c % d.w, y = (c / d.w) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, j = ny * d.w + nx;
+      if (!reach[j] && walkable(d, nx, ny)) { reach[j] = 1; q.push(j); }
+    }
+  }
+  const at = (x: number, z: number) => reach[worldToCell(z) * d.w + worldToCell(x)] === 1;
+  for (const e of d.spawns) ok(at(e.x, e.z), `${th.id}/${seed} spawn ${e.type} reachable`);
+  for (const c of d.chests) if (!d.rooms.some((r) => r.kind === "secret" && worldToCell(c.x) >= r.x && worldToCell(c.x) < r.x + r.w && worldToCell(c.z) >= r.y && worldToCell(c.z) < r.y + r.h)) ok(at(c.x, c.z), `${th.id}/${seed} chest reachable`);
+  for (const b of d.breakables) ok(walkable(d, worldToCell(b.x), worldToCell(b.z)), `${th.id}/${seed} breakable on floor`);
+  for (const n of d.notes) ok(walkable(d, worldToCell(n.x), worldToCell(n.z)), `${th.id}/${seed} note on floor`);
+  ok(at(d.exit.x, d.exit.z), `${th.id}/${seed} exit reachable`);
+  for (const p of d.props) if (p.solid) ok(walkable(d, worldToCell(p.x), worldToCell(p.z)), `${th.id}/${seed} prop ${p.kind} on floor`);
+  if (seed === 1) console.log(th.id, "rooms:", d.rooms.map((r) => r.kind).join(","));
+}
+
 // Сценарий: сундук, тайник, босс, выход.
 for (const th of DUNGEONS) {
   const sim = new Sim(RAPIER, { dungeon: th.id, seed: 4242, level: th.level, players: [{ id: "a", name: "A", char: makeChar("knight", th.level) }] });

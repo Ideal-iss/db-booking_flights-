@@ -139,6 +139,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     <Panel title="Настройки" onClose={onClose}>
       <div className="flex flex-col gap-2">
         <h3 className="panel-title">Изображение</h3>
+        {slider("brightness", "Яркость", 0.8, 2.2, 0.05, (v) => `${Math.round(v * 100)}%`)}
         {slider("vhs", "Сила эффекта VHS", 0, 1, 0.05, pct)}
         {slider("grain", "Зерно", 0, 1, 0.05, pct)}
         {slider("chroma", "Хроматическая аберрация", 0, 1, 0.05, pct)}

@@ -1,7 +1,8 @@
 /** Отрисовка уровня: стены, пол, потолок, декорации, сундуки, тайники, ловушки, порталы. */
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { CELL, Cell, WALL_H, type Dungeon } from "@shared/dungeon/generate";
+import { CELL, Cell, WALL_H, ceilAt, type Dungeon } from "@shared/dungeon/generate";
+import type { Snapshot } from "@shared/sim/types";
 import { LightField, litMaterial, probeAt, staticLights } from "./lighting";
 import { ceilingTexture, floorTexture, wallTexture, glowTexture, metalTexture, crateTexture, paperTexture, woodTexture } from "./textures";
 import { dressLevel } from "./dressing";
@@ -29,6 +30,8 @@ export class LevelView {
   flamePos: THREE.Vector3[] = [];
   breakables = new Map<string, { whole: THREE.Object3D; broken: THREE.Object3D; done: boolean }>();
   notes = new Map<string, { obj: THREE.Group; glow: THREE.Sprite; read: boolean }>();
+  chandeliers = new Map<string, { obj: THREE.Group; chain: THREE.Object3D; rope: THREE.Object3D; flames: THREE.Sprite[]; y: number; fallT: number; vy: number; landed: boolean }>();
+  levers = new Map<string, { handle: THREE.Group; vents: THREE.Mesh[] }>();
 
   constructor(d: Dungeon) {
     this.d = d;
@@ -42,6 +45,8 @@ export class LevelView {
     this.buildBreakables();
     this.buildNotes();
     this.buildChests();
+    this.buildChandeliers();
+    this.buildLevers();
     this.buildSecrets();
     this.buildTraps();
     this.exitPortal = this.buildExit();
@@ -262,8 +267,24 @@ export class LevelView {
           broken.add(pl);
         }
       } else {
-        const m = litMaterial({ map: woodTexture(), color: "#9a7a5a", probe });
-        const ring = litMaterial({ color: "#3a3a3e", probe });
+        const oil = b.kind === "oil";
+        // масляная бочка: тёмная, с красными обручами и потёками — её видно издалека
+        const m = litMaterial({ map: woodTexture(), color: oil ? "#6a3a2a" : "#9a7a5a", probe });
+        const ring = litMaterial({ color: oil ? "#a82a1a" : "#3a3a3e", probe });
+        if (oil) {
+          const stain = new THREE.Mesh(new THREE.CircleGeometry(0.55, 10), new THREE.MeshBasicMaterial({ color: "#120a06", transparent: true, opacity: 0.6, depthWrite: false }));
+          stain.rotation.x = -Math.PI / 2;
+          stain.position.y = 0.015;
+          whole.add(stain);
+          const mark = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.02), new THREE.MeshBasicMaterial({ color: "#e0c070" }));
+          mark.position.set(0, 0.42, -0.315);
+          mark.rotation.z = Math.PI / 4;
+          whole.add(mark);
+          const scorch = new THREE.Mesh(new THREE.CircleGeometry(1.4, 12), new THREE.MeshBasicMaterial({ color: "#050302", transparent: true, opacity: 0.7, depthWrite: false }));
+          scorch.rotation.x = -Math.PI / 2;
+          scorch.position.y = 0.016;
+          broken.add(scorch);
+        }
         const c = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.8, 8), m);
         c.position.y = 0.4;
         const bulge = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.4, 8), m);
@@ -325,6 +346,97 @@ export class LevelView {
       obj.rotation.y = c.rot;
       this.group.add(obj);
       this.chests.set(c.id, { lid, open: 0, target: 0, obj });
+    }
+  }
+
+  private buildChandeliers() {
+    const iron = litMaterial({ color: "#3a3430", map: metalTexture("#4a4440") });
+    const wax = new THREE.MeshBasicMaterial({ color: "#e8dcc0" });
+    for (const c of this.d.chandeliers) {
+      const obj = new THREE.Group();
+      obj.position.set(c.x, c.y, c.z);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.05, 4, 10), iron);
+      ring.rotation.x = Math.PI / 2;
+      obj.add(ring);
+      for (let i = 0; i < 4; i++) {
+        const sp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.04), iron);
+        sp.rotation.y = (i * Math.PI) / 4;
+        obj.add(sp);
+      }
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.3, 6), iron);
+      obj.add(hub);
+      const flames: THREE.Sprite[] = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const cd = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 5), wax);
+        cd.position.set(Math.cos(a) * 0.75, 0.1, Math.sin(a) * 0.75);
+        obj.add(cd);
+        const f = makeFlame(0.45);
+        f.position.set(cd.position.x, 0.28, cd.position.z);
+        obj.add(f);
+        flames.push(f);
+      }
+      const top = ceilAt(this.d, c.x, c.z);
+      const chain = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1, 0.04), iron);
+      chain.scale.y = Math.max(0.1, top - c.y);
+      chain.position.set(c.x, c.y + chain.scale.y / 2, c.z);
+      this.group.add(chain);
+      // верёвка от люстры к крюку на стене: её можно перерезать
+      const rope = new THREE.Group();
+      const anchor = new THREE.Vector3(c.ax, 1.5, c.az);
+      const pulley = new THREE.Vector3(c.ax, top - 0.3, c.az);
+      const ropeMat = new THREE.MeshBasicMaterial({ color: "#8a6a42" });
+      const seg = (a: THREE.Vector3, b: THREE.Vector3) => {
+        const len = a.distanceTo(b);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, len), ropeMat);
+        m.position.copy(a).add(b).multiplyScalar(0.5);
+        m.lookAt(b);
+        rope.add(m);
+      };
+      seg(anchor, pulley);
+      seg(pulley, new THREE.Vector3(c.x, top - 0.3, c.z));
+      const cleat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.36, 0.12), iron);
+      cleat.position.copy(anchor);
+      rope.add(cleat);
+      this.group.add(rope);
+      this.group.add(obj);
+      this.chandeliers.set(c.id, { obj, chain, rope, flames, y: c.y, fallT: -1, vy: 0, landed: false });
+    }
+  }
+
+  private buildLevers() {
+    const iron = litMaterial({ color: "#4a4440", map: metalTexture("#5a5450") });
+    const grateMat = new THREE.MeshBasicMaterial({ color: "#0c0806" });
+    for (const lv of this.d.levers) {
+      const plate = new THREE.Group();
+      plate.position.set(lv.x, 1.25, lv.z);
+      plate.rotation.y = lv.rot;
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.08), iron);
+      plate.add(back);
+      const handle = new THREE.Group();
+      handle.position.z = 0.08;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), iron);
+      bar.position.y = 0.25;
+      const knob = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), litMaterial({ color: "#8a2a1a" }));
+      knob.position.y = 0.5;
+      handle.add(bar, knob);
+      handle.rotation.x = -0.5;
+      plate.add(handle);
+      this.group.add(plate);
+      const vents: THREE.Mesh[] = [];
+      for (const v of lv.vents) {
+        const g = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), grateMat.clone());
+        g.rotation.x = -Math.PI / 2;
+        g.position.set(v.x, 0.018, v.z);
+        this.group.add(g);
+        for (let i = -2; i <= 2; i++) {
+          const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.12), iron);
+          b.position.set(v.x, 0.03, v.z + i * 0.42);
+          this.group.add(b);
+        }
+        vents.push(g);
+      }
+      this.levers.set(lv.id, { handle, vents });
     }
   }
 
@@ -455,7 +567,7 @@ export class LevelView {
     }
   }
 
-  update(t: number, dt: number, opened?: { chests: string[]; secrets: string[]; shrines: string[]; broken?: string[] }, trapActive?: (id: string) => boolean, exitOpen?: boolean) {
+  update(t: number, dt: number, opened?: Partial<Snapshot["opened"]>, trapActive?: (id: string) => boolean, exitOpen?: boolean, levers?: Record<string, number>) {
     for (const f of this.flames) {
       const frame = Math.floor(t * 10 + f.phase * 3) % 4;
       const map = (f.sprite.material as THREE.SpriteMaterial).map!;
@@ -472,11 +584,23 @@ export class LevelView {
       if (a.name === "veil") ((a as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.28 + 0.1 * Math.sin(t * 2.4);
     }
     if (opened) {
-      for (const id of opened.chests) {
+      for (const id of opened.chests || []) {
         const c = this.chests.get(id);
         if (c) c.target = 1;
       }
-      for (const id of opened.secrets) {
+      // мимик выбрался из сундука: на его месте теперь враг
+      for (const id of opened.mimics || []) {
+        const c = this.chests.get(id);
+        if (c) c.obj.visible = false;
+      }
+      for (const id of opened.chandeliers || []) {
+        const c = this.chandeliers.get(id);
+        if (c && c.fallT < 0) {
+          c.fallT = t;
+          c.rope.visible = false;
+        }
+      }
+      for (const id of opened.secrets || []) {
         const s = this.secrets.get(id);
         if (s && !s.open) s.open = true;
       }
@@ -488,10 +612,40 @@ export class LevelView {
           b.broken.visible = true;
         }
       }
-      for (const id of opened.shrines) {
+      for (const id of opened.shrines || []) {
         const gem = this.shrines.get(id);
         if (gem) ((gem as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set("#3a3a3a");
       }
+    }
+    for (const c of this.chandeliers.values()) {
+      if (c.fallT >= 0 && !c.landed) {
+        // полсекунды раскачивается, потом летит вниз
+        const k = t - c.fallT;
+        if (k < 0.5) {
+          c.obj.rotation.z = Math.sin(k * 40) * 0.08;
+        } else {
+          c.chain.visible = false;
+          c.vy += 22 * dt;
+          c.obj.position.y = Math.max(0.12, c.obj.position.y - c.vy * dt);
+          if (c.obj.position.y <= 0.12) {
+            c.landed = true;
+            c.obj.rotation.set(0.25, 0, 0.18);
+          }
+        }
+      }
+      if (c.landed) for (const f of c.flames) f.scale.multiplyScalar(Math.max(0, 1 - dt * 0.6));
+      else
+        for (const f of c.flames) {
+          const map = f.material.map;
+          if (map) map.offset.x = Math.floor((t * 10 + f.position.x * 7) % 4) * 0.25;
+        }
+    }
+    for (const [id, lv] of this.levers) {
+      const cd = levers?.[id] || 0;
+      const target = cd > 0 ? 0.6 : -0.5;
+      lv.handle.rotation.x += (target - lv.handle.rotation.x) * Math.min(1, dt * 12);
+      // решётки тлеют, пока рычаг перезаряжается
+      for (const v of lv.vents) (v.material as THREE.MeshBasicMaterial).color.setRGB(0.05 + Math.min(1, cd / 12) * 0.35, 0.03 + Math.min(1, cd / 12) * 0.08, 0.02);
     }
     for (const c of this.chests.values()) {
       c.open += (c.target - c.open) * Math.min(1, dt * 6);

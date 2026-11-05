@@ -1,7 +1,7 @@
 /** Враги и боссы. Поведение задаётся типом ИИ (см. sim/ai.ts). */
 import type { Element } from "./skills";
 
-export type Behavior = "melee" | "defensive" | "ranged" | "aggressive" | "brute" | "boss" | "summon";
+export type Behavior = "melee" | "defensive" | "ranged" | "aggressive" | "brute" | "boss" | "summon" | "archer" | "mimic" | "necro" | "phantom";
 
 export interface EnemyDef {
   id: string;
@@ -59,6 +59,24 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: "summoned_skeleton", name: "Скелет-слуга", behavior: "summon", hp: 60, dmg: 8, element: "physical", armor: 6, speed: 4.2,
     range: 1.9, windup: 0.35, cooldown: 1.1, radius: 0.4, height: 1.8, xp: 0, undead: true, poise: 0.2, aggro: 16, loot: "normal",
   },
+  skeleton_archer: {
+    id: "skeleton_archer", name: "Скелет-лучник", behavior: "archer", hp: 28, dmg: 9, element: "physical", armor: 2, speed: 3.1,
+    range: 16, windup: 0.95, cooldown: 2.2, radius: 0.4, height: 1.8, xp: 16, undead: true, poise: 0, aggro: 20,
+    projectile: { speed: 24, size: 0.12, element: "physical" }, keepDistance: 10, loot: "normal",
+  },
+  mimic: {
+    id: "mimic", name: "Мимик", behavior: "mimic", hp: 120, dmg: 18, element: "physical", armor: 8, speed: 4.6,
+    range: 1.9, windup: 0.35, cooldown: 1.0, radius: 0.6, height: 1.0, xp: 60, undead: false, poise: 0.6, aggro: 20, loot: "normal",
+  },
+  necromancer: {
+    id: "necromancer", name: "Некромант", behavior: "necro", hp: 46, dmg: 11, element: "dark", armor: 2, speed: 3.0,
+    range: 13, windup: 0.8, cooldown: 2.4, radius: 0.4, height: 1.85, xp: 34, undead: false, poise: 0, aggro: 18,
+    projectile: { speed: 11, size: 0.25, element: "dark" }, keepDistance: 9, loot: "normal",
+  },
+  phantom: {
+    id: "phantom", name: "Фантом", behavior: "phantom", hp: 54, dmg: 13, element: "dark", armor: 0, speed: 3.6,
+    range: 1.9, windup: 0.55, cooldown: 1.6, radius: 0.4, height: 1.9, xp: 30, undead: true, poise: 0.3, aggro: 22, loot: "normal",
+  },
   // ---- боссы ----
   bone_priest: {
     id: "bone_priest", name: "Костяной Жрец", behavior: "boss", hp: 950, dmg: 16, element: "dark", armor: 10, speed: 2.4,
@@ -78,6 +96,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: "blood_abomination", name: "Кровавая Мерзость", behavior: "boss", hp: 1700, dmg: 32, element: "physical", armor: 16, speed: 2.4,
     range: 3.6, windup: 0.95, cooldown: 1.8, radius: 1.4, height: 3.6, xp: 1000, undead: false, poise: 1, aggro: 30, boss: true, loot: "boss",
   },
+  the_hollow: {
+    id: "the_hollow", name: "Полое Сердце", behavior: "boss", hp: 2600, dmg: 30, element: "dark", armor: 14, speed: 2.8,
+    range: 3.2, windup: 0.8, cooldown: 1.5, radius: 1.2, height: 4.0, xp: 2000, undead: true, poise: 1, aggro: 40, boss: true,
+    projectile: { speed: 13, size: 0.4, element: "dark" }, loot: "boss",
+  },
 };
 
 export const ELITE_MODS: Record<string, { name: string; hp: number; dmg: number; speed: number }> = {
@@ -86,14 +109,15 @@ export const ELITE_MODS: Record<string, { name: string; hp: number; dmg: number;
   cursed: { name: "Проклятый", hp: 2.2, dmg: 1.5, speed: 1.05 },
 };
 
-export function scaleEnemy(def: EnemyDef, level: number, players: number, elite?: string) {
+export function scaleEnemy(def: EnemyDef, level: number, players: number, elite?: string, champion = false) {
   const em = elite ? ELITE_MODS[elite] : null;
   const lv = Math.max(0, level - 1);
+  const ch = champion ? { hp: 3.2, dmg: 1.25, xp: 4 } : { hp: 1, dmg: 1, xp: 1 };
   return {
-    maxHp: Math.round(def.hp * (1 + 0.24 * lv) * (1 + 0.65 * (players - 1)) * (em ? em.hp : 1)),
-    dmg: def.dmg * (1 + 0.15 * lv) * (em ? em.dmg : 1),
+    maxHp: Math.round(def.hp * (1 + 0.24 * lv) * (1 + 0.65 * (players - 1)) * (em ? em.hp : 1) * ch.hp),
+    dmg: def.dmg * (1 + 0.15 * lv) * (em ? em.dmg : 1) * ch.dmg,
     speed: def.speed * (em ? em.speed : 1),
     armor: def.armor * (1 + 0.1 * lv),
-    xp: Math.round(def.xp * (1 + 0.18 * lv) * (em ? 3 : 1)),
+    xp: Math.round(def.xp * (1 + 0.18 * lv) * (em ? 3 : 1) * ch.xp),
   };
 }

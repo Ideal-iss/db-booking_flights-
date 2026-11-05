@@ -2,7 +2,7 @@
 import { Room, type Client } from "colyseus";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { Sim, type Action, type PoseInput } from "@shared/sim/sim";
-import { DUNGEON_BY_ID, dungeonUnlocked } from "@shared/data/dungeons";
+import { parseStage, stageUnlocked } from "@shared/data/dungeons";
 import type { CharacterData } from "@shared/data/stats";
 import type { Item } from "@shared/data/items";
 import { verifyToken, report, type TokenPayload } from "./django";
@@ -170,10 +170,12 @@ export class HollowRoom extends Room {
   private async start(client: Client, m: { dungeon: string }) {
     if (this.sim) return;
     if (client.sessionId !== this.order[0]) return client.send("msg", { text: "Начать может только лидер отряда.", color: "#e0505a" });
-    const theme = DUNGEON_BY_ID[m?.dungeon];
-    if (!theme) return;
+    const key = String(m?.dungeon || "");
+    const st = parseStage(key);
+    if (!st) return;
+    const theme = { id: key, level: st.stage.level };
     const host = this.members.get(client.sessionId)!;
-    if (!dungeonUnlocked(theme, host.data.cleared)) return client.send("msg", { text: "Лидер ещё не открыл это подземелье.", color: "#e0505a" });
+    if (!stageUnlocked(key, host.data.cleared)) return client.send("msg", { text: "Лидер ещё не открыл это подземелье.", color: "#e0505a" });
     const members = this.order.map((id) => this.members.get(id)!).filter((x) => x.connected);
     if (members.some((x) => !x.ready)) return client.send("msg", { text: "Не все готовы.", color: "#e0505a" });
     const seed = 1 + Math.floor(Math.random() * 2_000_000_000);

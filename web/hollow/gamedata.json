@@ -1431,32 +1431,144 @@
    "price": 25
   }
  },
- "dungeons": {
-  "crypt": {
-   "name": "Забытый склеп",
+ "stages": {
+  "a1s1": {
+   "id": "a1s1",
+   "act": 1,
+   "n": 1,
+   "name": "Ступени склепа",
    "level": 1,
    "unlock": null,
+   "boss": "skeleton"
+  },
+  "a1s2": {
+   "id": "a1s2",
+   "act": 1,
+   "n": 2,
+   "name": "Нижние ниши",
+   "level": 2,
+   "unlock": "a1s1",
+   "boss": "zombie"
+  },
+  "a1s3": {
+   "id": "a1s3",
+   "act": 1,
+   "n": 3,
+   "name": "Логово Костяного Жреца",
+   "level": 3,
+   "unlock": "a1s2",
    "boss": "bone_priest"
   },
-  "catacombs": {
-   "name": "Древние катакомбы",
+  "a2s1": {
+   "id": "a2s1",
+   "act": 2,
+   "n": 1,
+   "name": "Галереи черепов",
    "level": 5,
-   "unlock": "crypt",
+   "unlock": "a1s3",
+   "boss": "wraith"
+  },
+  "a2s2": {
+   "id": "a2s2",
+   "act": 2,
+   "n": 2,
+   "name": "Застава мертвецов",
+   "level": 6,
+   "unlock": "a2s1",
+   "boss": "undead_knight"
+  },
+  "a2s3": {
+   "id": "a2s3",
+   "act": 2,
+   "n": 3,
+   "name": "Последний пост",
+   "level": 7,
+   "unlock": "a2s2",
    "boss": "hollow_knight"
   },
-  "cathedral": {
-   "name": "Заброшенный собор",
+  "a3s1": {
+   "id": "a3s1",
+   "act": 3,
+   "n": 1,
+   "name": "Неф забытых",
+   "level": 9,
+   "unlock": "a2s3",
+   "boss": "necromancer"
+  },
+  "a3s2": {
+   "id": "a3s2",
+   "act": 3,
+   "n": 2,
+   "name": "Колокольня без колокола",
    "level": 10,
-   "unlock": "catacombs",
+   "unlock": "a3s1",
+   "boss": "skeleton_archer"
+  },
+  "a3s3": {
+   "id": "a3s3",
+   "act": 3,
+   "n": 3,
+   "name": "Алтарь Святой",
+   "level": 11,
+   "unlock": "a3s2",
    "boss": "forgotten_saint"
   },
-  "sanctum": {
-   "name": "Кровавое святилище",
+  "a4s1": {
+   "id": "a4s1",
+   "act": 4,
+   "n": 1,
+   "name": "Кровавые стоки",
+   "level": 13,
+   "unlock": "a3s3",
+   "boss": "abomination"
+  },
+  "a4s2": {
+   "id": "a4s2",
+   "act": 4,
+   "n": 2,
+   "name": "Чертог культа",
+   "level": 14,
+   "unlock": "a4s1",
+   "boss": "necromancer"
+  },
+  "a4s3": {
+   "id": "a4s3",
+   "act": 4,
+   "n": 3,
+   "name": "Сердце святилища",
    "level": 15,
-   "unlock": "cathedral",
+   "unlock": "a4s2",
    "boss": "blood_abomination"
+  },
+  "a5s1": {
+   "id": "a5s1",
+   "act": 5,
+   "n": 1,
+   "name": "Край Пустоты",
+   "level": 17,
+   "unlock": "a4s3",
+   "boss": "phantom"
+  },
+  "a5s2": {
+   "id": "a5s2",
+   "act": 5,
+   "n": 2,
+   "name": "Тропа без отражений",
+   "level": 18,
+   "unlock": "a5s1",
+   "boss": "undead_knight"
+  },
+  "a5s3": {
+   "id": "a5s3",
+   "act": 5,
+   "n": 3,
+   "name": "Полое Сердце",
+   "level": 20,
+   "unlock": "a5s2",
+   "boss": "the_hollow"
   }
  },
+ "nightmareBonus": 20,
  "quests": {
   "bones_rest": {
    "kind": "kill",

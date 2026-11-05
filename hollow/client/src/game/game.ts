@@ -162,7 +162,7 @@ export class Game {
     this.clearScene();
     this.mode = "hub";
     this.dungeonName = "Лагерь «Последняя свеча»";
-    const { d, npcs } = buildHub();
+    const { d, npcs } = buildHub(this.char.cleared);
     this.npcs = npcs;
     this.setupScene(d);
     this.level!.addNpcs(npcs);
@@ -399,13 +399,14 @@ export class Game {
             this.bossId = e.id as string;
             audio.play("roar");
             audio.startBoss();
-            this.cb.say(`${ENEMIES[e.type as string]?.name || "Босс"} пробуждается…`, "#ff5a4a");
+            const champ = ents.enemies.get(e.id as string)?.cur.name;
+            this.cb.say(champ ? `${champ} преграждает путь!` : `${ENEMIES[e.type as string]?.name || "Босс"} пробуждается…`, "#ff5a4a");
           }
           break;
         case "boss_phase":
           audio.play("roar");
           this.shake = Math.max(this.shake, 0.6);
-          this.cb.say("Босс впадает в ярость!", "#ff5a4a");
+          this.cb.say(e.phase === 3 ? "Полое Сердце разрывает тьму!" : "Босс впадает в ярость!", "#ff5a4a");
           break;
         case "exit_open":
           audio.play("portal");
@@ -436,6 +437,50 @@ export class Game {
           break;
         case "revive_start":
           break;
+        case "fuse":
+          ents.burst(e.x as number, 0.8, e.z as number, "#ffb040", 14, { speed: 1.5, up: 2, additive: true, size: 0.12, life: 0.4 });
+          ents.flash(e.x as number, 0.8, e.z as number, "#ff9a3a", 0.8, 6, 0.35);
+          audio.play("fuse", pos);
+          break;
+        case "chandelier":
+          audio.play("wood", pos, 0.6);
+          break;
+        case "crash":
+          ents.burst(e.x as number, 0.3, e.z as number, "#5a5048", 26, { speed: 4, up: 3, size: 0.12, life: 1 });
+          ents.burst(e.x as number, 0.3, e.z as number, "#ffb060", 16, { speed: 3, up: 2, additive: true, size: 0.1, life: 0.6 });
+          ents.splat(e.x as number, e.z as number, "soot", 2.4);
+          audio.play("crash", pos);
+          if (this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 10) this.shake = Math.max(this.shake, 0.5);
+          break;
+        case "lever":
+          audio.play("lever", pos);
+          break;
+        case "lever_wait":
+          if (e.p === me) this.cb.say("Рычаг ещё не взвёлся.", "#c8b89a");
+          break;
+        case "vent":
+          ents.flash(e.x as number, 1, e.z as number, "#ff7a2a", 1.4, 8, 0.6);
+          audio.play("flame", pos);
+          break;
+        case "mimic":
+          audio.play("roar", pos, 0.6);
+          ents.burst(e.x as number, 0.6, e.z as number, "#6a4a2a", 18, { speed: 3, up: 3, size: 0.08 });
+          this.cb.say("Сундук оскалился — это мимик!", "#ff6a4a");
+          this.shake = Math.max(this.shake, 0.3);
+          break;
+        case "phased":
+          ents.burst(e.x as number, 1.2, e.z as number, "#cfe0ff", 6, { speed: 1, up: 0.5, g: 0, additive: true, size: 0.15, life: 0.4 });
+          audio.play("ghost", pos, 0.6);
+          break;
+        case "raise_start":
+          ents.burst(e.x as number, 0.2, e.z as number, "#4aff7a", 20, { speed: 0.6, up: 2, g: -0.5, additive: true, size: 0.18, life: 1.1 });
+          audio.play("dark", pos, 0.6);
+          break;
+        case "eshoot": {
+          const en = ents.enemies.get(e.id as string);
+          if (en) audio.play("bow", { x: en.x, z: en.z }, 0.8);
+          break;
+        }
         default:
           break;
       }
@@ -521,6 +566,12 @@ export class Game {
       }
     }
     for (const ch of d.chests) if (!s.opened.chests.includes(ch.id) && near(ch.x, ch.z, 2.6)) return { label: "Открыть сундук", act: () => this.act({ t: "interact" }) };
+    for (const c of d.chandeliers) if (!(s.opened.chandeliers || []).includes(c.id) && near(c.ax, c.az, 2.2)) return { label: "Перерезать верёвку люстры", act: () => this.act({ t: "interact" }) };
+    for (const lv of d.levers) {
+      if (!near(lv.x, lv.z, 2.0)) continue;
+      const cd = s.levers?.[lv.id] || 0;
+      return { label: cd > 0 ? `Рычаг взводится… ${Math.ceil(cd)} с` : "Потянуть рычаг огненных решёток", act: () => this.act({ t: "interact" }) };
+    }
     for (const sec of d.secrets) {
       if (!s.opened.secrets.includes(sec.id) && near((sec.cx + 0.5) * CELL, (sec.cy + 0.5) * CELL, 3.2)) return { label: "Осмотреть треснувшую кладку", act: () => this.act({ t: "interact" }) };
     }
@@ -678,7 +729,7 @@ export class Game {
     this.lantern.color.set(torch ? 0xffb878 : 0xffd8b0);
 
     const opened = this.ents?.latest?.opened;
-    this.level.update(t, dt, opened, this.session ? (id) => this.session!.trapActive(id) : undefined, this.ents?.latest?.exitOpen);
+    this.level.update(t, dt, opened, this.session ? (id) => this.session!.trapActive(id) : undefined, this.ents?.latest?.exitOpen, this.ents?.latest?.levers);
     this.level.explore(c.x, c.z);
     this.ambient?.update(dt, t, c.x, c.z);
     this.ents?.update(t, dt, { x: c.x, z: c.z });
@@ -741,7 +792,7 @@ export class Game {
     const snap = this.ents?.latest;
     if (snap && this.bossId) {
       const b = snap.enemies.find((e) => e.id === this.bossId);
-      if (b && b.state !== "dead") hud.boss = { name: ENEMIES[b.type].name, hp: b.hp, maxHp: b.maxHp, phase: b.phase };
+      if (b && b.state !== "dead") hud.boss = { name: b.name ? `${b.name}, ${ENEMIES[b.type].name.toLowerCase()}` : ENEMIES[b.type].name, hp: b.hp, maxHp: b.maxHp, phase: b.phase };
     }
     if (this.ents && this.ctl) {
       const a = this.ents.aimed(this.ctl.x, this.ctl.z, this.ctl.yaw);

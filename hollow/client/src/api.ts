@@ -56,6 +56,6 @@ export const api = {
   runStart: (id: number, dungeon: string) => call<{ run: { id: string; dungeon: string; seed: number; level: number } }>(`characters/${id}/run/`, { dungeon }),
   pickup: (id: number, run: string, item: Item) => call<{ item: Item & { pos: number } }>(`characters/${id}/run/${run}/pickup/`, { item }),
   finish: (id: number, run: string, success: boolean, result: unknown) =>
-    call<{ summary: { xp: number; gold: number; levels: number; unlocked?: string[] }; character: ServerCharacter }>(`characters/${id}/run/${run}/finish/`, { success, result }),
+    call<{ summary: { xp: number; gold: number; levels: number; unlocked?: string[]; cleared?: boolean; firstClear?: boolean }; character: ServerCharacter }>(`characters/${id}/run/${run}/finish/`, { success, result }),
   coopToken: (id: number) => call<{ token: string; url: string }>(`characters/${id}/coop-token/`, {}),
 };

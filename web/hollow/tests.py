@@ -61,7 +61,7 @@ class HollowApiTests(TestCase):
 
     def test_run_pickup_validation(self):
         c = self.make()
-        run = post(self.client, "run_start", {"dungeon": "crypt"}, cid=c["id"]).json()["run"]
+        run = post(self.client, "run_start", {"dungeon": "a1s1"}, cid=c["id"]).json()["run"]
         good = {"uid": "x", "base": "short_sword", "rarity": "uncommon", "ilvl": 1, "affixes": [{"id": "str", "v": 2}], "name": "Короткий меч силы"}
         r = post(self.client, "run_pickup", {"item": good}, cid=c["id"], rid=run["id"])
         self.assertTrue(r.json()["ok"], r.content)
@@ -80,29 +80,57 @@ class HollowApiTests(TestCase):
 
     def test_locked_dungeon(self):
         c = self.make()
-        r = post(self.client, "run_start", {"dungeon": "catacombs"}, cid=c["id"])
+        r = post(self.client, "run_start", {"dungeon": "a1s2"}, cid=c["id"])
         self.assertEqual(r.status_code, 400)
+        # Кошмар закрыт до победы над финальным боссом
+        self.assertEqual(post(self.client, "run_start", {"dungeon": "n:a1s1"}, cid=c["id"]).status_code, 400)
+        self.assertEqual(post(self.client, "run_start", {"dungeon": "crypt"}, cid=c["id"]).status_code, 400)
 
     def test_finish_caps_and_unlocks(self):
         c = self.make()
-        run = post(self.client, "run_start", {"dungeon": "crypt"}, cid=c["id"]).json()["run"]
-        res = {"xp": 10**9, "gold": 10**9, "kills": {"skeleton": 4}, "bosses": ["bone_priest"], "potionsUsed": {"health": 1, "mana": 0}, "potionsFound": {"health": 2, "mana": 0}}
+        run = post(self.client, "run_start", {"dungeon": "a1s1"}, cid=c["id"]).json()["run"]
+        res = {"xp": 10**9, "gold": 10**9, "kills": {"skeleton": 4}, "bosses": ["skeleton"], "potionsUsed": {"health": 1, "mana": 0}, "potionsFound": {"health": 2, "mana": 0}}
         r = post(self.client, "run_finish", {"success": True, "result": res}, cid=c["id"], rid=run["id"]).json()
         self.assertTrue(r["ok"])
         self.assertEqual(r["summary"]["xp"], game.xp_cap(run["level"]))
         ch = r["character"]
-        self.assertIn("crypt", ch["cleared"])
+        self.assertIn("a1s1", ch["cleared"])
+        self.assertEqual(r["summary"]["unlocked"], ["a1s2"])
+        self.assertTrue(r["summary"]["firstClear"])
         self.assertEqual(ch["potions"]["health"], 4)
-        self.assertTrue(any(q["id"] == "priest" and q["done"] for q in ch["quests"]))
         # второй раз тот же забег не засчитать
         r = post(self.client, "run_finish", {"success": True, "result": res}, cid=c["id"], rid=run["id"])
         self.assertEqual(r.status_code, 400)
-        # теперь катакомбы открыты
-        self.assertEqual(post(self.client, "run_start", {"dungeon": "catacombs"}, cid=c["id"]).status_code, 200)
+        # теперь открыт следующий этап
+        self.assertEqual(post(self.client, "run_start", {"dungeon": "a1s2"}, cid=c["id"]).status_code, 200)
+
+    def test_exit_without_guard_not_cleared(self):
+        c = self.make()
+        run = post(self.client, "run_start", {"dungeon": "a1s1"}, cid=c["id"]).json()["run"]
+        r = post(self.client, "run_finish", {"success": True, "result": {"xp": 10, "bosses": []}}, cid=c["id"], rid=run["id"]).json()
+        self.assertFalse(r["summary"]["cleared"])
+        self.assertNotIn("a1s1", r["character"]["cleared"])
+
+    def test_legacy_cleared_migrates_and_nightmare(self):
+        c = self.make()
+        ch = HollowCharacter.objects.get(pk=c["id"])
+        ch.data = dict(ch.data, cleared=["crypt", "catacombs"])
+        ch.save()
+        r = self.client.get(reverse("hollow:character", kwargs={"cid": c["id"]})).json()
+        self.assertEqual(r["character"]["cleared"], ["a1s1", "a1s2", "a1s3", "a2s1", "a2s2", "a2s3"])
+        self.assertEqual(post(self.client, "run_start", {"dungeon": "a3s1"}, cid=c["id"]).status_code, 200)
+        # финальный босс открывает Кошмар с уровнем +20
+        ch = HollowCharacter.objects.get(pk=c["id"])
+        ch.data = dict(ch.data, cleared=ch.data["cleared"] + ["a5s3"])
+        ch.save()
+        run = post(self.client, "run_start", {"dungeon": "n:a1s1"}, cid=c["id"]).json()["run"]
+        self.assertEqual(run["level"], 21)
+        r = post(self.client, "run_finish", {"success": True, "result": {"bosses": ["skeleton"]}}, cid=c["id"], rid=run["id"]).json()
+        self.assertEqual(r["summary"]["unlocked"], ["n:a1s2"])
 
     def test_death_halves_xp(self):
         c = self.make()
-        run = post(self.client, "run_start", {"dungeon": "crypt"}, cid=c["id"]).json()["run"]
+        run = post(self.client, "run_start", {"dungeon": "a1s1"}, cid=c["id"]).json()["run"]
         r = post(self.client, "run_finish", {"success": False, "result": {"xp": 100, "gold": 5}}, cid=c["id"], rid=run["id"]).json()
         self.assertEqual(r["summary"]["xp"], 50)
         self.assertEqual(r["character"]["stats"]["deaths"], 1)
@@ -190,7 +218,7 @@ class CoopTests(TestCase):
         self.assertEqual(r.status_code, 403)
 
     def test_full_coop_flow(self):
-        r = self.signed({"kind": "start", "dungeon": "crypt", "seed": 42, "chars": [self.char["id"]]}).json()
+        r = self.signed({"kind": "start", "dungeon": "a1s1", "seed": 42, "chars": [self.char["id"]]}).json()
         run_id = r["runs"][str(self.char["id"])]
         item = {"base": "mace", "rarity": "common", "ilvl": 1, "affixes": [], "name": "Булава"}
         self.assertTrue(self.signed({"kind": "pickup", "run": run_id, "item": item}).json()["ok"])

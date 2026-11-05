@@ -240,6 +240,24 @@ class AudioEngine {
       case "drip":
         this.tone(out, t, { type: "sine", f: 1600 + Math.random() * 900, f2: 700, d: 0.09, gain: 0.05 * v });
         break;
+      case "fuse":
+        this.noiseHit(out, t, { type: "highpass", f: 4000, f2: 7000, a: 0.02, d: 0.35, gain: 0.3 * v });
+        break;
+      case "crash":
+        this.noiseHit(out, t, { type: "lowpass", f: 1800, f2: 120, d: 0.8, gain: 0.9 * v });
+        for (let i = 0; i < 6; i++) this.tone(out, t + i * 0.04, { type: "square", f: 900 + i * 230, f2: 400, d: 0.18, gain: 0.05 * v });
+        break;
+      case "lever":
+        this.tone(out, t, { type: "square", f: 220, f2: 110, d: 0.08, gain: 0.12 * v });
+        this.noiseHit(out, t + 0.05, { type: "bandpass", f: 1200, q: 3, d: 0.15, gain: 0.3 * v });
+        break;
+      case "flame":
+        this.noiseHit(out, t, { type: "lowpass", f: 1200, f2: 400, a: 0.1, d: 0.9, gain: 0.45 * v });
+        break;
+      case "ghost":
+        this.tone(out, t, { type: "sine", f: 520, f2: 380, a: 0.2, d: 0.7, gain: 0.05 * v, detune: 20 });
+        this.noiseHit(out, t, { type: "bandpass", f: 900, q: 6, a: 0.2, d: 0.6, gain: 0.12 * v });
+        break;
       case "paper":
         this.noiseHit(out, t, { type: "highpass", f: 3000, a: 0.03, d: 0.2, gain: 0.18 * v });
         break;

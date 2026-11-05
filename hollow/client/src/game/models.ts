@@ -360,6 +360,79 @@ export function makeEnemy(type: string, elite?: string): EnemyModel {
     case "blood_abomination":
       rig = abomination("#8a2a2a", "#4a0e10", 2.0, true);
       break;
+    case "skeleton_archer":
+      rig = humanoid({ skin: bone, cloth: "#3a3a2a", bony: true, head: "skull", hair: "hood", hairColor: "#2a2a22", eyes: "#ffd06a" });
+      weapon = makeWeapon("bow", rig.probe);
+      // колчан за спиной
+      box(0.12, 0.42, 0.1, litMaterial({ color: "#5a3a22", map: woodTexture(), probe: rig.probe }), 0.1, 0.4, 0.16, rig.torso).rotation.z = 0.3;
+      break;
+    case "necromancer": {
+      rig = humanoid({ skin: "#b8b0a0", cloth: "#1c2a1e", trim: "#3a5a3a", robe: true, head: "hood", eyes: "#7aff9a", bulk: 0.9 });
+      weapon = makeWeapon("staff", rig.probe);
+      // череп на навершии посоха светится зелёным
+      const skull = box(0.14, 0.14, 0.14, litMaterial({ color: bone, probe: rig.probe }), 0, 1.22, 0, weapon);
+      glowEyes(skull, "#7aff9a", 0.0, -0.075, 0.03, 0.025);
+      extra = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#4aff7a", transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }));
+      extra.scale.setScalar(0.6);
+      extra.position.y = 1.22;
+      weapon.add(extra);
+      extra = undefined;
+      break;
+    }
+    case "phantom":
+      rig = humanoid({ skin: "#cfe0ff", cloth: "#3a4a6a", trim: "#202a40", robe: true, head: "hood", eyes: "#e0f0ff", float: true, opacity: 0.55, scale: 1.1 });
+      for (const m of rig.mats) { m.depthWrite = false; m.blending = THREE.AdditiveBlending; }
+      break;
+    case "mimic": {
+      // сундук на ножках-щупальцах: челюсть — крышка, внутри зубы и язык
+      rig = humanoid({ skin: "#5a2a22", cloth: "#5a2a22", bony: true, head: "none", scale: 0.6 });
+      for (const c of [...rig.torso.children]) if (c !== rig.head && c !== rig.armL && c !== rig.armR) c.visible = false;
+      const chest = makeChest("chest", rig.probe);
+      chest.obj.position.set(0, -0.15, 0);
+      chest.obj.scale.setScalar(1.5);
+      rig.torso.add(chest.obj);
+      const tooth = new THREE.MeshBasicMaterial({ color: "#e8e0c8" });
+      for (let i = 0; i < 6; i++) {
+        const t1 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 4), tooth);
+        t1.position.set(-0.45 + i * 0.18, 0.55, -0.4);
+        t1.rotation.x = Math.PI;
+        chest.obj.add(t1);
+        const t2 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 4), tooth);
+        t2.position.set(-0.36 + i * 0.16, 0.0, -0.7);
+        chest.lid.add(t2);
+      }
+      const tongue = box(0.18, 0.04, 0.5, new THREE.MeshBasicMaterial({ color: "#8a1a2a" }), 0, 0.58, -0.3, chest.obj);
+      tongue.rotation.x = -0.4;
+      rig.eyes.push(...glowEyes(chest.lid, "#ff3a2a", 0.05, -0.55, 0.2, 0.05));
+      chest.lid.userData.mimicLid = true;
+      extra = chest.lid;
+      rig.armL.scale.set(1.4, 1.5, 1.4);
+      rig.armR.scale.set(1.4, 1.5, 1.4);
+      break;
+    }
+    case "the_hollow": {
+      // Полое Сердце: высокая фигура из тьмы с дырой в груди, в которой бьётся свет
+      rig = humanoid({ skin: "#1a1420", cloth: "#0e0a12", trim: "#3a1a4a", armor: "#2a2230", robe: true, head: "crown", eyes: "#c46aff", scale: 2.15, bulk: 1.15 });
+      const heart = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#c46aff", transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      heart.scale.setScalar(0.55);
+      heart.position.set(0, 0.36, -0.16);
+      rig.torso.add(heart);
+      heart.userData.heart = true;
+      const hole = box(0.2, 0.22, 0.02, new THREE.MeshBasicMaterial({ color: "#000" }), 0, 0.36, -0.14, rig.torso);
+      void hole;
+      const shard = litMaterial({ color: "#2a1a3a", probe: rig.probe });
+      for (let i = 0; i < 5; i++) {
+        const s1 = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.5, 4), shard);
+        const a = (i / 5) * Math.PI * 2;
+        s1.position.set(Math.cos(a) * 0.4, 0.75, Math.sin(a) * 0.25 + 0.1);
+        s1.rotation.z = -Math.cos(a) * 0.5;
+        rig.torso.add(s1);
+      }
+      weapon = makeWeapon("sword", rig.probe);
+      weapon.scale.setScalar(1.4);
+      extra = heart;
+      break;
+    }
     default:
       rig = humanoid({ skin: bone, cloth: "#333", bony: true, head: "skull" });
   }

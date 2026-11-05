@@ -3,7 +3,7 @@ import { useGame, type Panel } from "../store";
 import { api, ApiError, type ServerCharacter } from "../api";
 import { Game, initRapier } from "../game/game";
 import { LocalSession } from "../game/session";
-import { DUNGEON_BY_ID } from "@shared/data/dungeons";
+import { ACTS, stageLabel } from "@shared/data/dungeons";
 import type { Item } from "@shared/data/items";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { Hud } from "./Hud";
@@ -105,7 +105,7 @@ export function GameScreen() {
       try {
         const r = await api.finish(c.id, run.id, success, res);
         updateChar(r.character);
-        set({ results: { success, dungeon: run.dungeon, xp: r.summary.xp, gold: r.summary.gold, levels: r.summary.levels, kills, items: run.items, unlocked: r.summary.unlocked } });
+        set({ results: { success, dungeon: run.dungeon, xp: r.summary.xp, gold: r.summary.gold, levels: r.summary.levels, kills, items: run.items, unlocked: r.summary.unlocked, cleared: r.summary.cleared, firstClear: r.summary.firstClear } });
       } catch (x) {
         set({ results: { success, dungeon: run.dungeon, xp: 0, gold: 0, levels: 0, kills, items: run.items, error: x instanceof ApiError ? x.message : "Ошибка сохранения." } });
       }
@@ -157,9 +157,20 @@ export function GameScreen() {
         gameApi.game = g;
         party.hooks = {
           onMessage: (t, col) => useGame.getState().say(t, col),
-          onDungeon: (session, run) => gameApi.startCoop(session, `${DUNGEON_BY_ID[run.dungeon].name} (ур. ${run.level}, отряд)`, { id: "", dungeon: run.dungeon, coop: true, items: 0, kills: 0 }),
+          onDungeon: (session, run) => gameApi.startCoop(session, `${stageLabel(run.dungeon)} (ур. ${run.level}, отряд)`, { id: "", dungeon: run.dungeon, coop: true, items: 0, kills: 0 }),
         };
         setReady(true);
+        // пролог: один раз, когда герой впервые приходит в лагерь
+        const fresh = charRef.current;
+        if (fresh && !fresh.cleared.length && !(fresh.stats?.runs || 0)) {
+          let seen = false;
+          try { seen = localStorage.getItem(`hollow-prologue-${fresh.id}`) === "1"; } catch { /* приватный режим */ }
+          if (!seen) {
+            try { localStorage.setItem(`hollow-prologue-${fresh.id}`, "1"); } catch { /* ничего */ }
+            useGame.setState({ note: { title: `Пролог. ${ACTS[0].name}`, text: ACTS[0].intro + " Врата Глубин — в северной нише часовни." }, panel: "note" });
+            g.setUiOpen(true);
+          }
+        }
       })
       .catch((e) => setLoadErr(String(e)));
     return () => {
@@ -219,7 +230,7 @@ export function GameScreen() {
       const session = new LocalSession(RAPIER, { dungeon, seed: r.run.seed, level: r.run.level, char: c, name: c.name });
       runRef.current = { id: r.run.id, dungeon, coop: false, items: 0, kills: 0 };
       closePanel();
-      g.enterDungeon(session, `${DUNGEON_BY_ID[dungeon].name} (ур. ${r.run.level})`);
+      g.enterDungeon(session, `${stageLabel(dungeon)} (ур. ${r.run.level})`);
     } catch (x) {
       say(x instanceof ApiError ? x.message : "Ошибка.", "#e0505a");
     }

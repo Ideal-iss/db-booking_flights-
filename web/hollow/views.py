@@ -71,6 +71,10 @@ def get_char(request, cid, lock=False):
     c = qs.first()
     if not c:
         raise game.GameError("Персонаж не найден.")
+    data = dict(c.data)
+    if game.migrate_cleared(data):
+        c.data = data
+        c.save(update_fields=["data"])
     return c
 
 
@@ -180,11 +184,13 @@ def run_start(request, cid):
     dungeon = b.get("dungeon")
     with transaction.atomic():
         c = get_char(request, cid, lock=True)
-        d = game.DUNGEONS.get(dungeon)
-        if not d:
+        p = game.parse_stage(dungeon)
+        if not p:
             return err("Неизвестное подземелье.")
-        if d["unlock"] and d["unlock"] not in c.data.get("cleared", []):
-            return err(f"Сначала пройдите: {game.DUNGEONS[d['unlock']]['name']}.")
+        if not game.stage_unlocked(dungeon, c.data.get("cleared", [])):
+            if p[1]:
+                return err("Кошмар откроется после победы над Полым Сердцем.")
+            return err(f"Сначала пройдите: {game.stage_name(p[0]['unlock'])}.")
         # незавершённые забеги считаются проваленными
         c.runs.filter(finished__isnull=True, coop=False).update(finished=timezone.now(), success=False)
         run = HollowRun.objects.create(
@@ -228,12 +234,16 @@ def _finish(run, c, success, res):
     if run.finished:
         raise game.GameError("Забег уже завершён.")
     data = dict(c.data)
-    boss = game.DUNGEONS[run.dungeon]["boss"]
+    game.migrate_cleared(data)
+    boss = game.stage_boss(run.dungeon)
     summary = game.apply_run_result(data, run.level, success, res, boss)
-    killed_boss = boss in (res.get("bosses") or [])
+    # этап засчитан, только если убит его страж и герой вышел через портал
+    killed_boss = bool(boss) and boss in (res.get("bosses") or [])
+    summary["cleared"] = bool(success and killed_boss)
     if success and killed_boss and run.dungeon not in data["cleared"]:
         data["cleared"] = data["cleared"] + [run.dungeon]
-        summary["unlocked"] = [k for k, d in game.DUNGEONS.items() if d["unlock"] == run.dungeon]
+        summary["unlocked"] = game.unlocked_by(run.dungeon)
+        summary["firstClear"] = True
     c.data = data
     c.save()
     run.finished = timezone.now()
@@ -294,7 +304,7 @@ def coop_report(request):
         with transaction.atomic():
             if kind == "start":
                 dungeon = b.get("dungeon")
-                if dungeon not in game.DUNGEONS:
+                if not game.parse_stage(dungeon):
                     return err("bad dungeon")
                 chars = list(HollowCharacter.objects.select_for_update().filter(pk__in=b.get("chars", [])))
                 level = max(game.run_level(dungeon, c.data["level"]) for c in chars) if chars else 1

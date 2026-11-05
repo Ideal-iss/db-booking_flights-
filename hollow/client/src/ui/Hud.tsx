@@ -45,7 +45,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
       {/* босс */}
       {hud.boss && (
         <div className="absolute top-4 left-1/2 w-[min(560px,70vw)] -translate-x-1/2 text-center">
-          <div className="panel-title mb-1 text-lg text-[#e8c4a0]">{hud.boss.name}{hud.boss.phase === 2 ? " — ярость" : ""}</div>
+          <div className="panel-title mb-1 text-lg text-[#e8c4a0]">{hud.boss.name}{hud.boss.phase === 2 ? " — ярость" : hud.boss.phase === 3 ? " — разлом" : ""}</div>
           <Bar value={hud.boss.hp} max={hud.boss.maxHp} color="#9b2a35" className="!h-4" />
         </div>
       )}

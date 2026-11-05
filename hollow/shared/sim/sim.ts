@@ -60,13 +60,15 @@ export class Sim {
   grounds: Ground[] = [];
   drops = new Map<string, Drop>();
   events: SimEvent[] = [];
-  opened = { chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>(), broken: new Set<string>() };
+  opened = { chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>(), broken: new Set<string>(), chandeliers: new Set<string>(), mimics: new Set<string>() };
+  leverCd = new Map<string, number>();
+  fuses: { id: string; x: number; z: number; at: number; by: string | null }[] = [];
   colliderOwner = new Map<number, string>();
   controller: RAPIER_NS.KinematicCharacterController;
   flow: Int16Array;
   flowAt = -1;
   bossDead = false;
-  finished: null | { success: boolean; by: string } = null;
+  finished: null | { success: boolean; by: string; how: "exit" | "entrance" | "wipe" } = null;
   private nextId = 1;
   private dropSeq = 0;
   playerCount: number;
@@ -81,7 +83,7 @@ export class Sim {
     this.flow = new Int16Array(this.d.w * this.d.h);
     this.playerCount = opts.players.length;
     opts.players.forEach((p, i) => this.addPlayer(p, i));
-    for (const s of this.d.spawns) this.spawnEnemy(s.id, s.type, s.x, s.z, opts.level, { elite: s.elite, boss: s.boss });
+    for (const s of this.d.spawns) this.spawnEnemy(s.id, s.type, s.x, s.z, opts.level, { elite: s.elite, boss: s.boss, champion: s.champion });
   }
 
   // ------------------------------------------------------------ игроки
@@ -326,7 +328,70 @@ export class Sim {
     if (!b) return;
     this.opened.broken.add(id);
     this.events.push({ t: "break", id, x: b.x, z: b.z, kind: b.kind, p: by?.id });
+    if (b.kind === "oil") {
+      // масляная бочка вспыхивает через мгновение — успей отойти
+      this.fuses.push({ id, x: b.x, z: b.z, at: this.t + 0.35, by: by?.id || null });
+      this.events.push({ t: "fuse", id, x: b.x, z: b.z });
+      return;
+    }
     this.spawnLoot(b.x, b.z, "pot", `pot:${id}`, by ? by.stats.goldFind : 0);
+  }
+
+  private oilExplode(f: { id: string; x: number; z: number; by: string | null }) {
+    const by = f.by ? this.players.get(f.by) || null : null;
+    const r = 3.6;
+    const dmg = 34 + this.d.level * 10;
+    this.events.push({ t: "explode", x: f.x, z: f.z, r, el: "fire" });
+    for (const e of this.enemies.values()) {
+      if (e.state === "dead" || e.team !== "enemy") continue;
+      const d = Math.hypot(e.x - f.x, e.z - f.z);
+      if (d < r + e.def.radius) this.damageEnemy(e, dmg * (d < 1.5 ? 1 : 0.7), "fire", by, { knock: 2.5 });
+    }
+    for (const p of this.players.values()) {
+      if (Math.hypot(p.x - f.x, p.z - f.z) < r) this.damagePlayer(p, dmg * 0.45, "fire", null, { aoe: true });
+    }
+    this.addGround({ kind: "fire_pool", x: f.x, z: f.z, r: 2.4, until: this.t + 5, owner: f.by || "", team: "player", data: { dps: 10 + this.d.level * 3 } });
+    this.breakInRadius(f.x, f.z, r, by);
+    this.shakeChandeliers(f.x, f.z, r + 1, by);
+  }
+
+  /** Люстра срывается: через мгновение падает и давит всех под собой. */
+  dropChandelier(id: string, by: SimPlayer | null) {
+    if (this.opened.chandeliers.has(id)) return;
+    const c = this.d.chandeliers.find((x) => x.id === id);
+    if (!c) return;
+    this.opened.chandeliers.add(id);
+    this.events.push({ t: "chandelier", id, x: c.x, z: c.z, p: by?.id });
+    this.addGround({ kind: "chandelier_fall", x: c.x, z: c.z, r: 2.7, until: this.t + 0.8, owner: by?.id || "", team: "player", data: { dmg: 50 + this.d.level * 13 } });
+  }
+
+  shakeChandeliers(x: number, z: number, r: number, by: SimPlayer | null) {
+    for (const c of this.d.chandeliers) if (!this.opened.chandeliers.has(c.id) && Math.hypot(c.x - x, c.z - z) < r) this.dropChandelier(c.id, by);
+  }
+
+  pullLever(id: string, p: SimPlayer) {
+    const lv = this.d.levers.find((x) => x.id === id);
+    if (!lv) return;
+    if ((this.leverCd.get(id) || 0) > this.t) {
+      this.events.push({ t: "lever_wait", id, p: p.id });
+      return;
+    }
+    this.leverCd.set(id, this.t + 12);
+    this.events.push({ t: "lever", id, x: lv.x, z: lv.z, p: p.id });
+    for (const v of lv.vents) this.addGround({ kind: "vent_warn", x: v.x, z: v.z, r: 1.35, until: this.t + 0.7, owner: p.id, team: "player", data: { dps: 26 + this.d.level * 7 } });
+  }
+
+  wakeMimic(chestId: string, p: SimPlayer | null) {
+    if (this.opened.mimics.has(chestId)) return;
+    const c = this.d.chests.find((x) => x.id === chestId);
+    if (!c) return;
+    this.opened.mimics.add(chestId);
+    this.opened.chests.add(chestId);
+    const m = this.spawnEnemy(`mimic_${chestId}`, "mimic", c.x, c.z, this.d.level);
+    m.awake = true;
+    m.yaw = c.rot;
+    if (p) m.target = p.id;
+    this.events.push({ t: "mimic", id: m.id, x: c.x, z: c.z });
   }
 
   breakInArc(p: SimPlayer, range: number, arc: number) {
@@ -397,6 +462,11 @@ export class Sim {
     o: { crit?: boolean; knock?: number; stun?: number; freeze?: number; slow?: number; melee?: boolean; undeadBonus?: number; noDot?: boolean } = {},
   ) {
     if (e.state === "dead" || amount <= 0) return;
+    if (e.phased) {
+      this.events.push({ t: "phased", id: e.id, x: e.x, z: e.z });
+      if (!e.awake && e.team === "enemy") this.wake(e, by?.id);
+      return;
+    }
     const player = by && "char" in by ? (by as SimPlayer) : null;
     let dmg = amount;
     if (player) {
@@ -455,6 +525,12 @@ export class Sim {
       }
       if (e.type === "blood_abomination") e.speed *= 1.3;
     }
+    if (e.type === "the_hollow" && e.phase === 2 && e.hp < e.maxHp * 0.25) {
+      e.phase = 3;
+      e.patternCd = {};
+      e.speed *= 1.2;
+      this.events.push({ t: "boss_phase", id: e.id, phase: 3 });
+    }
   }
 
   killEnemy(e: SimEnemy, by: SimPlayer | SimEnemy | null) {
@@ -484,6 +560,10 @@ export class Sim {
       if (lok) this.healPlayer(killer, killer.stats.maxHp * lok, false);
       if (f.manaOnKill) killer.mana = Math.min(killer.stats.maxMana, killer.mana + killer.stats.maxMana * f.manaOnKill);
     }
+    if (e.def.behavior === "necro") {
+      for (const o of this.enemies.values()) if (o.summoner === e.id && o.state !== "dead") this.killEnemy(o, null);
+    }
+    if (e.type === "mimic") this.spawnLoot(e.x, e.z, "chest", `mimic:${e.id}`, killer ? killer.stats.goldFind : 0);
     const tier: DropTier = e.boss ? "boss" : e.elite ? "elite" : "normal";
     const gf = killer ? killer.stats.goldFind : 0;
     this.spawnLoot(e.x, e.z, tier, `kill:${e.id}`, gf);
@@ -581,9 +661,9 @@ export class Sim {
     }
   }
 
-  finish(success: boolean, by: string) {
+  finish(success: boolean, by: string, how: "exit" | "entrance" | "wipe" = success ? "exit" : "wipe") {
     if (this.finished) return;
-    this.finished = { success, by };
+    this.finished = { success, by, how };
     this.events.push({ t: success ? "exit" : "wipe", by });
   }
 
@@ -607,6 +687,7 @@ export class Sim {
     if (bestDrop) return this.pickup(p, bestDrop);
     for (const c of this.d.chests) {
       if (!this.opened.chests.has(c.id) && near(c.x, c.z, 2.6)) {
+        if (c.mimic) return this.wakeMimic(c.id, p);
         this.opened.chests.add(c.id);
         this.events.push({ t: "chest", id: c.id, p: p.id });
         this.spawnLoot(c.x, c.z, c.tier, `chest:${c.id}`, p.stats.goldFind);
@@ -634,8 +715,14 @@ export class Sim {
         return;
       }
     }
-    if (this.bossDead && near(this.d.exit.x, this.d.exit.z, 2.8)) return this.finish(true, p.id);
-    if (near(this.d.entrance.x, this.d.entrance.z, 2.6)) return this.finish(true, p.id);
+    for (const c of this.d.chandeliers) {
+      if (!this.opened.chandeliers.has(c.id) && near(c.ax, c.az, 2.2)) return this.dropChandelier(c.id, p);
+    }
+    for (const lv of this.d.levers) {
+      if (near(lv.x, lv.z, 2.0)) return this.pullLever(lv.id, p);
+    }
+    if (this.bossDead && near(this.d.exit.x, this.d.exit.z, 2.8)) return this.finish(true, p.id, "exit");
+    if (near(this.d.entrance.x, this.d.entrance.z, 2.6)) return this.finish(true, p.id, "entrance");
   }
 
   private pickup(p: SimPlayer, dr: Drop) {
@@ -662,9 +749,9 @@ export class Sim {
   }
 
   // ------------------------------------------------------------ враги
-  spawnEnemy(id: string, type: string, x: number, z: number, level: number, o: { elite?: string; boss?: boolean; team?: "enemy" | "ally"; owner?: string; power?: number; expires?: number } = {}) {
+  spawnEnemy(id: string, type: string, x: number, z: number, level: number, o: { elite?: string; boss?: boolean; team?: "enemy" | "ally"; owner?: string; power?: number; expires?: number; champion?: string } = {}) {
     const def = ENEMIES[type];
-    const sc = scaleEnemy(def, level, o.team === "ally" ? 1 : this.playerCount, o.elite);
+    const sc = scaleEnemy(def, level, o.team === "ally" ? 1 : this.playerCount, o.elite, !!o.champion);
     const power = o.power || 1;
     const body = this.phys.world.createRigidBody(this.R.RigidBodyDesc.kinematicPositionBased().setTranslation(x, def.height / 2, z));
     const half = Math.max(0.05, def.height / 2 - def.radius);
@@ -679,8 +766,12 @@ export class Sim {
       state: "idle", stateT: 0, move: "", target: null, cd: this.rng.range(0, 1), awake: false,
       slowUntil: 0, slowPct: 0, freezeUntil: 0, stunUntil: 0, blindUntil: 0, vulnUntil: 0, vulnPct: 0, dots: [],
       kx: 0, kz: 0, guarding: false, phase: 1, attack: "", patternCd: {}, expires: o.expires, deadAt: 0, corpse: false,
-      collider, body,
+      collider, body, champion: o.champion, phased: def.behavior === "phantom",
     };
+    if (def.behavior === "phantom") {
+      // фантом проходит сквозь стены: сталкивается только с игроками
+      collider.setCollisionGroups(groups(GROUP_ENEMY, GROUP_PLAYER));
+    }
     this.colliderOwner.set(collider.handle, id);
     this.enemies.set(id, e);
     return e;
@@ -704,6 +795,12 @@ export class Sim {
   /** Двигает существо с учётом стен и других существ (Rapier character controller). */
   moveEnemy(e: SimEnemy, dx: number, dz: number) {
     if (!e.collider || !e.body) return;
+    if (e.def.behavior === "phantom") {
+      e.x = clamp(e.x + dx, CELL, (this.d.w - 1) * CELL);
+      e.z = clamp(e.z + dz, CELL, (this.d.h - 1) * CELL);
+      e.body.setNextKinematicTranslation({ x: e.x, y: e.def.height / 2, z: e.z });
+      return;
+    }
     this.controller.computeColliderMovement(e.collider, { x: dx, y: 0, z: dz }, undefined, undefined, (c) => c.handle !== e.collider!.handle);
     const m = this.controller.computedMovement();
     e.x += m.x;
@@ -781,6 +878,15 @@ export class Sim {
     this.stepProjectiles(dt);
     this.stepGrounds(dt);
     this.stepTraps();
+    if (this.fuses.length) {
+      const due = this.fuses.filter((f) => f.at <= this.t);
+      this.fuses = this.fuses.filter((f) => f.at > this.t);
+      for (const f of due) this.oilExplode(f);
+    }
+    for (const c of this.d.chests) {
+      if (!c.mimic || this.opened.mimics.has(c.id) || this.opened.chests.has(c.id)) continue;
+      for (const p of this.players.values()) if (p.alive && Math.hypot(p.x - c.x, p.z - c.z) < 1.6) { this.wakeMimic(c.id, p); break; }
+    }
     // убираем старые трупы и истёкших призванных
     for (const e of [...this.enemies.values()]) {
       if (e.state === "dead" && this.t - e.deadAt > 40 && !e.boss) this.enemies.delete(e.id);
@@ -902,6 +1008,21 @@ export class Sim {
             if (!pr.pierce) { alive = false; break; }
           }
         }
+        if (alive) {
+          for (const c of this.d.chandeliers) {
+            if (this.opened.chandeliers.has(c.id)) continue;
+            // ближайшая к люстре точка отрезка полёта
+            const vx = c.x - sx, vy = c.y - sy, vz = c.z - sz;
+            const L2 = mx * mx + my * my + mz * mz;
+            const k = clamp((vx * mx + vy * my + vz * mz) / Math.max(1e-6, L2), 0, travel / len);
+            if (Math.hypot(sx + mx * k - c.x, sy + my * k - c.y, sz + mz * k - c.z) < 0.95) {
+              this.dropChandelier(c.id, owner);
+              alive = false;
+              this.events.push({ t: "impact", x: c.x, y: c.y, z: c.z, el: pr.element, kind: pr.kind });
+              break;
+            }
+          }
+        }
         if (alive && pr.healAlly) {
           for (const p of this.players.values()) {
             if (p.id === pr.owner || !p.alive || pr.hit.has(p.id)) continue;
@@ -949,6 +1070,7 @@ export class Sim {
     const r = pr.explode!;
     this.events.push({ t: "explode", x, z, r, el: pr.element });
     this.breakInRadius(x, z, r, owner);
+    if (pr.team === "player") this.shakeChandeliers(x, z, r + 1, owner);
     if (pr.team === "player") {
       for (const e of this.enemies.values()) {
         if (e.state === "dead" || e.team !== "enemy") continue;
@@ -978,6 +1100,12 @@ export class Sim {
           p.hp -= g.data.dps * dt;
           if (p.hp <= 0) this.downPlayer(p);
         }
+      } else if (g.kind === "fire_pool" || g.kind === "vent_fire") {
+        for (const e of this.enemies.values()) if (e.state !== "dead" && e.team === "enemy" && Math.hypot(e.x - g.x, e.z - g.z) < g.r + e.def.radius * 0.5) this.damageEnemy(e, g.data.dps * dt, "fire", owner, { noDot: true });
+        for (const p of this.players.values()) if (p.alive && Math.hypot(p.x - g.x, p.z - g.z) < g.r && this.t > p.iframesUntil) {
+          p.hp -= g.data.dps * dt * 0.5 * (1 - p.stats.resFire);
+          if (p.hp <= 0) this.downPlayer(p);
+        }
       } else if (g.kind === "curse") {
         for (const e of this.enemies.values()) if (e.state !== "dead" && e.team === "enemy" && Math.hypot(e.x - g.x, e.z - g.z) < g.r) {
           e.vulnUntil = this.t + 0.3; e.vulnPct = g.data.vuln;
@@ -996,8 +1124,20 @@ export class Sim {
               });
             }
           }
+        } else if (g.kind === "vent_warn") {
+          this.addGround({ kind: "vent_fire", x: g.x, z: g.z, r: g.r, until: this.t + 2.6, owner: g.owner, team: "player", data: { dps: g.data.dps } });
+          this.events.push({ t: "vent", x: g.x, z: g.z });
+        } else if (g.kind === "chandelier_fall") {
+          this.events.push({ t: "crash", x: g.x, z: g.z, r: g.r });
+          for (const e of this.enemies.values()) {
+            if (e.state === "dead" || e.team !== "enemy") continue;
+            if (Math.hypot(e.x - g.x, e.z - g.z) < g.r + e.def.radius) this.damageEnemy(e, g.data.dmg, "physical", owner, { knock: 3, stun: 2 });
+          }
+          for (const p of this.players.values()) if (Math.hypot(p.x - g.x, p.z - g.z) < g.r) this.damagePlayer(p, g.data.dmg * 0.4, "physical", null, { aoe: true });
+          this.breakInRadius(g.x, g.z, g.r, owner);
         } else if (g.kind === "warn_circle" || g.kind === "warn_ring") {
           const src = this.enemies.get(g.owner);
+          this.breakInRadius(g.x, g.z, g.r, null);
           if (src && src.state !== "dead") {
             this.events.push({ t: "explode", x: g.x, z: g.z, r: g.r, el: g.data.el === 1 ? "holy" : g.data.el === 2 ? "fire" : "dark" });
             for (const p of this.players.values()) {
@@ -1034,6 +1174,11 @@ export class Sim {
         if (p.alive && Math.abs(p.x - tr.x) < 1.4 && Math.abs(p.z - tr.z) < 1.4 && this.t > p.iframesUntil) {
           this.damagePlayer(p, 10 + this.d.level * 3, "physical", null, { aoe: true });
         }
+      }
+      // шипы не разбирают, кого колоть: заманивай врагов
+      for (const e of this.enemies.values()) {
+        if (e.state === "dead" || e.phased || e.def.behavior === "boss") continue;
+        if (Math.abs(e.x - tr.x) < 1.4 && Math.abs(e.z - tr.z) < 1.4) this.damageEnemy(e, 18 + this.d.level * 5, "physical", null, { stun: 0.6, noDot: true });
       }
     }
   }
@@ -1076,6 +1221,7 @@ export class Sim {
           id: e.id, type: e.type, x: r2(e.x), y: r2(e.y), z: r2(e.z), yaw: r2(e.yaw), hp: Math.max(0, Math.round(e.hp)), maxHp: Math.round(e.maxHp),
           state: e.state, st: r2(Math.max(0, e.stateT - this.t)), atk: e.attack, elite: e.elite, boss: e.boss, ally: e.team === "ally",
           frozen: e.freezeUntil > this.t, stun: e.stunUntil > this.t || e.blindUntil > this.t, guard: e.guarding, phase: e.phase, level: e.level,
+          name: e.champion, phased: e.phased,
         })),
       projectiles: this.projectiles.map((p) => ({ id: p.id, kind: p.kind, x: r2(p.x), y: r2(p.y), z: r2(p.z), vx: r2(p.vx), vy: r2(p.vy), vz: r2(p.vz), size: p.size, el: p.element })),
       grounds: this.grounds.map((g) => ({ id: g.id, kind: g.kind, x: r2(g.x), z: r2(g.z), r: g.r, t0: r2(g.t0), until: r2(g.until), data: g.data })),
@@ -1083,7 +1229,11 @@ export class Sim {
         id: d.id, x: r2(d.x), z: r2(d.z), kind: d.item ? "item" : d.gold ? "gold" : "potion",
         rarity: d.item?.rarity, name: d.item?.name, icon: d.item ? BASE_BY_ID[d.item.base].icon : d.potion, amount: d.gold,
       })),
-      opened: { chests: [...this.opened.chests], secrets: [...this.opened.secrets], shrines: [...this.opened.shrines], broken: [...this.opened.broken] },
+      opened: {
+        chests: [...this.opened.chests], secrets: [...this.opened.secrets], shrines: [...this.opened.shrines], broken: [...this.opened.broken],
+        chandeliers: [...this.opened.chandeliers], mimics: [...this.opened.mimics],
+      },
+      levers: Object.fromEntries([...this.leverCd].map(([k, v]) => [k, r2(Math.max(0, v - this.t))]).filter(([, v]) => (v as number) > 0)),
       bossDead: this.bossDead,
       exitOpen: this.bossDead,
     };
@@ -1097,7 +1247,7 @@ export class Sim {
   /** Итоги забега для сохранения. */
   results() {
     return [...this.players.values()].map((p) => ({
-      id: p.id, xp: p.xp, gold: p.gold, kills: p.kills, bosses: p.bosses, loot: p.loot,
+      id: p.id, xp: p.xp, gold: p.gold, kills: p.kills, bosses: p.bosses, loot: p.loot, how: this.finished?.how,
       potionsUsed: p.potionsUsed, potionsFound: p.potionsFound,
     }));
   }

@@ -97,6 +97,12 @@ export interface SimEnemy {
   deadAt: number;
   corpse: boolean;
   lastHitBy?: string;
+  /** Имя чемпиона (усиленный враг, охраняющий спуск). */
+  champion?: string;
+  /** Фантом бестелесен и неуязвим, пока не атакует. */
+  phased?: boolean;
+  /** Кто поднял этого мертвеца (некромант). */
+  summoner?: string;
   collider: RAPIER_NS.Collider | null;
   body: RAPIER_NS.RigidBody | null;
 }
@@ -157,11 +163,14 @@ export interface Snapshot {
   enemies: {
     id: string; type: string; x: number; y: number; z: number; yaw: number; hp: number; maxHp: number;
     state: string; st: number; atk: string; elite?: string; boss: boolean; ally: boolean; frozen: boolean; stun: boolean; guard: boolean; phase: number; level: number;
+    name?: string; phased?: boolean;
   }[];
   projectiles: { id: number; kind: string; x: number; y: number; z: number; vx: number; vy: number; vz: number; size: number; el: string }[];
   grounds: { id: number; kind: string; x: number; z: number; r: number; t0: number; until: number; data: Record<string, number> }[];
   drops: { id: string; x: number; z: number; kind: "item" | "gold" | "potion"; rarity?: string; name?: string; icon?: string; amount?: number }[];
-  opened: { chests: string[]; secrets: string[]; shrines: string[]; broken: string[] };
+  opened: { chests: string[]; secrets: string[]; shrines: string[]; broken: string[]; chandeliers: string[]; mimics: string[] };
+  /** Перезарядка рычагов (сек). */
+  levers: Record<string, number>;
   bossDead: boolean;
   exitOpen: boolean;
 }

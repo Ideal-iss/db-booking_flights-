@@ -26,7 +26,23 @@ export const HUB_THEME: DungeonTheme = {
 
 const W = 15;
 
-export function buildHub(): { d: Dungeon; npcs: Npc[] } {
+/** Что говорит Отец Мирон — по тому, как далеко зашёл герой. */
+const MIRON: Record<number, string[]> = {
+  0: ["Мёртвые не должны ходить. Помоги им лечь обратно.", "Склеп под часовней — начало. Колокол замолчал там."],
+  1: ["Ключ от нижних врат… новый. Кто-то ковал его для тебя.", "Катакомбы старше города. Не верь тем, кто носит шлем."],
+  2: ["Собор, которого нет на картах? Я молился там во сне. Мне не понравилось.", "Святая… её имя вычеркнули при моём деде. Теперь я понимаю почему."],
+  3: ["Пахнет кровью даже здесь, наверху. Это идёт снизу.", "Культ кормил что-то веками. Не дай себя накормить ему."],
+  4: ["Пустота знает твоё имя. Я слышу, как она шепчет его по ночам.", "Если не вернёшься — я зажгу свечу. Если вернёшься — две."],
+  5: ["Колокол звонит. Я думал, не доживу.", "Пустота не исчезла — она уснула. Кошмар ждёт тех, кто хочет разбудить её снова."],
+};
+
+function actsDone(cleared: string[]) {
+  let n = 0;
+  for (let a = 1; a <= 5; a++) if (cleared.includes(`a${a}s3`)) n = a;
+  return n;
+}
+
+export function buildHub(cleared: string[] = []): { d: Dungeon; npcs: Npc[] } {
   const cells = new Uint8Array(W * W);
   const set = (x0: number, y0: number, w: number, h: number) => {
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) cells[y * W + x] = Cell.Floor;
@@ -52,14 +68,10 @@ export function buildHub(): { d: Dungeon; npcs: Npc[] } {
     },
     {
       id: "priest", name: "Отец Мирон", title: "доска поручений", panel: "quests", kind: "priest", x: c(4.2), z: c(3.9), yaw: -Math.PI * 0.8,
-      lines: ["Мёртвые не должны ходить. Помоги им лечь обратно."],
+      lines: MIRON[actsDone(cleared)],
     },
     {
       id: "stash", name: "Сундук отряда", title: "хранилище", panel: "stash", kind: "stash", x: c(10.8), z: c(3.9), yaw: 0,
-      lines: [],
-    },
-    {
-      id: "altar", name: "Алтарь Клятвы", title: "совместный спуск", panel: "party", kind: "altar", x: c(7.5), z: c(7.2), yaw: 0,
       lines: [],
     },
   ];
@@ -91,14 +103,13 @@ export function buildHub(): { d: Dungeon; npcs: Npc[] } {
   props.push({ kind: "banner", x: c(3) + 0.1, z: c(4.5), rot: 0, wall: true });
   props.push({ kind: "banner", x: c(12) - 0.1, z: c(9.5), rot: 0, wall: true });
   lights.push({ x: c(7.5), y: 1.8, z: c(1.6), color: "#6f9fd8", kind: "magic" });
-  lights.push({ x: c(7.5), y: 1.2, z: c(7.2), color: "#c46aff", kind: "magic" });
   lights.push({ x: c(13.1), y: 1.0, z: c(6.5) + 1, color: "#ff6a20", kind: "brazier" });
   // высокий неф часовни, низкие ниши
   const ceil = new Float32Array(W * W).fill(4.4);
   for (let y = 3; y < 11; y++) for (let x = 3; x < 12; x++) ceil[y * W + x] = 7.6;
   const d: Dungeon = {
     theme: HUB_THEME, seed: 1, level: 1, w: W, h: W, cells, rooms: [], start: { x: c(7.5), z: c(10.6), yaw: 0 }, bossRoom: -1,
-    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [], breakables: [], notes: [], ceil,
+    spawns: [], props, lights, chests: [], traps: [], secrets: [], shrines: [], breakables: [], notes: [], ceil, chandeliers: [], levers: [],
     entrance: { x: c(7.5), z: c(12.6) }, exit: { x: -100, z: -100 },
   };
   // NPC и предметы тоже твёрдые

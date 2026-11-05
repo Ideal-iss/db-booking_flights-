@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import type { Snapshot } from "@shared/sim/types";
 import { RARITIES } from "@shared/data/items";
-import { makeAvatar, makeEnemy, makeWeapon, poseRig, setAvatarWeapons, type EnemyModel, type Rig } from "./models";
+import { makeAvatar, makeEnemy, makeFlame, makeWeapon, poseRig, setAvatarWeapons, type EnemyModel, type Rig } from "./models";
 import { decalTexture, glowTexture, pixelTexture, ringTexture, textTexture } from "./textures";
 import { probeAt, type LightField } from "./lighting";
 import type { Appearance } from "@shared/data/stats";
@@ -107,6 +107,13 @@ export class Entities {
       // живое мерцание огня
       const fl = 0.85 + 0.15 * Math.sin(t * 31 + id) * Math.sin(t * 17 + id * 0.7);
       cands.push({ x: pos.x, y: pos.y, z: pos.z, color: L.color, i: 12 * L.power * fl, radius: L.radius, d: Math.hypot(pos.x - cam.x, pos.z - cam.z) });
+    }
+    for (const [id, g] of this.grounds) {
+      const L = g.obj.userData.light as { color: THREE.Color; power: number; radius: number } | undefined;
+      if (!L) continue;
+      const fl = 0.8 + 0.2 * Math.sin(t * 23 + id) * Math.sin(t * 13 + id);
+      const p = g.obj.position;
+      cands.push({ x: p.x, y: 0.9, z: p.z, color: L.color, i: 12 * L.power * fl, radius: L.radius, d: Math.hypot(p.x - cam.x, p.z - cam.z) });
     }
     this.flashes = this.flashes.filter((f) => (f.life -= dt) > 0);
     for (const f of this.flashes) {
@@ -270,12 +277,14 @@ export class Entities {
         grp.add(m);
         return m;
       };
-      if (g.kind === "warn_line") {
+      if (g.kind === "aim") color = "#ffe0a0";
+      if (g.kind === "warn_line" || g.kind === "aim") {
         const len = g.data.len, ang = Math.atan2(g.data.dx, g.data.dz);
         const plane = new THREE.PlaneGeometry(g.r * 2, len);
         plane.translate(0, len / 2, 0);
-        const m1 = flat(plane, color, 0.22);
-        const m2 = flat(plane.clone(), color, 0.5);
+        const thin = g.kind === "aim";
+        const m1 = flat(plane, color, thin ? 0.12 : 0.22);
+        const m2 = flat(plane.clone(), color, thin ? 0.45 : 0.5);
         m1.rotation.z = m2.rotation.z = -ang + Math.PI;
         m1.rotation.order = m2.rotation.order = "XYZ";
         m2.scale.set(1, 0.01, 1);
@@ -286,6 +295,9 @@ export class Entities {
         else if (g.kind === "blood_pool") color = "#8a0a10";
         else if (g.kind === "meteor") color = "#ff7a2a";
         else if (g.kind === "smite") color = "#ffe9a0";
+        else if (g.kind === "fire_pool" || g.kind === "vent_fire") color = "#ff6a1a";
+        else if (g.kind === "vent_warn") color = "#ff9a3a";
+        else if (g.kind === "chandelier_fall") color = "#ffd08a";
         else if (g.data.el === 1) color = "#ffe9a0";
         const ring = flat(new THREE.PlaneGeometry(g.r * 2, g.r * 2), color, g.kind === "blood_pool" ? 0.0 : 0.85, ringTexture());
         if (g.kind === "blood_pool") {
@@ -294,7 +306,21 @@ export class Entities {
           grp.add(pool);
         }
         void ring;
-        if (g.kind.startsWith("warn") || g.kind === "meteor" || g.kind === "smite") {
+        if (g.kind === "fire_pool" || g.kind === "vent_fire") {
+          // пламя: несколько языков-спрайтов над светящимся пятном
+          const pool = flat(new THREE.CircleGeometry(g.r * 0.9, 16), "#ff5a10", 0.45);
+          pool.name = "fire";
+          const n = g.kind === "vent_fire" ? 5 : 7;
+          for (let i = 0; i < n; i++) {
+            const f = makeFlame(g.kind === "vent_fire" ? 2.6 : 1.6);
+            const a = (i / n) * Math.PI * 2, rr = i === 0 ? 0 : g.r * (0.35 + (i % 3) * 0.18);
+            f.position.set(Math.cos(a) * rr, g.kind === "vent_fire" ? 0.7 : 0.4, Math.sin(a) * rr);
+            f.userData.flame = i;
+            grp.add(f);
+          }
+          grp.userData.light = { color: new THREE.Color("#ff7a2a"), power: g.kind === "vent_fire" ? 1.3 : 0.9, radius: 9 };
+        }
+        if (g.kind.startsWith("warn") || g.kind === "meteor" || g.kind === "smite" || g.kind === "vent_warn" || g.kind === "chandelier_fall") {
           fill = flat(new THREE.CircleGeometry(g.r, 24), color, 0.35);
           fill.scale.setScalar(0.01);
         }
@@ -495,7 +521,17 @@ export class Entities {
       if (b.state === "windup") probe.lerp(new THREE.Color(1.0, 0.5, 0.2), 0.25 + 0.2 * Math.sin(t * 30));
       rig.probe.value.copy(probe);
       for (const e of rig.eyes) e.visible = b.state !== "dead";
-      if (v.model.extra) v.model.extra.rotation.z = t;
+      const ex = v.model.extra;
+      if (ex) {
+        if (ex.userData.mimicLid) ex.rotation.x = b.state === "dead" ? -1.2 : -0.35 - Math.abs(Math.sin(t * (b.state === "windup" ? 14 : 6))) * 0.5;
+        else if (ex.userData.heart) ex.scale.setScalar(0.5 + Math.abs(Math.sin(t * (b.phase >= 3 ? 7 : 3.5))) * 0.3 * Math.min(2, b.phase || 1));
+        else ex.rotation.z = t;
+      }
+      if (b.type === "phantom") {
+        // бестелесный — почти прозрачен и мерцает; плотнеет, когда бьёт
+        const o = b.state === "dead" ? 0.25 : b.phased ? 0.22 + 0.08 * Math.sin(t * 9 + v.phase) : 0.7;
+        for (const m of rig.mats) m.opacity += (o - m.opacity) * Math.min(1, dt * 10);
+      }
       if (b.state === "dead" && dead > 25) rig.root.position.y = -Math.min(1.5, (dead - 25) * 0.1);
     }
     for (const [, v] of this.players) {
@@ -532,6 +568,16 @@ export class Entities {
         else g.fill.scale.setScalar(Math.max(0.01, k2));
       }
       if (d.kind === "sanctuary" || d.kind === "curse") g.obj.rotation.y = t * 0.5;
+      if (d.kind === "fire_pool" || d.kind === "vent_fire") {
+        const fade = Math.min(1, (d.until - simT) / 0.8);
+        for (const c of g.obj.children) {
+          if (c instanceof THREE.Sprite) {
+            const map = c.material.map;
+            if (map) map.offset.x = Math.floor((t * 10 + c.userData.flame) % 4) * 0.25;
+            c.material.opacity = Math.max(0, fade);
+          } else if (c.name === "fire") ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = (0.35 + 0.12 * Math.sin(t * 13)) * Math.max(0, fade);
+        }
+      }
     }
     for (const [, d] of this.drops) {
       const spin = d.obj.getObjectByName("spin");

@@ -19,7 +19,16 @@ CLASSES = DATA["classes"]
 SKILLS = DATA["skills"]
 XP_TABLE = DATA["xpTable"]
 MAX_LEVEL = DATA["maxLevel"]
-DUNGEONS = DATA["dungeons"]
+STAGES = DATA["stages"]
+NIGHTMARE_BONUS = DATA["nightmareBonus"]
+FINAL_STAGE = "a5s3"
+# старые подземелья до кампании: пройденное засчитывается всеми этапами акта
+LEGACY_CLEARED = {
+    "crypt": ["a1s1", "a1s2", "a1s3"],
+    "catacombs": ["a2s1", "a2s2", "a2s3"],
+    "cathedral": ["a3s1", "a3s2", "a3s3"],
+    "sanctum": ["a4s1", "a4s2", "a4s3"],
+}
 QUESTS = DATA["quests"]
 POTIONS = DATA["potions"]
 
@@ -323,9 +332,71 @@ def quest_progress(data, kills, bosses):
             st["done"] = True
 
 
-def run_level(dungeon_id, char_level):
-    d = DUNGEONS[dungeon_id]
-    return max(d["level"], min(char_level - 1, d["level"] + 10))
+def parse_stage(key):
+    """«a2s3» или «n:a2s3» (Кошмар) → (этап, кошмар?) или None."""
+    if not isinstance(key, str):
+        return None
+    nightmare = key.startswith("n:")
+    st = STAGES.get(key[2:] if nightmare else key)
+    return (st, nightmare) if st else None
+
+
+def stage_unlocked(key, cleared):
+    p = parse_stage(key)
+    if not p:
+        return False
+    st, nightmare = p
+    prev = st["unlock"]
+    if nightmare:
+        return ("n:" + prev) in cleared if prev else FINAL_STAGE in cleared
+    return not prev or prev in cleared
+
+
+def stage_name(key):
+    p = parse_stage(key)
+    if not p:
+        return key
+    st, nightmare = p
+    return ("Кошмар: " if nightmare else "") + st["name"]
+
+
+def stage_boss(key):
+    p = parse_stage(key)
+    return p[0]["boss"] if p else ""
+
+
+def migrate_cleared(data):
+    """Переводит старые id подземелий в этапы кампании. Возвращает True, если что-то поменялось."""
+    cleared = data.get("cleared", [])
+    if not any(c in LEGACY_CLEARED for c in cleared):
+        return False
+    out = []
+    for c in cleared:
+        for x in LEGACY_CLEARED.get(c, [c]):
+            if x not in out:
+                out.append(x)
+    data["cleared"] = out
+    return True
+
+
+def unlocked_by(key):
+    """Что открывает первое прохождение этапа."""
+    p = parse_stage(key)
+    if not p:
+        return []
+    st, nightmare = p
+    pref = "n:" if nightmare else ""
+    out = [pref + k for k, s in STAGES.items() if s["unlock"] == st["id"]]
+    if st["id"] == FINAL_STAGE and not nightmare:
+        out.append("n:a1s1")
+    return out
+
+
+def run_level(key, char_level):
+    st, nightmare = parse_stage(key)
+    base = st["level"] + (NIGHTMARE_BONUS if nightmare else 0)
+    # чуть подтягиваем к уровню героя, чтобы повтор старых этапов не был пустым
+    return max(base, min(char_level - 1, base + 3))
 
 
 def apply_op(char_id, data, op):

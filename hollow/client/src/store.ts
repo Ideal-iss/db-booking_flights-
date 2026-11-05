@@ -65,6 +65,8 @@ export interface Results {
   dungeon: string;
   xp: number; gold: number; levels: number; kills: number; items: number;
   unlocked?: string[];
+  cleared?: boolean;
+  firstClear?: boolean;
   pending?: boolean;
   error?: string;
 }

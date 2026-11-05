@@ -84,6 +84,7 @@ function recover(sim: Sim, e: SimEnemy, time: number) {
 }
 
 export function updateEnemy(sim: Sim, e: SimEnemy, dt: number) {
+  if (e.def.behavior === "phantom") e.phased = !(e.state === "windup" || e.state === "recover" || e.state === "lunge");
   // контроль
   if (e.freezeUntil > sim.t || e.stunUntil > sim.t) {
     if (e.state === "windup" || e.state === "lunge") { e.state = "recover"; e.stateT = sim.t + 0.1; e.attack = ""; }
@@ -135,6 +136,52 @@ export function updateEnemy(sim: Sim, e: SimEnemy, dt: number) {
   const sight = dist < 30 && lineOfSight(sim.R, sim.phys, e.x, 1.4, e.z, t.x, 1.2, t.z);
 
   switch (e.def.behavior) {
+    case "archer": {
+      kite(sim, e, t, dx, dz, dist, sight, dt);
+      if (ready && sight && dist <= e.def.range && dist > 2) {
+        // прицеливание видно на полу: линия от лучника к игроку
+        const l = dist || 1;
+        const len = Math.min(e.def.range + 2, dist + 3);
+        sim.addGround({ kind: "aim", x: e.x, z: e.z, r: 0.35, until: sim.t + e.def.windup, owner: e.id, team: "enemy", data: { dx: dx / l, dz: dz / l, len } });
+        startWindup(sim, e, "arrow", e.def.windup, { x: t.x, z: t.z });
+      } else if (ready && gap < 1.2) startWindup(sim, e, "melee", 0.5);
+      return;
+    }
+    case "necro": {
+      kite(sim, e, t, dx, dz, dist, sight, dt);
+      if (ready && (e.patternCd.raise || 0) <= sim.t) {
+        let mine = 0;
+        for (const o of sim.enemies.values()) if (o.summoner === e.id && o.state !== "dead") mine++;
+        if (mine < 3) {
+          let best: SimEnemy | null = null, bd = 9;
+          for (const o of sim.enemies.values()) {
+            if (o.state !== "dead" || !o.corpse || o.boss || o.team !== "enemy") continue;
+            const d = Math.hypot(o.x - e.x, o.z - e.z);
+            if (d < bd) { bd = d; best = o; }
+          }
+          if (best) {
+            best.corpse = false;
+            e.patternCd.raise = sim.t + 6;
+            sim.events.push({ t: "raise_start", id: e.id, x: best.x, z: best.z });
+            return startWindup(sim, e, "raise", 1.1, { x: best.x, z: best.z });
+          }
+        }
+      }
+      if (ready && sight && dist <= e.def.range) startWindup(sim, e, "bolt", e.def.windup);
+      else if (ready && gap < 1.2) startWindup(sim, e, "melee", e.def.windup * 0.8);
+      return;
+    }
+    case "phantom": {
+      // идёт напрямую, сквозь камень
+      if (gap > e.def.range * 0.7) {
+        const l = dist || 1;
+        const s = speedOf(sim, e) * dt;
+        sim.moveEnemy(e, (dx / l) * s, (dz / l) * s);
+      }
+      turnTowards(e, yawTo(dx, dz), dt, 6);
+      if (ready && gap <= e.def.range) startWindup(sim, e, "melee", e.def.windup);
+      return;
+    }
     case "ranged": {
       const keep = e.def.keepDistance || 8;
       if (sight && dist < keep - 2.5) {
@@ -153,6 +200,7 @@ export function updateEnemy(sim: Sim, e: SimEnemy, dt: number) {
       else if (ready && gap < 1.2) startWindup(sim, e, "melee", e.def.windup * 0.8);
       return;
     }
+    case "mimic":
     case "aggressive": {
       if (ready && sight && gap > 2.2 && gap < 6.5) {
         startWindup(sim, e, "lunge", 0.4);
@@ -188,6 +236,22 @@ export function updateEnemy(sim: Sim, e: SimEnemy, dt: number) {
   }
 }
 
+/** Держит дистанцию: отходит, если игрок близко, иначе подходит на дальность выстрела. */
+function kite(sim: Sim, e: SimEnemy, t: Target, dx: number, dz: number, dist: number, sight: boolean, dt: number) {
+  const keep = e.def.keepDistance || 8;
+  if (sight && dist < keep - 2.5) {
+    const l = dist || 1;
+    const bx = e.x - (dx / l) * 2, bz = e.z - (dz / l) * 2;
+    if (walkable(sim.d, worldToCell(bx), worldToCell(bz), sim.opened.secrets)) {
+      const s = speedOf(sim, e) * 0.85 * dt;
+      sim.moveEnemy(e, (-dx / l) * s, (-dz / l) * s);
+    }
+    turnTowards(e, yawTo(dx, dz), dt);
+  } else if (!sight || dist > e.def.range) {
+    moveTowards(sim, e, t.x, t.z, dt);
+  } else turnTowards(e, yawTo(dx, dz), dt);
+}
+
 function resolveAttack(sim: Sim, e: SimEnemy, t: Target, gap: number) {
   const atk = e.attack;
   e.attack = "";
@@ -204,6 +268,22 @@ function resolveAttack(sim: Sim, e: SimEnemy, t: Target, gap: number) {
     sim.enemyProjectile(e, t.x, 1.2, t.z, { kind: "ebolt", speed: pr.speed, dmg: e.dmg, element: pr.element, size: pr.size });
     sim.events.push({ t: "ecast", id: e.id });
     recover(sim, e, 0.4);
+  } else if (atk === "arrow") {
+    // стрела летит туда, куда целился лучник: можно уйти с линии
+    const a = e.attackData || { x: t.x, z: t.z };
+    const pr = e.def.projectile!;
+    sim.enemyProjectile(e, a.x, 1.2, a.z, { kind: "arrow", speed: pr.speed, dmg: e.dmg, element: pr.element, size: pr.size });
+    sim.events.push({ t: "eshoot", id: e.id });
+    recover(sim, e, 0.5);
+  } else if (atk === "raise") {
+    const a = e.attackData!;
+    const s = sim.spawnEnemy(`${e.id}_r${Math.floor(sim.t * 10)}`, "skeleton", a.x, a.z, e.level);
+    s.awake = true;
+    s.summoner = e.id;
+    s.target = t.player ? t.player.id : null;
+    s.xp = Math.round(s.xp * 0.25);
+    sim.events.push({ t: "esummon", id: s.id, x: a.x, z: a.z, raise: 1 });
+    recover(sim, e, 0.6);
   } else if (atk === "lunge") {
     const dx = t.x - e.x, dz = t.z - e.z, l = Math.hypot(dx, dz) || 1;
     e.state = "lunge";
@@ -324,6 +404,33 @@ function bossUpdate(sim: Sim, e: SimEnemy, t: Target, dist: number, gap: number,
           return startWindup(sim, e, "slam", e.def.windup);
         }
         break;
+      case "the_hollow": {
+        if (patternReady(sim, e, "rift")) {
+          usePattern(sim, e, "rift", e.phase >= 3 ? 4.5 : 7);
+          for (const p of players) {
+            sim.addGround({ kind: "warn_circle", x: p.x, z: p.z, r: 2.3, until: sim.t + 1.2, owner: e.id, team: "enemy", data: { dmg: e.dmg * 1.3, el: 0 } });
+            if (e.phase >= 3) {
+              const a = sim.rng.range(0, Math.PI * 2);
+              sim.addGround({ kind: "warn_circle", x: p.x + Math.cos(a) * 3.5, z: p.z + Math.sin(a) * 3.5, r: 2.3, until: sim.t + 1.5, owner: e.id, team: "enemy", data: { dmg: e.dmg * 1.3, el: 0 } });
+            }
+          }
+          return startWindup(sim, e, "pillars", 0.9);
+        }
+        if (patternReady(sim, e, "phantoms") && e.phase >= 2) {
+          usePattern(sim, e, "phantoms", 16);
+          return startWindup(sim, e, "phantoms", 1.2);
+        }
+        if (patternReady(sim, e, "eclipse") && e.phase >= 3 && dist < 11) {
+          usePattern(sim, e, "eclipse", 10);
+          sim.addGround({ kind: "warn_ring", x: e.x, z: e.z, r: 11, until: sim.t + 1.8, owner: e.id, team: "enemy", data: { dmg: e.dmg * 2, el: 0, inner: 3 } });
+          return startWindup(sim, e, "eclipse", 1.8);
+        }
+        if (patternReady(sim, e, "volley") && sight && dist > 4) {
+          usePattern(sim, e, "volley", 3.6);
+          return startWindup(sim, e, "volley", 0.7);
+        }
+        break;
+      }
     }
     if (gap <= e.def.range) {
       e.cd = sim.t + e.def.cooldown * (e.phase === 2 ? 0.75 : 1);
@@ -348,11 +455,22 @@ function bossResolve(sim: Sim, e: SimEnemy, t: Target, gap: number) {
     }
     case "volley": {
       const pr = e.def.projectile!;
-      const n = e.phase === 2 ? 5 : 3;
+      const n = e.phase >= 3 ? 7 : e.phase === 2 ? 5 : 3;
       for (let i = 0; i < n; i++) {
         sim.enemyProjectile(e, t.x, 1.2, t.z, { kind: "ebolt", speed: pr.speed, dmg: e.dmg * 0.8, element: pr.element, size: pr.size, spread: (i - (n - 1) / 2) * 0.17 });
       }
       sim.events.push({ t: "ecast", id: e.id });
+      return recover(sim, e, 0.6);
+    }
+    case "phantoms": {
+      for (let i = 0; i < 2; i++) {
+        const a = sim.rng.range(0, Math.PI * 2);
+        const s = sim.spawnEnemy(`${e.id}_ph${Math.floor(sim.t * 10)}_${i}`, "phantom", e.x + Math.cos(a) * 4, e.z + Math.sin(a) * 4, e.level);
+        s.awake = true;
+        s.target = t.player ? t.player.id : null;
+        s.xp = Math.round(s.xp * 0.3);
+        sim.events.push({ t: "esummon", id: s.id, x: s.x, z: s.z });
+      }
       return recover(sim, e, 0.6);
     }
     case "summon": {

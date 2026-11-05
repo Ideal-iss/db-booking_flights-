@@ -1,7 +1,7 @@
 /** Генератор подземелий по сиду.
  *  Планировка — процедурная (комнаты + коридоры + петли), содержимое комнат — из авторских шаблонов. */
 import { Rng } from "../rng";
-import { DUNGEON_BY_ID, type DungeonTheme } from "../data/dungeons";
+import { DUNGEON_BY_ID, parseStage, type DungeonTheme } from "../data/dungeons";
 import { ELITE_MODS } from "../data/enemies";
 
 export const CELL = 3; // метров в клетке
@@ -44,6 +44,8 @@ export interface Spawn {
   room: number;
   elite?: string;
   boss?: boolean;
+  /** Чемпион с именем: обычный враг, усиленный и охраняющий спуск дальше. */
+  champion?: string;
 }
 
 export interface Dungeon {
@@ -59,11 +61,17 @@ export interface Dungeon {
   spawns: Spawn[];
   props: Prop[];
   lights: { x: number; y: number; z: number; color: string; kind: "torch" | "brazier" | "candle" | "magic" }[];
-  chests: { id: string; x: number; z: number; rot: number; tier: "chest" | "elite" | "boss" }[];
+  chests: { id: string; x: number; z: number; rot: number; tier: "chest" | "elite" | "boss"; mimic?: boolean }[];
+  /** Люстры под сводами: падают от выстрела, взрыва или если перерезать верёвку у стены. */
+  chandeliers: { id: string; x: number; z: number; y: number; ax: number; az: number; arot: number }[];
+  /** Рычаги огненных решёток: решётки на полу вспыхивают и жгут всех, кто на них стоит. */
+  levers: { id: string; x: number; z: number; rot: number; vents: { x: number; z: number }[] }[];
+  /** Ключ этапа кампании (a1s1, n:a2s3…) или пусто. */
+  stage?: string;
   traps: { id: string; x: number; z: number }[];
   secrets: { id: string; cx: number; cy: number }[];
   /** Разбиваемые урны, ящики и бочки с мелкой добычей. */
-  breakables: { id: string; x: number; z: number; kind: "urn" | "crate" | "barrel"; rot: number }[];
+  breakables: { id: string; x: number; z: number; kind: "urn" | "crate" | "barrel" | "oil"; rot: number }[];
   /** Высота потолка в каждой клетке (м). */
   ceil: Float32Array;
   /** Записки с историей мира (номер в NOTES). */
@@ -96,9 +104,13 @@ export const CORRIDOR_CEIL = 3.6;
 /** Максимальная высота потолка — по ней строятся стены физики. */
 export const MAX_CEIL = 8.2;
 
-export function generateDungeon(themeId: string, seed: number, level: number): Dungeon {
+export function generateDungeon(key: string, seed: number, level: number): Dungeon {
+  const st = parseStage(key);
+  const themeId = st ? st.stage.theme : key;
   const theme = DUNGEON_BY_ID[themeId];
-  const rng = new Rng(`${themeId}:${seed}`);
+  const bossType = st ? st.stage.boss : theme.boss;
+  const champion = st?.stage.champion;
+  const rng = new Rng(`${key}:${seed}`);
   const N = theme.size;
   const cells = new Uint8Array(N * N);
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= N || y >= N ? Cell.Wall : cells[y * N + x]);
@@ -382,7 +394,7 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
       lights.push({ x: cx + 1.2, y: 0.7, z: cz + 1.1, color: "#ffb36a", kind: "candle" });
     } else if (r.kind !== "start" && r.kind !== "boss" && rng.chance(0.18)) {
       const p = freeFloor(r, 0.8, 0.8);
-      chests.push({ id: `c${chests.length}`, x: p.x, z: p.z, rot: rng.range(0, 6.28), tier: "chest" });
+      chests.push({ id: `c${chests.length}`, x: p.x, z: p.z, rot: rng.range(0, 6.28), tier: "chest", mimic: rng.chance(0.3) });
     }
 
     // жаровни как на референсе — по углам больших комнат
@@ -407,7 +419,14 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     // враги
     if (r.kind === "start" || r.kind === "secret") continue;
     if (r.kind === "boss") {
-      spawns.push({ id: `e${eid++}`, type: theme.boss, x: cx, z: cz + 2, room: r.id, boss: true });
+      spawns.push({ id: `e${eid++}`, type: bossType, x: cx, z: cz + 2, room: r.id, boss: true, champion: champion?.name, elite: champion?.elite });
+      if (champion) {
+        // свита чемпиона
+        for (let k = 0; k < 3; k++) {
+          const p = freeFloor(r, 1.5, 0.8);
+          spawns.push({ id: `e${eid++}`, type: pickEnemy(), x: p.x, z: p.z, room: r.id });
+        }
+      }
       continue;
     }
     const count = Math.min(7, Math.max(2, Math.round(area / 7 + level * 0.08 + rng.range(-1, 1))));
@@ -475,7 +494,7 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
       for (let k = 0; k < cluster; k++) {
         const bx = x + (k ? r2.range(-0.7, 0.7) : 0), bz = z + (k ? r2.range(-0.7, 0.7) : 0);
         if (!isFloor(Math.floor(bx / CELL), Math.floor(bz / CELL)) || (k && !clear(bx, bz, 0.4))) continue;
-        breakables.push({ id: `b${breakables.length}`, x: bx, z: bz, kind: r2.pick(["urn", "urn", "crate", "barrel"] as const), rot: r2.range(0, 6.28) });
+        breakables.push({ id: `b${breakables.length}`, x: bx, z: bz, kind: r2.pick(["urn", "urn", "crate", "barrel", "oil"] as const), rot: r2.range(0, 6.28) });
       }
       i++;
     }
@@ -490,6 +509,48 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     notes.push({ id: `n${i}`, x, z, note: picked[i], rot: r2.range(0, 6.28) });
   }
 
+  // люстры под высокими сводами, верёвка — к ближайшей стене
+  const chandeliers: Dungeon["chandeliers"] = [];
+  const levers: Dungeon["levers"] = [];
+  for (const r of rooms) {
+    const h = ceil[(r.y + (r.h >> 1)) * N + r.x + (r.w >> 1)];
+    if (h < 5.3 || r.kind === "cave" || r.kind === "secret") continue;
+    const count = r.kind === "boss" ? 2 : r2.chance(0.75) ? 1 : 0;
+    for (let i = 0; i < count; i++) {
+      const fx = r.kind === "boss" ? (i ? 0.3 : 0.7) : r2.range(0.35, 0.65), fz = r2.range(0.35, 0.65);
+      const x = (r.x + r.w * fx) * CELL, z = (r.y + r.h * fz) * CELL;
+      if (!isFloor(Math.floor(x / CELL), Math.floor(z / CELL)) || !clear(x, z, 1.2)) continue;
+      // ближайшая стена комнаты
+      const opts: [number, number, number, number][] = [
+        [x, r.y * CELL + 0.2, 0, Math.abs(z - r.y * CELL)],
+        [x, (r.y + r.h) * CELL - 0.2, Math.PI, Math.abs((r.y + r.h) * CELL - z)],
+        [r.x * CELL + 0.2, z, -Math.PI / 2, Math.abs(x - r.x * CELL)],
+        [(r.x + r.w) * CELL - 0.2, z, Math.PI / 2, Math.abs((r.x + r.w) * CELL - x)],
+      ];
+      opts.sort((a, b) => a[3] - b[3]);
+      const [ax, az, arot] = opts.find(([ox, oz]) => isFloor(Math.floor((ox + Math.sin(0) * 0) / CELL), Math.floor(oz / CELL))) || opts[0];
+      const y = h - 1.3;
+      chandeliers.push({ id: `ch${chandeliers.length}`, x, z, y, ax, az, arot });
+      lights.push({ x, y: y - 0.2, z, color: "#ffc070", kind: "torch" });
+    }
+    // рычаг огненных решёток
+    if (r.kind !== "boss" && r.kind !== "start" && r.w * r.h >= 12 && r2.chance(0.4)) {
+      const vents: { x: number; z: number }[] = [];
+      for (let k = 0, tries = 0; k < 4 && tries < 30; tries++) {
+        const vx = (r.x + 0.5 + r2.int(0, r.w - 1)) * CELL, vz = (r.y + 0.5 + r2.int(0, r.h - 1)) * CELL;
+        if (!isFloor(Math.floor(vx / CELL), Math.floor(vz / CELL)) || !clear(vx, vz, 1.0) || vents.some((v) => Math.hypot(v.x - vx, v.z - vz) < 2.5)) continue;
+        vents.push({ x: vx, z: vz });
+        k++;
+      }
+      const side = r2.int(0, 1);
+      const lx = side ? r.x * CELL + 0.25 : (r.x + r.w) * CELL - 0.25;
+      const lz = (r.y + r2.range(0.3, r.h - 0.3)) * CELL;
+      if (vents.length >= 2 && isFloor(Math.floor((side ? lx + 0.5 : lx - 0.5) / CELL), Math.floor(lz / CELL))) {
+        levers.push({ id: `lv${levers.length}`, x: side ? lx + 0.05 : lx - 0.05, z: lz, rot: side ? Math.PI / 2 : -Math.PI / 2, vents });
+      }
+    }
+  }
+
   const boss = rooms[1];
   const entrance = { x: startC.x, z: (start.y + 0.7) * CELL };
   props.push({ kind: "portal", x: entrance.x, z: entrance.z, rot: 0 });
@@ -499,7 +560,7 @@ export function generateDungeon(themeId: string, seed: number, level: number): D
     theme, seed, level, w: N, h: N, cells, rooms,
     start: { x: startC.x, z: startC.z + 1.5, yaw: 0 },
     bossRoom: 1,
-    spawns, props, lights, chests, traps, secrets, shrines, breakables, notes, ceil,
+    spawns, props, lights, chests, traps, secrets, shrines, breakables, notes, ceil, chandeliers, levers, stage: st ? key : undefined,
     entrance,
     exit: { x: (boss.x + boss.w / 2) * CELL, z: (boss.y + 1.5) * CELL },
   };

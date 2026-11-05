@@ -4,7 +4,7 @@ import { AFFIXES, BASES, POTIONS, RARE_NAMES, RARITIES, UNIQUES } from "../share
 import { CLASSES } from "../shared/data/classes";
 import { SKILLS } from "../shared/data/skills";
 import { ATTR_POINTS_PER_LEVEL, MAX_LEVEL, SKILL_POINTS_PER_LEVEL, xpForLevel } from "../shared/data/stats";
-import { DUNGEONS, QUESTS } from "../shared/data/dungeons";
+import { NIGHTMARE_BONUS, QUESTS, STAGES } from "../shared/data/dungeons";
 
 const data = {
   bases: Object.fromEntries(BASES.map((b) => [b.id, { name: b.name, slot: b.slot, type: b.type || null, req: b.req, value: b.value }])),
@@ -19,7 +19,8 @@ const data = {
   attrPerLevel: ATTR_POINTS_PER_LEVEL,
   skillPerLevel: SKILL_POINTS_PER_LEVEL,
   potions: POTIONS,
-  dungeons: Object.fromEntries(DUNGEONS.map((d) => [d.id, { name: d.name, level: d.level, unlock: d.unlock || null, boss: d.boss }])),
+  stages: Object.fromEntries(STAGES.map((s) => [s.id, { id: s.id, act: s.act, n: s.n, name: s.name, level: s.level, unlock: s.unlock || null, boss: s.boss }])),
+  nightmareBonus: NIGHTMARE_BONUS,
   quests: Object.fromEntries(QUESTS.map((q) => [q.id, { kind: q.kind, target: q.target, count: q.count, reward: q.reward, minLevel: q.minLevel, name: q.name }])),
 };
 writeFileSync(new URL("../../web/hollow/gamedata.json", import.meta.url), JSON.stringify(data, null, 1));

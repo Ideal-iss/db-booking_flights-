@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useGame } from "../store";
 import { api, ApiError } from "../api";
 import { CLASSES } from "@shared/data/classes";
-import { DUNGEON_BY_ID } from "@shared/data/dungeons";
+import { STAGES } from "@shared/data/dungeons";
 import { CharacterCreate } from "./CharacterCreate";
 import { GameScreen } from "./GameScreen";
 import { audio } from "../game/audio";
@@ -166,7 +166,7 @@ function Select() {
               <div className="text-parch mb-3 text-sm">{CLASSES[c.cls].tagline}</div>
               <div className="text-sm">Золото: <span className="text-gold">{c.gold}</span></div>
               <div className="text-sm">
-                Пройдено: {c.cleared.length ? c.cleared.map((d) => DUNGEON_BY_ID[d]?.name).join(", ") : "пока ничего"}
+                {campaignLine(c.cleared)}
               </div>
               {c.stats && (
                 <div className="text-dim text-sm">
@@ -196,4 +196,15 @@ function Select() {
       </div>
     </MenuBackdrop>
   );
+}
+
+function campaignLine(cleared: string[]) {
+  const done = STAGES.filter((s) => cleared.includes(s.id)).length;
+  if (!done) return "Кампания: ещё не начата";
+  if (cleared.includes("a5s3")) {
+    const nm = STAGES.filter((s) => cleared.includes("n:" + s.id)).length;
+    return nm ? `Кампания пройдена · Кошмар: ${nm}/${STAGES.length}` : "Кампания пройдена";
+  }
+  const last = [...STAGES].reverse().find((s) => cleared.includes(s.id))!;
+  return `Кампания: ${done}/${STAGES.length} · акт ${last.act}`;
 }

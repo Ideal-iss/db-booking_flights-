@@ -1,7 +1,8 @@
 import { useGame, DEFAULT_SETTINGS, type Settings } from "../store";
 import { Panel } from "./common";
 import { gameApi } from "./GameScreen";
-import { DUNGEONS, QUESTS, DUNGEON_BY_ID, dungeonUnlocked } from "@shared/data/dungeons";
+import { useState } from "react";
+import { ACTS, DUNGEON_BY_ID, EPILOGUE, NIGHTMARE_BONUS, QUESTS, STAGES, parseStage, stageLabel, stageUnlocked } from "@shared/data/dungeons";
 import { ENEMIES } from "@shared/data/enemies";
 import { audio } from "../game/audio";
 
@@ -40,39 +41,77 @@ export function QuestsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Номер акта, до которого дошёл герой (последний открытый). */
+export function currentAct(cleared: string[], nightmare = false) {
+  let act = 1;
+  for (const st of STAGES) if (stageUnlocked((nightmare ? "n:" : "") + st.id, cleared)) act = st.act;
+  return act;
+}
+
 export function GatePanel({ onClose }: { onClose: () => void }) {
   const { char } = useGame();
+  const nightmareOpen = !!char && char.cleared.includes("a5s3");
+  const [nightmare, setNightmare] = useState(false);
+  const [act, setAct] = useState(() => (char ? currentAct(char.cleared) : 1));
   if (!char) return null;
+  const pref = nightmare ? "n:" : "";
+  const A = ACTS[act - 1];
+  const theme = DUNGEON_BY_ID[A.theme];
+  const actOpen = (n: number) => STAGES.some((s) => s.act === n && stageUnlocked(pref + s.id, char.cleared));
+  const doneCount = STAGES.filter((s) => char.cleared.includes(pref + s.id)).length;
   return (
     <Panel title="Врата Глубин" onClose={onClose}>
-      <div className="text-parch mb-3 text-sm">Каждый спуск — новое подземелье. Найдите и убейте хозяина глубины, чтобы открыть путь ниже.</div>
-      <div className="flex flex-col gap-2">
-        {DUNGEONS.map((d) => {
-          const open = dungeonUnlocked(d, char.cleared);
-          const cleared = char.cleared.includes(d.id);
-          const lvl = Math.max(d.level, Math.min(char.level - 1, d.level + 10));
+      <div className="mb-2 flex flex-wrap items-center gap-1">
+        {ACTS.map((a) => {
+          const open = actOpen(a.n);
+          const done = STAGES.filter((s) => s.act === a.n).every((s) => char.cleared.includes(pref + s.id));
           return (
-            <div key={d.id} className={`panel flex gap-3 p-3 ${open ? "" : "opacity-50"}`}>
-              <div className="h-16 w-16 shrink-0 border-2 border-[#3d3126]" style={{ background: `linear-gradient(135deg, ${d.palette.wall}, ${d.palette.fog})` }}>
-                <div className="flex h-full items-center justify-center text-2xl" style={{ color: d.palette.light }}>☩</div>
+            <button key={a.n} disabled={!open} className={`btn px-3 py-1 text-sm ${act === a.n ? "btn-gold" : ""}`} onClick={() => setAct(a.n)}>
+              {a.name.split(".")[0]}{done ? " ✓" : open ? "" : " 🔒"}
+            </button>
+          );
+        })}
+        <div className="text-dim ml-auto text-xs">Пройдено этапов: {doneCount}/{STAGES.length}</div>
+      </div>
+      {nightmareOpen && (
+        <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm text-[#e0505a]">
+          <input type="checkbox" checked={nightmare} onChange={(e) => { setNightmare(e.target.checked); setAct(currentAct(char.cleared, e.target.checked)); }} />
+          Кошмар: враги на {NIGHTMARE_BONUS} уровней сильнее, добыча лучше
+        </label>
+      )}
+      <div className="panel mb-3 p-3" style={{ background: `linear-gradient(135deg, ${theme.palette.wall}55, ${theme.palette.fog})` }}>
+        <div className="panel-title text-lg" style={{ color: theme.palette.light }}>{A.name}</div>
+        <div className="text-parch mt-1 text-sm italic leading-5">{A.intro}</div>
+      </div>
+      <div className="flex flex-col gap-2">
+        {STAGES.filter((s) => s.act === act).map((st) => {
+          const key = pref + st.id;
+          const open = stageUnlocked(key, char.cleared);
+          const cleared = char.cleared.includes(key);
+          const base = st.level + (nightmare ? NIGHTMARE_BONUS : 0);
+          const lvl = Math.max(base, Math.min(char.level - 1, base + 3));
+          const guard = st.champion ? `${st.champion.name} (${ENEMIES[st.boss].name.toLowerCase()})` : ENEMIES[st.boss].name;
+          return (
+            <div key={st.id} className={`panel flex gap-3 p-3 ${open ? "" : "opacity-50"}`}>
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center border-2 border-[#3d3126] text-2xl" style={{ background: `linear-gradient(135deg, ${theme.palette.wall}, ${theme.palette.fog})`, color: st.champion ? theme.palette.light : "#ff5a4a" }}>
+                {st.champion ? st.n : "☠"}
               </div>
               <div className="flex-1">
-                <div className="panel-title">{d.name} {cleared && <span className="text-xs text-[#7fe07f]">· пройдено</span>}</div>
-                <div className="text-sm">{d.description}</div>
+                <div className="panel-title">{st.n}. {st.name} {cleared && <span className="text-xs text-[#7fe07f]">· пройдено</span>}</div>
+                <div className="text-sm">{st.description}</div>
                 <div className="text-dim text-xs">
-                  Уровень {lvl} · Хозяин: {ENEMIES[d.boss].name}
-                  {!open && d.unlock && ` · Сначала пройдите «${DUNGEON_BY_ID[d.unlock].name}»`}
+                  Уровень {lvl} · {st.champion ? "Страж" : "Хозяин акта"}: {guard}
+                  {!open && st.unlock && ` · Сначала: «${STAGES.find((x) => x.id === st.unlock)!.name}»`}
                 </div>
               </div>
-              <button className="btn btn-red self-center" disabled={!open} onClick={() => { audio.play("portal"); void gameApi.startRun(d.id); }}>
+              <button className="btn btn-red self-center" disabled={!open} onClick={() => { audio.play("portal"); void gameApi.startRun(key); }}>
                 Спуститься
               </button>
             </div>
           );
         })}
       </div>
-      <div className="text-dim mt-2 text-xs">Совместный спуск собирается у Алтаря Клятвы в центре лагеря.</div>
-      {void onClose}
+      <div className="text-dim mt-2 text-xs">Этап засчитывается, когда страж убит и вы ушли через портал. Можно вернуться в любой пройденный этап за добычей.</div>
     </Panel>
   );
 }
@@ -81,10 +120,19 @@ export function ResultsPanel({ onClose }: { onClose: () => void }) {
   const { results } = useGame();
   if (!results) return null;
   const r = results;
+  // сюжет: конец акта (первое прохождение третьего этапа) или эпилог
+  const p = parseStage(r.dungeon);
+  let story: { title: string; text: string; next?: { title: string; text: string } } | null = null;
+  if (p && r.firstClear && p.stage.n === 3 && !p.nightmare) {
+    if (p.stage.act === 5) story = { title: EPILOGUE.title, text: EPILOGUE.text };
+    else story = { title: `${ACTS[p.stage.act - 1].name} — конец`, text: ACTS[p.stage.act - 1].outro, next: { title: ACTS[p.stage.act].name, text: ACTS[p.stage.act].intro } };
+  } else if (p && r.firstClear && p.nightmare && p.stage.id === "a5s3") {
+    story = { title: "Кошмар пройден", text: "Пустота снова засыпает — на этот раз надолго. Колокол наверху звонит сам по себе, и Отец Мирон говорит, что такого не слышал никто из живых." };
+  }
   return (
-    <div className="panel rise w-[420px] p-6 text-center">
+    <div className={`panel rise p-6 text-center ${story ? "w-[min(560px,94vw)]" : "w-[420px]"}`}>
       <div className={`logo text-4xl ${r.success ? "" : "text-[#c8343a]"}`}>{r.success ? "ВЫ ВЫБРАЛИСЬ" : "ВЫ ПАЛИ"}</div>
-      <div className="text-parch mt-1">{DUNGEON_BY_ID[r.dungeon]?.name}</div>
+      <div className="text-parch mt-1">{stageLabel(r.dungeon)}</div>
       {r.pending ? (
         <div className="text-dim my-6">Сохраняем итоги…</div>
       ) : r.error ? (
@@ -96,7 +144,21 @@ export function ResultsPanel({ onClose }: { onClose: () => void }) {
           <div>Убито врагов: {r.kills}</div>
           <div>Подобрано вещей: {r.items}</div>
           {r.levels > 0 && <div className="text-[#7fe07f]">Новых уровней: {r.levels}!</div>}
-          {r.unlocked?.length ? <div className="text-[#8fd0ff]">Открыто: {r.unlocked.map((u) => DUNGEON_BY_ID[u]?.name).join(", ")}</div> : null}
+          {r.success && r.cleared === false && <div className="text-dim text-sm">Страж этапа жив — этап не засчитан.</div>}
+          {r.unlocked?.length ? <div className="text-[#8fd0ff]">Открыто: {r.unlocked.map((u) => stageLabel(u)).join(", ")}</div> : null}
+        </div>
+      )}
+      {story && !r.pending && (
+        <div className="mb-4 max-h-[40vh] overflow-y-auto text-left">
+          <div className="panel-title mb-1 text-[#e8c4a0]">{story.title}</div>
+          <div className="text-parch text-sm italic leading-5">{story.text}</div>
+          {story.next && (
+            <>
+              <div className="panel-title mt-3 mb-1 text-[#8fd0ff]">{story.next.title}</div>
+              <div className="text-parch text-sm italic leading-5">{story.next.text}</div>
+            </>
+          )}
+          {p?.stage.act === 5 && <div className="text-gold mt-3 text-sm">Открыт режим «Кошмар» — у Врат Глубин.</div>}
         </div>
       )}
       <button className="btn btn-gold w-full py-2 text-lg" disabled={r.pending} onClick={onClose}>

@@ -3,14 +3,14 @@ import { Panel } from "./common";
 import { useGame } from "../store";
 import { party, useParty } from "../game/net";
 import { CLASSES } from "@shared/data/classes";
-import { DUNGEONS, dungeonUnlocked } from "@shared/data/dungeons";
+import { STAGES, stageUnlocked } from "@shared/data/dungeons";
 import { audio } from "../game/audio";
 
 export function PartyPanel({ onClose }: { onClose: () => void }) {
   const { char, coopEnabled } = useGame();
   const { status, error, lobby, you, size } = useParty();
   const [code, setCode] = useState("");
-  const [dungeon, setDungeon] = useState("crypt");
+  const [dungeon, setDungeon] = useState("a1s1");
   if (!char) return null;
   if (!coopEnabled) {
     return (
@@ -69,8 +69,8 @@ export function PartyPanel({ onClose }: { onClose: () => void }) {
               {isHost && (
                 <div className="flex gap-2">
                   <select className="field flex-1" value={dungeon} onChange={(e) => setDungeon(e.target.value)}>
-                    {DUNGEONS.map((d) => (
-                      <option key={d.id} value={d.id} disabled={!dungeonUnlocked(d, char.cleared)}>{d.name}{dungeonUnlocked(d, char.cleared) ? "" : " (закрыто)"}</option>
+                    {STAGES.map((d) => (
+                      <option key={d.id} value={d.id} disabled={!stageUnlocked(d.id, char.cleared)}>{d.name}{stageUnlocked(d.id, char.cleared) ? "" : " (закрыто)"}</option>
                     ))}
                   </select>
                   <button className="btn btn-red" disabled={!allReady} onClick={() => { audio.play("portal"); party.start(dungeon); }}>Спуститься</button>

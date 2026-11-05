@@ -1,0 +1,22 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>THE HOLLOW</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23110b08'/%3E%3Cpath d='M5 4h6v5l-1 1v2H6v-2L5 9z' fill='%23d8cdb2'/%3E%3Crect x='6' y='6' width='1.5' height='1.5' fill='%23110b08'/%3E%3Crect x='8.5' y='6' width='1.5' height='1.5' fill='%23110b08'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{% static 'hollow/app.css' %}">
+  <script>
+    window.HOLLOW = {
+      api: "{% url 'hollow:index' %}api/",
+      home: "{% url 'booking:index' %}",
+      coop: {{ coop_url|default:""|yesno:"true,false" }}
+    };
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <noscript>Для игры нужен JavaScript.</noscript>
+  <script type="module" src="{% static 'hollow/app.js' %}"></script>
+</body>
+</html>

@@ -7,6 +7,6 @@ admin.site.index_title = "Управление системой брониров
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("world/", include("world.urls")),
+    path("world/", include("hollow.urls")),
     path("", include("booking.urls")),
 ]

@@ -1,0 +1,22 @@
+# Сервер кооператива THE HOLLOW (Colyseus) на бесплатном тарифе Render.
+# Render → New → Blueprint → выбрать этот репозиторий. HOLLOW_SECRET задаётся вручную
+# и должен совпадать с HOLLOW_COOP_SECRET в .env Django на PythonAnywhere.
+services:
+  - type: web
+    name: the-hollow-coop
+    runtime: node
+    plan: free
+    rootDir: hollow
+    branch: the-hollow
+    buildCommand: npm ci --include=dev && npm run server:build
+    startCommand: node server/dist/index.mjs
+    healthCheckPath: /
+    envVars:
+      - key: HOLLOW_SECRET
+        sync: false
+      - key: DJANGO_URL
+        value: https://flower0.pythonanywhere.com
+      - key: PARTY_SIZE
+        value: "2"
+      - key: NODE_VERSION
+        value: "22"

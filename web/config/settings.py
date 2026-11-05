@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "booking",
     "world",
+    "hollow",
 ]
 
 MIDDLEWARE = [
@@ -181,6 +182,11 @@ MAILERS = {
     },
 }
 
-LOGIN_URL = "world:login"
-LOGIN_REDIRECT_URL = "world:play"
-LOGOUT_REDIRECT_URL = "world:home"
+LOGIN_URL = "hollow:index"
+LOGIN_REDIRECT_URL = "hollow:index"
+LOGOUT_REDIRECT_URL = "hollow:index"
+
+# THE HOLLOW: адрес сервера кооператива (Colyseus) и общий секрет для подписи.
+# Пока не заданы, игра работает в одиночном режиме, а кнопка кооператива честно сообщает, что он не подключён.
+HOLLOW_COOP_URL = os.environ.get("HOLLOW_COOP_URL", "")
+HOLLOW_COOP_SECRET = os.environ.get("HOLLOW_COOP_SECRET", "")

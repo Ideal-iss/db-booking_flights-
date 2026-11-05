@@ -1,0 +1,1561 @@
+{
+ "bases": {
+  "short_sword": {
+   "name": "Короткий меч",
+   "slot": "weapon",
+   "type": "sword",
+   "req": 1,
+   "value": 12
+  },
+  "long_sword": {
+   "name": "Длинный меч",
+   "slot": "weapon",
+   "type": "sword",
+   "req": 6,
+   "value": 40
+  },
+  "broad_sword": {
+   "name": "Палаш",
+   "slot": "weapon",
+   "type": "sword",
+   "req": 12,
+   "value": 110
+  },
+  "hand_axe": {
+   "name": "Топорик",
+   "slot": "weapon",
+   "type": "axe",
+   "req": 1,
+   "value": 12
+  },
+  "battle_axe": {
+   "name": "Боевой топор",
+   "slot": "weapon",
+   "type": "axe",
+   "req": 7,
+   "value": 45
+  },
+  "executioner_axe": {
+   "name": "Топор палача",
+   "slot": "weapon",
+   "type": "axe",
+   "req": 14,
+   "value": 130
+  },
+  "dagger": {
+   "name": "Кинжал",
+   "slot": "weapon",
+   "type": "dagger",
+   "req": 1,
+   "value": 10
+  },
+  "kris": {
+   "name": "Крис",
+   "slot": "weapon",
+   "type": "dagger",
+   "req": 7,
+   "value": 42
+  },
+  "stiletto": {
+   "name": "Стилет",
+   "slot": "weapon",
+   "type": "dagger",
+   "req": 13,
+   "value": 115
+  },
+  "mace": {
+   "name": "Булава",
+   "slot": "weapon",
+   "type": "mace",
+   "req": 1,
+   "value": 12
+  },
+  "morning_star": {
+   "name": "Моргенштерн",
+   "slot": "weapon",
+   "type": "mace",
+   "req": 7,
+   "value": 44
+  },
+  "flanged_mace": {
+   "name": "Шестопёр",
+   "slot": "weapon",
+   "type": "mace",
+   "req": 13,
+   "value": 120
+  },
+  "short_bow": {
+   "name": "Короткий лук",
+   "slot": "weapon",
+   "type": "bow",
+   "req": 2,
+   "value": 15
+  },
+  "long_bow": {
+   "name": "Длинный лук",
+   "slot": "weapon",
+   "type": "bow",
+   "req": 8,
+   "value": 48
+  },
+  "war_bow": {
+   "name": "Боевой лук",
+   "slot": "weapon",
+   "type": "bow",
+   "req": 14,
+   "value": 125
+  },
+  "oak_staff": {
+   "name": "Дубовый посох",
+   "slot": "weapon",
+   "type": "staff",
+   "req": 1,
+   "value": 12
+  },
+  "rune_staff": {
+   "name": "Рунный посох",
+   "slot": "weapon",
+   "type": "staff",
+   "req": 8,
+   "value": 48
+  },
+  "archon_staff": {
+   "name": "Посох архонта",
+   "slot": "weapon",
+   "type": "staff",
+   "req": 14,
+   "value": 130
+  },
+  "bone_wand": {
+   "name": "Костяной жезл",
+   "slot": "weapon",
+   "type": "wand",
+   "req": 1,
+   "value": 12
+  },
+  "grave_wand": {
+   "name": "Могильный жезл",
+   "slot": "weapon",
+   "type": "wand",
+   "req": 8,
+   "value": 46
+  },
+  "lich_wand": {
+   "name": "Жезл лича",
+   "slot": "weapon",
+   "type": "wand",
+   "req": 14,
+   "value": 125
+  },
+  "buckler": {
+   "name": "Баклер",
+   "slot": "offhand",
+   "type": "shield",
+   "req": 1,
+   "value": 10
+  },
+  "kite_shield": {
+   "name": "Каплевидный щит",
+   "slot": "offhand",
+   "type": "shield",
+   "req": 6,
+   "value": 38
+  },
+  "tower_shield": {
+   "name": "Ростовой щит",
+   "slot": "offhand",
+   "type": "shield",
+   "req": 13,
+   "value": 110
+  },
+  "tome": {
+   "name": "Фолиант",
+   "slot": "offhand",
+   "type": "tome",
+   "req": 1,
+   "value": 12
+  },
+  "grimoire": {
+   "name": "Гримуар",
+   "slot": "offhand",
+   "type": "tome",
+   "req": 9,
+   "value": 50
+  },
+  "skull_focus": {
+   "name": "Череп-фокус",
+   "slot": "offhand",
+   "type": "focus",
+   "req": 1,
+   "value": 12
+  },
+  "lich_skull": {
+   "name": "Череп лича",
+   "slot": "offhand",
+   "type": "focus",
+   "req": 9,
+   "value": 50
+  },
+  "holy_symbol": {
+   "name": "Святой символ",
+   "slot": "offhand",
+   "type": "holy_symbol",
+   "req": 1,
+   "value": 12
+  },
+  "reliquary": {
+   "name": "Реликварий",
+   "slot": "offhand",
+   "type": "holy_symbol",
+   "req": 9,
+   "value": 50
+  },
+  "hood": {
+   "name": "Капюшон",
+   "slot": "helmet",
+   "type": null,
+   "req": 1,
+   "value": 8
+  },
+  "leather_cap": {
+   "name": "Кожаный шлем",
+   "slot": "helmet",
+   "type": null,
+   "req": 1,
+   "value": 8
+  },
+  "iron_helm": {
+   "name": "Железный шлем",
+   "slot": "helmet",
+   "type": null,
+   "req": 4,
+   "value": 25
+  },
+  "great_helm": {
+   "name": "Топфхельм",
+   "slot": "helmet",
+   "type": null,
+   "req": 11,
+   "value": 80
+  },
+  "cloth_robe": {
+   "name": "Ряса",
+   "slot": "chest",
+   "type": null,
+   "req": 1,
+   "value": 10
+  },
+  "padded_tunic": {
+   "name": "Стёганка",
+   "slot": "chest",
+   "type": null,
+   "req": 1,
+   "value": 10
+  },
+  "chain_mail": {
+   "name": "Кольчуга",
+   "slot": "chest",
+   "type": null,
+   "req": 4,
+   "value": 35
+  },
+  "brigandine": {
+   "name": "Бригантина",
+   "slot": "chest",
+   "type": null,
+   "req": 9,
+   "value": 70
+  },
+  "plate_armor": {
+   "name": "Латы",
+   "slot": "chest",
+   "type": null,
+   "req": 14,
+   "value": 140
+  },
+  "leather_gloves": {
+   "name": "Кожаные перчатки",
+   "slot": "gloves",
+   "type": null,
+   "req": 1,
+   "value": 6
+  },
+  "gauntlets": {
+   "name": "Латные рукавицы",
+   "slot": "gloves",
+   "type": null,
+   "req": 8,
+   "value": 40
+  },
+  "leather_boots": {
+   "name": "Кожаные сапоги",
+   "slot": "boots",
+   "type": null,
+   "req": 1,
+   "value": 6
+  },
+  "iron_boots": {
+   "name": "Железные сапоги",
+   "slot": "boots",
+   "type": null,
+   "req": 8,
+   "value": 40
+  },
+  "amulet": {
+   "name": "Амулет",
+   "slot": "amulet",
+   "type": null,
+   "req": 3,
+   "value": 30
+  },
+  "ring": {
+   "name": "Кольцо",
+   "slot": "ring",
+   "type": null,
+   "req": 2,
+   "value": 25
+  }
+ },
+ "rarities": {
+  "common": {
+   "name": "Обычный",
+   "color": "#d8cdb2",
+   "affixes": [
+    0,
+    0
+   ],
+   "mult": 1,
+   "value": 1
+  },
+  "uncommon": {
+   "name": "Необычный",
+   "color": "#8fb07a",
+   "affixes": [
+    1,
+    2
+   ],
+   "mult": 1,
+   "value": 2
+  },
+  "rare": {
+   "name": "Редкий",
+   "color": "#6f8fbf",
+   "affixes": [
+    3,
+    4
+   ],
+   "mult": 1.05,
+   "value": 4
+  },
+  "epic": {
+   "name": "Эпический",
+   "color": "#a07ac0",
+   "affixes": [
+    4,
+    5
+   ],
+   "mult": 1.2,
+   "value": 7
+  },
+  "legendary": {
+   "name": "Легендарный",
+   "color": "#d19a3c",
+   "affixes": [
+    3,
+    3
+   ],
+   "mult": 1.3,
+   "value": 12
+  },
+  "cursed": {
+   "name": "Проклятый",
+   "color": "#9b2a35",
+   "affixes": [
+    2,
+    2
+   ],
+   "mult": 1.8,
+   "value": 5
+  }
+ },
+ "affixes": {
+  "str": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "силы",
+   "weight": 10
+  },
+  "dex": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "ловкости",
+   "weight": 10
+  },
+  "int": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "разума",
+   "weight": 10
+  },
+  "vit": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "жизни",
+   "weight": 10
+  },
+  "end": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "стойкости",
+   "weight": 7
+  },
+  "wil": {
+   "slots": "any",
+   "base": [
+    1,
+    3
+   ],
+   "perLevel": 0.25,
+   "int": true,
+   "curse": false,
+   "suffix": "веры",
+   "weight": 8
+  },
+  "hp": {
+   "slots": [
+    "helmet",
+    "chest",
+    "gloves",
+    "boots",
+    "offhand",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    6,
+    14
+   ],
+   "perLevel": 2,
+   "int": true,
+   "curse": false,
+   "suffix": "крови",
+   "weight": 9
+  },
+  "mana": {
+   "slots": [
+    "helmet",
+    "chest",
+    "offhand",
+    "amulet",
+    "ring",
+    "weapon"
+   ],
+   "base": [
+    5,
+    12
+   ],
+   "perLevel": 1.2,
+   "int": true,
+   "curse": false,
+   "suffix": "звёзд",
+   "weight": 6
+  },
+  "armor_pct": {
+   "slots": [
+    "helmet",
+    "chest",
+    "gloves",
+    "boots",
+    "offhand"
+   ],
+   "base": [
+    0.08,
+    0.2
+   ],
+   "perLevel": 0.008,
+   "int": false,
+   "curse": false,
+   "suffix": "камня",
+   "weight": 8
+  },
+  "dmg_pct": {
+   "slots": [
+    "weapon",
+    "gloves",
+    "ring",
+    "amulet"
+   ],
+   "base": [
+    0.06,
+    0.15
+   ],
+   "perLevel": 0.008,
+   "int": false,
+   "curse": false,
+   "suffix": "резни",
+   "weight": 8
+  },
+  "spell_pct": {
+   "slots": [
+    "weapon",
+    "offhand",
+    "helmet",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    0.06,
+    0.15
+   ],
+   "perLevel": 0.008,
+   "int": false,
+   "curse": false,
+   "suffix": "колдовства",
+   "weight": 7
+  },
+  "crit": {
+   "slots": [
+    "weapon",
+    "gloves",
+    "ring",
+    "amulet",
+    "helmet"
+   ],
+   "base": [
+    0.02,
+    0.05
+   ],
+   "perLevel": 0.002,
+   "int": false,
+   "curse": false,
+   "suffix": "точности",
+   "weight": 6
+  },
+  "crit_dmg": {
+   "slots": [
+    "weapon",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    0.1,
+    0.25
+   ],
+   "perLevel": 0.01,
+   "int": false,
+   "curse": false,
+   "suffix": "казни",
+   "weight": 5
+  },
+  "atk_speed": {
+   "slots": [
+    "weapon",
+    "gloves",
+    "ring"
+   ],
+   "base": [
+    0.04,
+    0.1
+   ],
+   "perLevel": 0.004,
+   "int": false,
+   "curse": false,
+   "suffix": "быстроты",
+   "weight": 5
+  },
+  "move": {
+   "slots": [
+    "boots"
+   ],
+   "base": [
+    0.05,
+    0.12
+   ],
+   "perLevel": 0.003,
+   "int": false,
+   "curse": false,
+   "suffix": "ветра",
+   "weight": 7
+  },
+  "res_fire": {
+   "slots": [
+    "helmet",
+    "chest",
+    "gloves",
+    "boots",
+    "offhand",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    0.08,
+    0.18
+   ],
+   "perLevel": 0.006,
+   "int": false,
+   "curse": false,
+   "suffix": "пламени",
+   "weight": 5
+  },
+  "res_cold": {
+   "slots": [
+    "helmet",
+    "chest",
+    "gloves",
+    "boots",
+    "offhand",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    0.08,
+    0.18
+   ],
+   "perLevel": 0.006,
+   "int": false,
+   "curse": false,
+   "suffix": "инея",
+   "weight": 5
+  },
+  "res_dark": {
+   "slots": [
+    "helmet",
+    "chest",
+    "gloves",
+    "boots",
+    "offhand",
+    "amulet",
+    "ring"
+   ],
+   "base": [
+    0.08,
+    0.18
+   ],
+   "perLevel": 0.006,
+   "int": false,
+   "curse": false,
+   "suffix": "сумрака",
+   "weight": 5
+  },
+  "life_steal": {
+   "slots": [
+    "weapon",
+    "ring",
+    "amulet"
+   ],
+   "base": [
+    0.02,
+    0.04
+   ],
+   "perLevel": 0.001,
+   "int": false,
+   "curse": false,
+   "suffix": "упыря",
+   "weight": 3
+  },
+  "mana_regen": {
+   "slots": [
+    "helmet",
+    "amulet",
+    "ring",
+    "offhand",
+    "weapon"
+   ],
+   "base": [
+    0.15,
+    0.35
+   ],
+   "perLevel": 0.01,
+   "int": false,
+   "curse": false,
+   "suffix": "медитации",
+   "weight": 5
+  },
+  "gold_find": {
+   "slots": [
+    "gloves",
+    "ring",
+    "amulet",
+    "helmet"
+   ],
+   "base": [
+    0.1,
+    0.3
+   ],
+   "perLevel": 0.01,
+   "int": false,
+   "curse": false,
+   "suffix": "алчности",
+   "weight": 4
+  },
+  "stamina_regen": {
+   "slots": [
+    "chest",
+    "boots",
+    "amulet"
+   ],
+   "base": [
+    0.1,
+    0.25
+   ],
+   "perLevel": 0.008,
+   "int": false,
+   "curse": false,
+   "suffix": "дыхания",
+   "weight": 4
+  },
+  "curse_frail": {
+   "slots": "any",
+   "base": [
+    0.15,
+    0.25
+   ],
+   "perLevel": 0,
+   "int": false,
+   "curse": true,
+   "suffix": "",
+   "weight": 1
+  },
+  "curse_slow": {
+   "slots": "any",
+   "base": [
+    -0.15,
+    -0.08
+   ],
+   "perLevel": 0,
+   "int": false,
+   "curse": true,
+   "suffix": "",
+   "weight": 1
+  },
+  "curse_hunger": {
+   "slots": "any",
+   "base": [
+    -1.5,
+    -0.8
+   ],
+   "perLevel": -0.05,
+   "int": false,
+   "curse": true,
+   "suffix": "",
+   "weight": 1
+  },
+  "curse_brittle": {
+   "slots": "any",
+   "base": [
+    -0.25,
+    -0.15
+   ],
+   "perLevel": 0,
+   "int": false,
+   "curse": true,
+   "suffix": "",
+   "weight": 1
+  }
+ },
+ "uniques": {
+  "raven_grief": {
+   "name": "Скорбь Ворона",
+   "base": "long_sword",
+   "fixed": [
+    {
+     "id": "dmg_pct",
+     "v": 0.25
+    }
+   ]
+  },
+  "ash_crown": {
+   "name": "Венец Пепельной Зари",
+   "base": "iron_helm",
+   "fixed": [
+    {
+     "id": "res_fire",
+     "v": 0.3
+    }
+   ]
+  },
+  "crypt_whisper": {
+   "name": "Шёпот Склепа",
+   "base": "bone_wand",
+   "fixed": [
+    {
+     "id": "int",
+     "v": 5
+    }
+   ]
+  },
+  "saint_hand": {
+   "name": "Длань Святой",
+   "base": "holy_symbol",
+   "fixed": [
+    {
+     "id": "wil",
+     "v": 5
+    }
+   ]
+  },
+  "shadow_fang": {
+   "name": "Клык Тени",
+   "base": "kris",
+   "fixed": [
+    {
+     "id": "crit",
+     "v": 0.08
+    }
+   ]
+  },
+  "frost_song": {
+   "name": "Морозная Песнь",
+   "base": "rune_staff",
+   "fixed": [
+    {
+     "id": "spell_pct",
+     "v": 0.2
+    }
+   ]
+  },
+  "nameless_bulwark": {
+   "name": "Оплот Безымянного",
+   "base": "kite_shield",
+   "fixed": [
+    {
+     "id": "hp",
+     "v": 40
+    }
+   ]
+  },
+  "mourner_string": {
+   "name": "Тетива Плакальщицы",
+   "base": "long_bow",
+   "fixed": [
+    {
+     "id": "dex",
+     "v": 5
+    }
+   ]
+  },
+  "blood_oath": {
+   "name": "Кольцо Кровавой Клятвы",
+   "base": "ring",
+   "fixed": [
+    {
+     "id": "vit",
+     "v": 4
+    }
+   ]
+  },
+  "last_breath": {
+   "name": "Амулет Последнего Вздоха",
+   "base": "amulet",
+   "fixed": [
+    {
+     "id": "mana",
+     "v": 30
+    }
+   ]
+  }
+ },
+ "rareNames": [
+  "Пепел зари",
+  "Тихий плач",
+  "Зов глубин",
+  "Сломанная клятва",
+  "Последний свет",
+  "Кровь мучеников",
+  "Сон без снов",
+  "Шёпот праха",
+  "Чёрная свеча",
+  "Долг мертвеца",
+  "Ржавая молитва",
+  "Холод склепа",
+  "Поминальный звон",
+  "Серая вдова",
+  "Пустой трон"
+ ],
+ "classes": {
+  "warrior": {
+   "name": "Воин",
+   "attrs": {
+    "str": 14,
+    "dex": 8,
+    "int": 3,
+    "vit": 11,
+    "end": 10,
+    "wil": 4
+   },
+   "weaponTypes": [
+    "sword",
+    "axe",
+    "mace"
+   ],
+   "offhandTypes": [
+    "shield"
+   ],
+   "startItems": [
+    "hand_axe",
+    "padded_tunic",
+    "leather_boots"
+   ]
+  },
+  "knight": {
+   "name": "Рыцарь",
+   "attrs": {
+    "str": 12,
+    "dex": 6,
+    "int": 3,
+    "vit": 14,
+    "end": 11,
+    "wil": 6
+   },
+   "weaponTypes": [
+    "sword",
+    "mace"
+   ],
+   "offhandTypes": [
+    "shield"
+   ],
+   "startItems": [
+    "short_sword",
+    "buckler",
+    "chain_mail",
+    "iron_helm"
+   ]
+  },
+  "rogue": {
+   "name": "Разбойник",
+   "attrs": {
+    "str": 7,
+    "dex": 15,
+    "int": 5,
+    "vit": 9,
+    "end": 12,
+    "wil": 3
+   },
+   "weaponTypes": [
+    "dagger",
+    "bow"
+   ],
+   "offhandTypes": [],
+   "startItems": [
+    "dagger",
+    "leather_cap",
+    "leather_boots"
+   ]
+  },
+  "mage": {
+   "name": "Маг",
+   "attrs": {
+    "str": 3,
+    "dex": 7,
+    "int": 16,
+    "vit": 8,
+    "end": 7,
+    "wil": 10
+   },
+   "weaponTypes": [
+    "staff",
+    "wand"
+   ],
+   "offhandTypes": [
+    "tome"
+   ],
+   "startItems": [
+    "oak_staff",
+    "cloth_robe",
+    "hood"
+   ]
+  },
+  "necromancer": {
+   "name": "Некромант",
+   "attrs": {
+    "str": 4,
+    "dex": 6,
+    "int": 14,
+    "vit": 9,
+    "end": 7,
+    "wil": 12
+   },
+   "weaponTypes": [
+    "wand",
+    "dagger"
+   ],
+   "offhandTypes": [
+    "focus"
+   ],
+   "startItems": [
+    "bone_wand",
+    "skull_focus",
+    "cloth_robe"
+   ]
+  },
+  "cleric": {
+   "name": "Жрец",
+   "attrs": {
+    "str": 10,
+    "dex": 5,
+    "int": 6,
+    "vit": 11,
+    "end": 9,
+    "wil": 14
+   },
+   "weaponTypes": [
+    "mace",
+    "staff"
+   ],
+   "offhandTypes": [
+    "shield",
+    "holy_symbol"
+   ],
+   "startItems": [
+    "mace",
+    "holy_symbol",
+    "padded_tunic"
+   ]
+  }
+ },
+ "skills": {
+  "cleave": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Рассечение"
+  },
+  "blood_rage": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Кровавая ярость"
+  },
+  "whirlwind": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 6,
+   "requires": [
+    {
+     "id": "cleave",
+     "rank": 1
+    }
+   ],
+   "name": "Вихрь"
+  },
+  "execution": {
+   "cls": "warrior",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 10,
+   "requires": [
+    {
+     "id": "cleave",
+     "rank": 3
+    }
+   ],
+   "name": "Казнь"
+  },
+  "iron_skin": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Железная кожа"
+  },
+  "bloodlust": {
+   "cls": "warrior",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [
+    {
+     "id": "blood_rage",
+     "rank": 1
+    }
+   ],
+   "name": "Жажда крови"
+  },
+  "shield_bash": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Удар щитом"
+  },
+  "charge": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Натиск"
+  },
+  "taunt": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 5,
+   "requires": [],
+   "name": "Вызов"
+  },
+  "fortress": {
+   "cls": "knight",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "taunt",
+     "rank": 1
+    }
+   ],
+   "name": "Бастион"
+  },
+  "bulwark": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Твердыня"
+  },
+  "retribution": {
+   "cls": "knight",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Возмездие"
+  },
+  "fan_of_knives": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Веер клинков"
+  },
+  "shadow_step": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Шаг в тень"
+  },
+  "poison_blade": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 5,
+   "requires": [],
+   "name": "Отравленный клинок"
+  },
+  "smoke_bomb": {
+   "cls": "rogue",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "shadow_step",
+     "rank": 1
+    }
+   ],
+   "name": "Дымовая бомба"
+  },
+  "assassin": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Убийца"
+  },
+  "evasion": {
+   "cls": "rogue",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Увёртливость"
+  },
+  "fireball": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Огненный шар"
+  },
+  "frost_nova": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Кольцо льда"
+  },
+  "arcane_explosion": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 5,
+   "requires": [],
+   "name": "Тайный взрыв"
+  },
+  "meteor": {
+   "cls": "mage",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 10,
+   "requires": [
+    {
+     "id": "fireball",
+     "rank": 3
+    }
+   ],
+   "name": "Метеор"
+  },
+  "elemental_mastery": {
+   "cls": "mage",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Власть стихий"
+  },
+  "mana_flow": {
+   "cls": "mage",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Поток маны"
+  },
+  "raise_skeleton": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Поднять скелета"
+  },
+  "bone_spear": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Костяное копьё"
+  },
+  "corpse_explosion": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 5,
+   "requires": [],
+   "name": "Взрыв трупа"
+  },
+  "decrepify": {
+   "cls": "necromancer",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "corpse_explosion",
+     "rank": 1
+    }
+   ],
+   "name": "Порча"
+  },
+  "soul_harvest": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Жатва душ"
+  },
+  "dark_pact": {
+   "cls": "necromancer",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Тёмный договор"
+  },
+  "heal": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Исцеление"
+  },
+  "holy_bolt": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 3,
+   "requires": [],
+   "name": "Святая стрела"
+  },
+  "sanctuary": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 5,
+   "requires": [],
+   "name": "Святилище"
+  },
+  "smite": {
+   "cls": "cleric",
+   "kind": "active",
+   "maxRank": 5,
+   "reqLevel": 8,
+   "requires": [
+    {
+     "id": "holy_bolt",
+     "rank": 2
+    }
+   ],
+   "name": "Кара"
+  },
+  "undead_bane": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 1,
+   "requires": [],
+   "name": "Гроза нежити"
+  },
+  "devotion": {
+   "cls": "cleric",
+   "kind": "passive",
+   "maxRank": 5,
+   "reqLevel": 4,
+   "requires": [],
+   "name": "Благочестие"
+  }
+ },
+ "xpTable": [
+  0,
+  120,
+  349,
+  667,
+  1065,
+  1537,
+  2080,
+  2690,
+  3364,
+  4101,
+  4899,
+  5755,
+  6670,
+  7640,
+  8666,
+  9746,
+  10880,
+  12066,
+  13304,
+  14593,
+  15932,
+  17321,
+  18758,
+  20245,
+  21779,
+  23361,
+  24989,
+  26664,
+  28386,
+  30153,
+  31965,
+  33822,
+  35723,
+  37669,
+  39658,
+  41691,
+  43767,
+  45886,
+  48048,
+  50251,
+  52497
+ ],
+ "maxLevel": 40,
+ "attrPerLevel": 5,
+ "skillPerLevel": 1,
+ "potions": {
+  "health": {
+   "name": "Зелье здоровья",
+   "heal": 0.4,
+   "price": 25
+  },
+  "mana": {
+   "name": "Зелье маны",
+   "heal": 0.5,
+   "price": 25
+  }
+ },
+ "dungeons": {
+  "crypt": {
+   "name": "Забытый склеп",
+   "level": 1,
+   "unlock": null,
+   "boss": "bone_priest"
+  },
+  "catacombs": {
+   "name": "Древние катакомбы",
+   "level": 5,
+   "unlock": "crypt",
+   "boss": "hollow_knight"
+  },
+  "cathedral": {
+   "name": "Заброшенный собор",
+   "level": 10,
+   "unlock": "catacombs",
+   "boss": "forgotten_saint"
+  },
+  "sanctum": {
+   "name": "Кровавое святилище",
+   "level": 15,
+   "unlock": "cathedral",
+   "boss": "blood_abomination"
+  }
+ },
+ "quests": {
+  "bones_rest": {
+   "kind": "kill",
+   "target": "skeleton",
+   "count": 15,
+   "reward": {
+    "xp": 300,
+    "gold": 120
+   },
+   "minLevel": 1,
+   "name": "Кости не спят"
+  },
+  "priest": {
+   "kind": "boss",
+   "target": "bone_priest",
+   "count": 1,
+   "reward": {
+    "xp": 600,
+    "gold": 250
+   },
+   "minLevel": 1,
+   "name": "Жрец без паствы"
+  },
+  "cultists": {
+   "kind": "kill",
+   "target": "cultist",
+   "count": 10,
+   "reward": {
+    "xp": 450,
+    "gold": 180
+   },
+   "minLevel": 3,
+   "name": "Пепел ереси"
+  },
+  "wraiths": {
+   "kind": "kill",
+   "target": "wraith",
+   "count": 12,
+   "reward": {
+    "xp": 900,
+    "gold": 300
+   },
+   "minLevel": 5,
+   "name": "Голоса в темноте"
+  },
+  "hollow": {
+   "kind": "boss",
+   "target": "hollow_knight",
+   "count": 1,
+   "reward": {
+    "xp": 1500,
+    "gold": 500
+   },
+   "minLevel": 5,
+   "name": "Страж катакомб"
+  },
+  "knights": {
+   "kind": "kill",
+   "target": "undead_knight",
+   "count": 10,
+   "reward": {
+    "xp": 1600,
+    "gold": 450
+   },
+   "minLevel": 7,
+   "name": "Разжалованные"
+  },
+  "saint": {
+   "kind": "boss",
+   "target": "forgotten_saint",
+   "count": 1,
+   "reward": {
+    "xp": 3000,
+    "gold": 900
+   },
+   "minLevel": 10,
+   "name": "Последняя молитва"
+  },
+  "abominations": {
+   "kind": "kill",
+   "target": "abomination",
+   "count": 6,
+   "reward": {
+    "xp": 3200,
+    "gold": 900
+   },
+   "minLevel": 10,
+   "name": "Плоть без имени"
+  },
+  "blood": {
+   "kind": "boss",
+   "target": "blood_abomination",
+   "count": 1,
+   "reward": {
+    "xp": 6000,
+    "gold": 2000
+   },
+   "minLevel": 15,
+   "name": "Сердце святилища"
+  }
+ }
+}

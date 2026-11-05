@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": ["vite/client"], "paths": { "@shared/*": ["../shared/*"] } },
+  "include": ["src", "../shared/data", "../shared/dungeon", "../shared/sim", "../shared/*.ts"]
+}

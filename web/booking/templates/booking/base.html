@@ -17,7 +17,7 @@
       </a>
       <nav class="nav">
         <a href="{% url 'booking:index' %}" class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}">Рейсы</a>
-        <a href="{% url 'world:home' %}" class="{% if request.resolver_match.app_name == 'world' %}is-active{% endif %}">Мир</a>
+        <a href="{% url 'hollow:index' %}">The Hollow</a>
         <a href="{% url 'booking:my_bookings' %}" class="{% if request.resolver_match.url_name == 'my_bookings' %}is-active{% endif %}">Мои брони</a>
         <a href="{% url 'admin:index' %}">Админка</a>
       </nav>

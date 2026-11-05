@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+@theme {
+  --font-ui: "Pixelify Sans", ui-monospace, monospace;
+  --font-head: "Ruslan Display", "Pixelify Sans", serif;
+  --font-logo: "Jacquard 12", "Ruslan Display", serif;
+  --color-ink: #0b0806;
+  --color-coal: #15100c;
+  --color-soot: #1f1813;
+  --color-ash: #3a2f25;
+  --color-bone: #d8cdb2;
+  --color-parch: #b8a98a;
+  --color-dim: #7d705c;
+  --color-gold: #c9a46a;
+  --color-ember: #e0793a;
+  --color-blood: #9b2a35;
+  --color-rust: #6e2a1f;
+  --color-moss: #7f9a6a;
+  --color-mana: #4a6fb0;
+  --color-stam: #b59a3a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #0b0806;
+  color: var(--color-bone);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: none;
+  image-rendering: pixelated;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
+
+canvas {
+  image-rendering: pixelated;
+}
+
+/* Рамка в духе старых RPG: тёмная плашка с двойным скосом. */
+.panel {
+  background: linear-gradient(#1a130eee, #0f0b08f2);
+  border: 2px solid #4a3b2c;
+  box-shadow:
+    inset 0 0 0 2px #0b0806,
+    inset 0 0 0 3px #2b221a,
+    0 6px 0 #00000080;
+}
+
+.panel-title {
+  font-family: var(--font-head);
+  color: var(--color-gold);
+  letter-spacing: 0.06em;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.btn {
+  background: linear-gradient(#3a2d22, #261d16);
+  border: 2px solid #5c4935;
+  box-shadow:
+    inset 0 2px 0 #6e5840,
+    inset 0 -2px 0 #120d09;
+  color: var(--color-bone);
+  padding: 6px 14px;
+  text-shadow: 1px 1px 0 #000;
+  transition: filter 0.08s;
+}
+.btn:hover:not(:disabled) {
+  filter: brightness(1.25);
+  color: #fff3d6;
+}
+.btn:active:not(:disabled) {
+  box-shadow:
+    inset 0 2px 0 #120d09,
+    inset 0 -1px 0 #6e5840;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-red {
+  background: linear-gradient(#6a2228, #43141a);
+  border-color: #8c3038;
+  box-shadow:
+    inset 0 2px 0 #a44a50,
+    inset 0 -2px 0 #1e0709;
+}
+.btn-gold {
+  background: linear-gradient(#6b5228, #43321a);
+  border-color: #a07e44;
+  box-shadow:
+    inset 0 2px 0 #c9a46a,
+    inset 0 -2px 0 #1e1407;
+}
+
+.field {
+  background: #0b0806;
+  border: 2px solid #4a3b2c;
+  box-shadow: inset 2px 2px 0 #000;
+  color: var(--color-bone);
+  padding: 6px 8px;
+  outline: none;
+}
+.field:focus {
+  border-color: var(--color-gold);
+}
+
+/* Ячейка инвентаря / хотбара как на референсе. */
+.slot {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  background: #0d0a07;
+  border: 2px solid #3d3126;
+  box-shadow:
+    inset 2px 2px 0 #000,
+    inset -1px -1px 0 #2b221a;
+}
+.slot.hot {
+  border-color: var(--color-gold);
+}
+.slot img,
+.slot canvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.bar {
+  position: relative;
+  height: 14px;
+  background: #0b0806;
+  border: 2px solid #3d3126;
+  box-shadow: inset 2px 2px 0 #000;
+  overflow: hidden;
+}
+.bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  transition: width 0.12s linear;
+}
+.bar > span {
+  position: absolute;
+  inset: 0;
+  font-size: 10px;
+  line-height: 10px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: #4a3b2c;
+}
+.scroll::-webkit-scrollbar-track {
+  background: #0b0806;
+}
+
+.logo {
+  font-family: var(--font-logo);
+  color: #e8dcc0;
+  text-shadow:
+    3px 3px 0 #3a0d0f,
+    0 0 24px #9b2a3580;
+  letter-spacing: 0.04em;
+}
+
+.tooltip {
+  pointer-events: none;
+  position: fixed;
+  z-index: 60;
+  max-width: 300px;
+  font-size: 13px;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.86;
+  }
+}
+.flicker {
+  animation: flicker 3s infinite;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.rise {
+  animation: rise 0.25s ease-out both;
+}
+
+/* Лёгкий VHS-шум поверх меню (сама игра шумит в шейдере). */
+.menu-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, #0000 0 2px, #0000002e 2px 3px);
+  mix-blend-mode: multiply;
+}

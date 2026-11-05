@@ -76,10 +76,55 @@ export class Entities {
   private tB = 0;
   private particleMat = new Map<string, THREE.SpriteMaterial>();
 
+  /** Постоянный пул «летающих» огней: число источников не меняется — шейдеры не пересобираются. */
+  private dynLights: THREE.PointLight[] = [];
+  private flashes: { x: number; y: number; z: number; color: THREE.Color; power: number; radius: number; life: number; max: number }[] = [];
+
   constructor(scene: THREE.Scene, field: LightField, selfId: string) {
     this.scene = scene;
     this.field = field;
     this.selfId = selfId;
+    for (let i = 0; i < 4; i++) {
+      const l = new THREE.PointLight(0xffffff, 0, 8, 1.4);
+      scene.add(l);
+      this.dynLights.push(l);
+    }
+  }
+
+  /** Короткая вспышка света: взрыв, кольцо льда, удар святым светом. */
+  flash(x: number, y: number, z: number, color: string, power = 2, radius = 12, dur = 0.45) {
+    this.flashes.push({ x, y, z, color: new THREE.Color(color), power, radius, life: dur, max: dur });
+    if (this.flashes.length > 12) this.flashes.shift();
+  }
+
+  private updateLights(dt: number, t: number, cam: { x: number; z: number }) {
+    type Cand = { x: number; y: number; z: number; color: THREE.Color; i: number; radius: number; d: number };
+    const cands: Cand[] = [];
+    for (const [id, p] of this.projectiles) {
+      const L = p.obj.userData.light as { color: THREE.Color; power: number; radius: number } | undefined;
+      if (!L) continue;
+      const pos = p.obj.position;
+      // живое мерцание огня
+      const fl = 0.85 + 0.15 * Math.sin(t * 31 + id) * Math.sin(t * 17 + id * 0.7);
+      cands.push({ x: pos.x, y: pos.y, z: pos.z, color: L.color, i: 12 * L.power * fl, radius: L.radius, d: Math.hypot(pos.x - cam.x, pos.z - cam.z) });
+    }
+    this.flashes = this.flashes.filter((f) => (f.life -= dt) > 0);
+    for (const f of this.flashes) {
+      const k = f.life / f.max;
+      cands.push({ x: f.x, y: f.y, z: f.z, color: f.color, i: 14 * f.power * k * k, radius: f.radius, d: Math.hypot(f.x - cam.x, f.z - cam.z) - 3 });
+    }
+    cands.sort((a, b) => a.d - b.d);
+    this.dynLights.forEach((l, i) => {
+      const c = cands[i];
+      if (!c || c.d > 30) {
+        l.intensity = 0;
+        return;
+      }
+      l.position.set(c.x, c.y, c.z);
+      l.color.copy(c.color);
+      l.intensity = c.i;
+      l.distance = c.radius;
+    });
   }
 
   /** Новый снимок от симуляции (локальной или сетевой). */
@@ -184,8 +229,8 @@ export class Entities {
     const core = new THREE.Mesh(new THREE.OctahedronGeometry(kind === "fireball" ? 0.2 : 0.11), new THREE.MeshBasicMaterial({ color }));
     core.name = "core";
     g.add(glow, core);
-    const light = new THREE.PointLight(color, 2.5, 5, 1.5);
-    g.add(light);
+    // свет снаряда раздаётся из общего пула (см. updateLights)
+    g.userData.light = { color: new THREE.Color(color), power: kind === "fireball" ? 1.6 : kind === "ebolt" ? 0.8 : 1.0, radius: kind === "fireball" ? 13 : 8 };
     return g;
   }
 
@@ -477,6 +522,7 @@ export class Entities {
       const core = p.obj.getObjectByName("core");
       if (core) core.rotation.set(t * 8, t * 6, 0);
     }
+    this.updateLights(dt, t, cam);
     const simT = this.snapB ? this.snapB.time + (now - this.tB) : 0;
     for (const [, g] of this.grounds) {
       const d = g.data;
@@ -563,6 +609,8 @@ export class Entities {
     for (const r of this.rings) this.scene.remove(r.m);
     for (const m of this.splats) this.scene.remove(m);
     this.splats = [];
+    this.flashes = [];
+    for (const l of this.dynLights) l.intensity = 0;
     this.enemies.clear();
     this.players.clear();
     this.projectiles.clear();

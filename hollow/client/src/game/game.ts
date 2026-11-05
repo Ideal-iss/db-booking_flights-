@@ -261,6 +261,7 @@ export class Game {
         case "cast":
           if (e.p === me) {
             this.view.castAnim();
+            if (this.ctl && e.skill !== "bolt") ents.flash(this.ctl.x - Math.sin(this.ctl.yaw) * 0.8, 1.4, this.ctl.z - Math.cos(this.ctl.yaw) * 0.8, ELEMENT_COLOR[this.stats.boltElement] || "#ffd8a0", 0.8, 7, 0.3);
             const sk = SKILL_BY_ID[e.skill as string];
             if (sk) this.cb.say(sk.name, "#c9a46a");
             audio.play(sk?.cls === "mage" ? "fire" : sk?.cls === "cleric" ? "holy" : sk?.cls === "necromancer" ? "dark" : e.skill === "bolt" ? "cast" : "heavy");
@@ -346,6 +347,7 @@ export class Game {
           }
           break;
         case "explode":
+          ents.flash(e.x as number, 1.2, e.z as number, ELEMENT_COLOR[e.el as string] || "#ff8a2a", 2.2, 6 + (e.r as number) * 3, 0.55);
           ents.splat(e.x as number, e.z as number, "soot", Math.min(4, (e.r as number) * 1.4));
           ents.burst(e.x as number, 0.6, e.z as number, ELEMENT_COLOR[e.el as string] || "#ff8a2a", 30, { speed: (e.r as number) * 1.6, additive: true, size: 0.35, life: 0.5 });
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, ELEMENT_COLOR[e.el as string] || "#ff8a2a");
@@ -353,6 +355,7 @@ export class Game {
           if (this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 8) this.shake = Math.max(this.shake, 0.4);
           break;
         case "nova":
+          ents.flash(e.x as number, 1.4, e.z as number, ELEMENT_COLOR[e.el as string] || "#ffffff", 1.6, 4 + (e.r as number) * 2, 0.5);
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, ELEMENT_COLOR[e.el as string] || "#fff");
           ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#fff", 24, { speed: e.r as number, additive: true, size: 0.25, up: 0.5, g: 0 });
           audio.play(e.el === "cold" ? "frost" : e.el === "holy" ? "holy" : "explode", pos, 0.8);
@@ -409,6 +412,7 @@ export class Game {
           this.cb.say("Открылся портал в лагерь.", "#8fd0ff");
           break;
         case "impact":
+          if (e.el !== "physical") ents.flash(e.x as number, e.y as number, e.z as number, ELEMENT_COLOR[e.el as string] || "#ffffff", 0.9, 7, 0.3);
           ents.burst(e.x as number, e.y as number, e.z as number, ELEMENT_COLOR[e.el as string] || "#c8c0b0", 6, { speed: 2, size: 0.06 });
           audio.play("impact", pos, 0.4);
           break;

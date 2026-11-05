@@ -15,7 +15,7 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
       const S = Math.floor(Math.min(620 / d.w, 520 / d.h));
       c.width = d.w * S;
       c.height = d.h * S;
-      g.fillStyle = "#0b0806";
+      g.fillStyle = "#121110";
       g.fillRect(0, 0, c.width, c.height);
       for (let y = 0; y < d.h; y++)
         for (let x = 0; x < d.w; x++) {
@@ -23,9 +23,9 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
           if (!explored[i] || d.cells[i] === Cell.Wall) continue;
           const opened = d.cells[i] === Cell.Secret ? data.opened?.secrets.some((id) => d.secrets.find((s) => s.id === id && s.cx === x && s.cy === y)) : true;
           if (!opened) continue;
-          g.fillStyle = "#6a5a48";
+          g.fillStyle = "#4d4943";
           g.fillRect(x * S, y * S, S, S);
-          g.fillStyle = "#7a6a56";
+          g.fillStyle = "#5a5650";
           g.fillRect(x * S, y * S, S, 1);
         }
       const pt = (wx: number, wz: number, col: string, r: number) => {
@@ -45,7 +45,7 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
       g.save();
       g.translate((data.x / CELL) * S, (data.z / CELL) * S);
       g.rotate(-data.yaw);
-      g.fillStyle = "#ffe9a0";
+      g.fillStyle = "#ece6da";
       g.beginPath();
       g.moveTo(0, -7);
       g.lineTo(5, 5);
@@ -61,16 +61,13 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
   return (
     <Panel title="Карта" onClose={onClose}>
       <div className="flex flex-col items-center gap-2">
-        <canvas ref={ref} className="border-2 border-[#3d3126]" style={{ imageRendering: "pixelated" }} />
-        <div className="text-dim flex flex-wrap gap-4 text-xs">
-          <span><b className="text-[#ffe9a0]">▲</b> вы</span>
-          <span><b className="text-[#7fe07f]">■</b> союзники</span>
-          <span><b className="text-[#c9a46a]">■</b> сундуки</span>
-          <span><b className="text-[#7fe0b0]">■</b> святыни</span>
-          <span><b className="text-[#6f9fd8]">■</b> вход</span>
-          <span><b className="text-[#8fd0ff]">■</b> портал после босса</span>
+        <canvas ref={ref} className="rounded-[6px] border border-line" style={{ imageRendering: "pixelated" }} />
+        <div className="text-parch flex flex-wrap gap-4 text-xs">
+          {[["#ece6da", "вы"], ["#e0505a", "логово босса"], ["#c9a46a", "сундуки"], ["#7fe0b0", "святыни"], ["#6f9fd8", "вход"], ["#8fd0ff", "портал"]].map(([c, n]) => (
+            <span key={n} className="flex items-center gap-2"><i className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />{n}</span>
+          ))}
         </div>
-        <div className="text-dim text-xs">Открываются только места, где вы побывали. Тайники на карту не попадают, пока их не найти.</div>
+        <p className="text-dim text-xs">На карте только места, где вы побывали, и логово босса</p>
       </div>
     </Panel>
   );

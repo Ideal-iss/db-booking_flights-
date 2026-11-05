@@ -4,7 +4,7 @@ import { useGame } from "../store";
 import { api, ApiError } from "../api";
 import { ATTR_IDS, ATTR_NAMES, CLASSES, CLASS_IDS, type ClassId } from "@shared/data/classes";
 import { BASE_BY_ID } from "@shared/data/items";
-import { skillsOf } from "@shared/data/skills";
+import { TREES } from "@shared/data/skills";
 import type { Appearance } from "@shared/data/stats";
 import { Engine } from "../game/engine";
 import { makeAvatar, setAvatarWeapons, poseRig, SKIN, HAIR_COLORS, CLOTH, TRIM } from "../game/models";
@@ -29,16 +29,16 @@ export function CharacterCreate() {
     if (!host.current) return;
     const engine = new Engine(host.current, { ...settings, resolution: 200, fov: 40 });
     const scene = engine.scene;
-    scene.background = new THREE.Color("#0b0705");
-    scene.fog = new THREE.Fog("#0b0705", 4, 12);
+    scene.background = new THREE.Color("#141311");
+    scene.fog = new THREE.Fog("#141311", 4, 11);
     scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const torch = new THREE.PointLight(0xffa050, 7, 10, 1.6);
     torch.position.set(1.5, 2.4, 1.6);
     scene.add(torch);
-    const rim = new THREE.PointLight(0x6f8fd8, 5, 8, 1.6);
+    const rim = new THREE.PointLight(0x8a96b0, 3, 8, 1.6);
     rim.position.set(-2, 2, -1.5);
     scene.add(rim);
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(2.2, 16), new THREE.MeshLambertMaterial({ color: "#2a2018" }));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(2.2, 16), new THREE.MeshLambertMaterial({ color: "#26221d" }));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
     const flame = makeFlame(1.4);
@@ -98,16 +98,22 @@ export function CharacterCreate() {
 
   const c = CLASSES[cls];
   const pick = (label: string, values: string[] | [string, string][], cur: number | string, on: (v: any) => void, swatch = false) => (
-    <div className="mb-2">
-      <div className="text-parch mb-1 text-xs">{label}</div>
+    <div className="flex flex-col gap-2">
+      <div className="label">{label}</div>
       <div className="flex flex-wrap gap-1">
         {values.map((v, i) => {
           const val = Array.isArray(v) ? v[0] : i;
           const active = cur === val;
           return swatch ? (
-            <button key={i} onClick={() => on(val)} className="h-6 w-6 border-2" style={{ background: v as string, borderColor: active ? "#c9a46a" : "#3d3126" }} />
+            <button
+              key={i}
+              onClick={() => on(val)}
+              aria-label={`${label} ${i + 1}`}
+              className="h-7 w-7 rounded-[4px] border transition-colors"
+              style={{ background: v as string, borderColor: active ? "#ece6da" : "#efe9de1f", boxShadow: active ? "0 0 0 1px #141311 inset" : undefined }}
+            />
           ) : (
-            <button key={i} onClick={() => on(val)} className={`btn px-2 py-0.5 text-xs ${active ? "btn-gold" : ""}`}>{(v as [string, string])[1]}</button>
+            <button key={i} onClick={() => on(val)} className={`btn min-h-7 px-2 text-xs ${active ? "is-on" : ""}`}>{(v as [string, string])[1]}</button>
           );
         })}
       </div>
@@ -115,45 +121,55 @@ export function CharacterCreate() {
   );
 
   return (
-    <MenuBackdrop>
-      <div className="panel rise flex h-[min(640px,92vh)] w-[min(1100px,96vw)] gap-4 p-4">
-        <div className="flex w-[300px] flex-col gap-2">
-          <h2 className="panel-title text-xl">Класс</h2>
-          <div className="grid grid-cols-2 gap-1.5">
+    <MenuBackdrop scene={false}>
+      <div className="rise grid h-full grid-cols-[320px_1fr_320px] gap-8 px-6 pt-20 pb-8">
+        <div className="flex min-h-0 flex-col gap-6">
+          <h2 className="panel-title">Класс</h2>
+          <div className="flex flex-col gap-1">
             {CLASS_IDS.map((id) => (
-              <button key={id} onClick={() => { setCls(id); audio.play("click"); }} className={`btn py-2 ${id === cls ? "btn-gold" : ""}`} style={{ color: id === cls ? undefined : CLASSES[id].color }}>
-                {CLASSES[id].name}
+              <button
+                key={id}
+                onClick={() => { setCls(id); audio.play("click"); }}
+                className={`flex h-10 items-center justify-between rounded-[4px] border px-3 text-left transition-colors ${id === cls ? "border-line-strong bg-ash" : "border-transparent hover:bg-soot"}`}
+              >
+                <span>{CLASSES[id].name}</span>
+                <span className="text-dim text-xs">{CLASSES[id].tagline}</span>
               </button>
             ))}
           </div>
-          <div className="mt-2" style={{ color: c.color }}>{c.tagline}</div>
-          <div className="text-parch text-sm">{c.description}</div>
-          <div className="mt-1 grid grid-cols-3 gap-x-2 text-xs">
-            {ATTR_IDS.map((a) => (
-              <div key={a}>
-                <span className="text-dim">{ATTR_NAMES[a]}</span> {c.attrs[a]}
-              </div>
-            ))}
+          <div className="flex flex-col gap-4 border-t border-line pt-6">
+            <p className="text-parch text-sm">{c.description}</p>
+            <dl className="grid grid-cols-3 gap-x-4 gap-y-1 text-xs">
+              {ATTR_IDS.map((a) => (
+                <div key={a} className="flex justify-between">
+                  <dt className="text-dim">{ATTR_NAMES[a]}</dt>
+                  <dd>{c.attrs[a]}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="text-sm">
+              <div className="label mb-1">Ветки навыков</div>
+              <div className="text-parch">{TREES[cls].join(" · ")}</div>
+            </div>
           </div>
-          <div className="text-dim mt-1 text-xs">Навыки: {skillsOf(cls).map((s) => s.name).join(", ")}</div>
         </div>
-        <div ref={host} className="relative min-w-0 flex-1 border-2 border-[#3d3126]" />
-        <div className="flex w-[280px] flex-col">
-          <h2 className="panel-title mb-2 text-xl">Облик</h2>
+        <div ref={host} className="relative min-w-0 overflow-hidden rounded-[8px]" />
+        <div className="flex min-h-0 flex-col gap-4">
+          <h2 className="panel-title">Облик</h2>
           {pick("Кожа", SKIN, app.skin, (v) => setApp({ ...app, skin: v }), true)}
           {pick("Причёска", HAIRS, app.hair, (v) => setApp({ ...app, hair: v }))}
           {pick("Цвет волос", HAIR_COLORS, app.hairColor, (v) => setApp({ ...app, hairColor: v }), true)}
           {pick("Одежда", CLOTH, app.cloth, (v) => setApp({ ...app, cloth: v }), true)}
           {pick("Отделка", TRIM, app.trim, (v) => setApp({ ...app, trim: v }), true)}
           {pick("Особая примета", ACCS, app.accessory, (v) => setApp({ ...app, accessory: v }))}
-          <label className="text-parch mt-2 text-sm">
-            Имя
-            <input className="field mt-1 w-full" maxLength={20} value={name} onChange={(e) => setName(e.target.value)} placeholder="3–20 символов" />
+          <label className="flex flex-col gap-1">
+            <span className="label">Имя</span>
+            <input className="field w-full" maxLength={20} value={name} onChange={(e) => setName(e.target.value)} placeholder="3–20 символов" />
           </label>
-          {err && <div className="mt-2 text-sm text-[#e0505a]">{err}</div>}
-          <div className="mt-auto flex gap-2 pt-3">
-            <button className="btn" onClick={() => set({ screen: characters.length ? "select" : "select" })}>Назад</button>
-            <button className="btn btn-red flex-1 py-2" disabled={busy || name.trim().length < 3} onClick={create}>Создать</button>
+          {err && <div className="text-bad text-sm">{err}</div>}
+          <div className="mt-auto flex gap-2">
+            <button className="btn h-11" onClick={() => set({ screen: "select" })}>Назад</button>
+            <button className="btn btn-primary h-11 flex-1" disabled={busy || name.trim().length < 3} onClick={create}>Создать героя</button>
           </div>
         </div>
       </div>

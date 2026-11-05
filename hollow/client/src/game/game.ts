@@ -236,13 +236,13 @@ export class Game {
           if (e.p === me) { audio.play("block"); this.shake = Math.max(this.shake, 0.15); }
           break;
         case "parry":
-          if (e.p === me) { audio.play("parry"); this.cb.say("Парирование!", "#ffd84a"); }
+          if (e.p === me) { audio.play("parry"); this.cb.say("Парирование", "#ffd84a"); }
           break;
         case "ward":
           if (e.p === me) audio.play("frost", undefined, 0.6);
           break;
         case "guardbreak":
-          if (e.p === me) { this.cb.say("Защита пробита!", "#ff6a4a"); audio.play("hurt"); }
+          if (e.p === me) { this.cb.say("Защита пробита", "#ff6a4a"); audio.play("hurt"); }
           break;
         case "evade":
           if (e.p === me) this.cb.say("Уклонение", "#9ad0ff");
@@ -303,7 +303,7 @@ export class Game {
           audio.play(undead ? "bone" : "death", pos);
           audio.play("death", pos, 0.6);
           if (e.boss) {
-            this.cb.say(`${ENEMIES[type].name} повержен${type === "forgotten_saint" ? "а" : ""}!`, "#ffd84a");
+            this.cb.say(`${ENEMIES[type].name} повержен${type === "forgotten_saint" ? "а" : ""}`, "#ffd84a");
             audio.stopBoss();
             this.bossId = null;
             this.shake = 1;
@@ -332,7 +332,7 @@ export class Game {
         case "secret":
           audio.play("secret");
           this.shake = Math.max(this.shake, 0.5);
-          this.cb.say("Стена с грохотом уходит в пол… Тайник!", "#c9a46a");
+          this.cb.say("Стена уходит в пол: за ней тайник", "#c9a46a");
           break;
         case "shrine":
           audio.play("shrine");
@@ -344,7 +344,7 @@ export class Game {
         case "levelup":
           if (e.p === me) {
             audio.play("levelup");
-            this.cb.say(`Новый уровень: ${e.level}! Очки атрибутов и навыков ждут в лагере.`, "#ffd84a");
+            this.cb.say(`Новый уровень ${e.level}. Очки атрибутов и навыков ждут в лагере`, "#ffd84a");
             if (this.ctl) ents.burst(this.ctl.x, 1, this.ctl.z, "#ffd84a", 40, { speed: 2, up: 4, g: 1, additive: true, size: 0.2, life: 1.2 });
           }
           break;
@@ -431,13 +431,13 @@ export class Game {
             audio.play("roar");
             audio.startBoss();
             const champ = ents.enemies.get(e.id as string)?.cur.name;
-            this.cb.say(champ ? `${champ} преграждает путь!` : `${ENEMIES[e.type as string]?.name || "Босс"} пробуждается…`, "#ff5a4a");
+            this.cb.say(champ ? `${champ} преграждает путь` : `${ENEMIES[e.type as string]?.name || "Босс"} пробуждается…`, "#ff5a4a");
           }
           break;
         case "boss_phase":
           audio.play("roar");
           this.shake = Math.max(this.shake, 0.6);
-          this.cb.say(e.phase === 3 ? "Полое Сердце разрывает тьму!" : "Босс впадает в ярость!", "#ff5a4a");
+          this.cb.say(e.phase === 3 ? "Полое Сердце разрывает тьму" : "Босс впадает в ярость", "#ff5a4a");
           break;
         case "exit_open":
           audio.play("portal");
@@ -462,7 +462,7 @@ export class Game {
           if (e.p === me) {
             this.cb.say("Вы пали…", "#ff3a2a");
             audio.play("death");
-          } else this.cb.say("Союзник пал! Подойдите и нажмите E, чтобы поднять.", "#ff6a4a");
+          } else this.cb.say("Союзник пал. Подойдите и нажмите E, чтобы поднять", "#ff6a4a");
           break;
         case "revived":
           if (e.p === me) this.cb.say("Вас подняли на ноги.", "#7fe07f");
@@ -497,7 +497,7 @@ export class Game {
         case "mimic":
           audio.play("roar", pos, 0.6);
           ents.burst(e.x as number, 0.6, e.z as number, "#6a4a2a", 18, { speed: 3, up: 3, size: 0.08 });
-          this.cb.say("Сундук оскалился — это мимик!", "#ff6a4a");
+          this.cb.say("Сундук оскалился: это мимик", "#ff6a4a");
           this.shake = Math.max(this.shake, 0.3);
           break;
         case "phased":

@@ -12,31 +12,31 @@ export function QuestsPanel({ onClose }: { onClose: () => void }) {
   const states = new Map(char.quests.map((q) => [q.id, q]));
   return (
     <Panel title="Доска поручений" onClose={onClose}>
-      <div className="text-parch mb-3 text-sm">Отец Мирон: «Мёртвые не должны ходить. Помоги им лечь обратно — и церковь не забудет».</div>
+      <p className="text-parch mb-4 font-[family-name:var(--font-head)] text-lg leading-6">«Мёртвые не должны ходить. Помоги им лечь обратно, и церковь не забудет». Отец Мирон</p>
       <div className="flex flex-col gap-2">
         {QUESTS.map((q) => {
           const st = states.get(q.id);
           const locked = char.level < q.minLevel;
           return (
-            <div key={q.id} className={`panel p-2 ${locked ? "opacity-50" : ""}`}>
-              <div className="flex items-center justify-between">
-                <div className="panel-title">{q.name}</div>
-                <div className="text-dim text-xs">{locked ? `с ${q.minLevel} уровня` : st?.claimed ? "выполнено" : st?.done ? "готово!" : `${st?.progress || 0}/${q.count}`}</div>
+            <div key={q.id} className={`panel flex items-center gap-4 p-4 ${locked ? "opacity-50" : ""}`}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-medium">{q.name}</div>
+                  <div className={`text-xs ${st?.done && !st.claimed ? "text-flame" : "text-dim"}`}>{locked ? `с ${q.minLevel} уровня` : st?.claimed ? "выполнено" : st?.done ? "готово" : `${st?.progress || 0} из ${q.count}`}</div>
+                </div>
+                <div className="text-parch text-sm">{q.description}</div>
+                <div className="text-dim mt-1 text-xs">Награда {q.reward.xp.toLocaleString("ru-RU")} опыта и {q.reward.gold.toLocaleString("ru-RU")} золота</div>
               </div>
-              <div className="text-sm">{q.description}</div>
-              <div className="flex items-center justify-between">
-                <div className="text-gold text-xs">Награда: {q.reward.xp} опыта, {q.reward.gold} золота</div>
-                {st?.done && !st.claimed && (
-                  <button className="btn btn-gold px-2 py-0.5 text-sm" onClick={() => { audio.play("levelup"); void gameApi.op({ op: "quest_claim", id: q.id }); }}>
-                    Получить
-                  </button>
-                )}
-              </div>
+              {st?.done && !st.claimed && (
+                <button className="btn btn-primary shrink-0" onClick={() => { audio.play("levelup"); void gameApi.op({ op: "quest_claim", id: q.id }); }}>
+                  Получить
+                </button>
+              )}
             </div>
           );
         })}
       </div>
-      <div className="text-dim mt-2 text-xs">Прогресс засчитывается по итогам каждого спуска.</div>
+      <p className="text-dim mt-4 text-xs">Прогресс засчитывается по итогам каждого спуска</p>
     </Panel>
   );
 }
@@ -61,27 +61,28 @@ export function GatePanel({ onClose }: { onClose: () => void }) {
   const doneCount = STAGES.filter((s) => char.cleared.includes(pref + s.id)).length;
   return (
     <Panel title="Врата Глубин" onClose={onClose}>
-      <div className="mb-2 flex flex-wrap items-center gap-1">
+      <div className="mb-4 flex flex-wrap items-center gap-1">
         {ACTS.map((a) => {
           const open = actOpen(a.n);
           const done = STAGES.filter((s) => s.act === a.n).every((s) => char.cleared.includes(pref + s.id));
           return (
-            <button key={a.n} disabled={!open} className={`btn px-3 py-1 text-sm ${act === a.n ? "btn-gold" : ""}`} onClick={() => setAct(a.n)}>
-              {a.name.split(".")[0]}{done ? " ✓" : open ? "" : " 🔒"}
+            <button key={a.n} disabled={!open} className={`btn ${act === a.n ? "is-on" : ""}`} onClick={() => setAct(a.n)}>
+              {a.name.split(".")[0]}
+              {done && <span className="text-good text-xs">✓</span>}
             </button>
           );
         })}
-        <div className="text-dim ml-auto text-xs">Пройдено этапов: {doneCount}/{STAGES.length}</div>
+        <div className="text-dim ml-auto text-xs">{doneCount} из {STAGES.length} этапов</div>
       </div>
       {nightmareOpen && (
-        <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm text-[#e0505a]">
-          <input type="checkbox" checked={nightmare} onChange={(e) => { setNightmare(e.target.checked); setAct(currentAct(char.cleared, e.target.checked)); }} />
+        <label className="text-parch mb-4 flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" className="accent-[#e3a45a]" checked={nightmare} onChange={(e) => { setNightmare(e.target.checked); setAct(currentAct(char.cleared, e.target.checked)); }} />
           Кошмар: враги на {NIGHTMARE_BONUS} уровней сильнее, добыча лучше
         </label>
       )}
-      <div className="panel mb-3 p-3" style={{ background: `linear-gradient(135deg, ${theme.palette.wall}55, ${theme.palette.fog})` }}>
-        <div className="panel-title text-lg" style={{ color: theme.palette.light }}>{A.name}</div>
-        <div className="text-parch mt-1 text-sm italic leading-5">{A.intro}</div>
+      <div className="mb-4 border-l-2 pl-4" style={{ borderColor: theme.palette.light }}>
+        <div className="font-[family-name:var(--font-head)] text-[22px] leading-7 font-semibold">{A.name}</div>
+        <p className="text-parch mt-1 font-[family-name:var(--font-head)] text-[17px] leading-6">{A.intro}</p>
       </div>
       <div className="flex flex-col gap-2">
         {STAGES.filter((s) => s.act === act).map((st) => {
@@ -92,26 +93,27 @@ export function GatePanel({ onClose }: { onClose: () => void }) {
           const lvl = Math.max(base, Math.min(char.level - 1, base + 3));
           const guard = st.champion ? `${st.champion.name} (${ENEMIES[st.boss].name.toLowerCase()})` : ENEMIES[st.boss].name;
           return (
-            <div key={st.id} className={`panel flex gap-3 p-3 ${open ? "" : "opacity-50"}`}>
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center border-2 border-[#3d3126] text-2xl" style={{ background: `linear-gradient(135deg, ${theme.palette.wall}, ${theme.palette.fog})`, color: st.champion ? theme.palette.light : "#ff5a4a" }}>
-                {st.champion ? st.n : "☠"}
-              </div>
-              <div className="flex-1">
-                <div className="panel-title">{st.n}. {st.name} {cleared && <span className="text-xs text-[#7fe07f]">· пройдено</span>}</div>
-                <div className="text-sm">{st.description}</div>
-                <div className="text-dim text-xs">
-                  Уровень {lvl} · {st.champion ? "Страж" : "Хозяин акта"}: {guard}
-                  {!open && st.unlock && ` · Сначала: «${STAGES.find((x) => x.id === st.unlock)!.name}»`}
+            <div key={st.id} className={`panel flex items-center gap-4 p-4 ${open ? "" : "opacity-50"}`}>
+              <div className="text-dim w-6 shrink-0 text-center font-[family-name:var(--font-head)] text-[28px] leading-none">{st.n}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-medium">{st.name}</span>
+                  {cleared && <span className="text-good text-xs">пройдено</span>}
+                </div>
+                <div className="text-parch text-sm">{st.description}</div>
+                <div className="text-dim mt-1 text-xs">
+                  Ур. {lvl} · {st.champion ? "страж" : "хозяин акта"} {guard}
+                  {!open && st.unlock && ` · сначала «${STAGES.find((x) => x.id === st.unlock)!.name}»`}
                 </div>
               </div>
-              <button className="btn btn-red self-center" disabled={!open} onClick={() => { audio.play("portal"); void gameApi.startRun(key); }}>
+              <button className={`btn shrink-0 ${open ? "btn-primary" : ""}`} disabled={!open} onClick={() => { audio.play("portal"); void gameApi.startRun(key); }}>
                 Спуститься
               </button>
             </div>
           );
         })}
       </div>
-      <div className="text-dim mt-2 text-xs">Этап засчитывается, когда страж убит и вы ушли через портал. Можно вернуться в любой пройденный этап за добычей.</div>
+      <p className="text-dim mt-4 text-xs">Этап засчитывается, когда страж убит и вы ушли через портал. В пройденные этапы можно возвращаться за добычей</p>
     </Panel>
   );
 }
@@ -139,50 +141,56 @@ export function ResultsPanel({ onClose, onNext }: { onClose: () => void; onNext:
     story = { title: "Кошмар пройден", text: "Пустота снова засыпает — на этот раз надолго. Колокол наверху звонит сам по себе, и Отец Мирон говорит, что такого не слышал никто из живых." };
   }
   return (
-    <div className={`panel rise p-6 text-center ${story ? "w-[min(560px,94vw)]" : "w-[420px]"}`}>
-      <div className={`logo text-4xl ${r.success ? "" : "text-[#c8343a]"}`}>{r.success ? "ВЫ ВЫБРАЛИСЬ" : "ВЫ ПАЛИ"}</div>
-      <div className="text-parch mt-1">{stageLabel(r.dungeon)}</div>
+    <div className={`panel rise p-6 ${story ? "w-[min(560px,94vw)]" : "w-[440px]"}`}>
+      <div className={`font-[family-name:var(--font-head)] text-[40px] leading-none font-semibold ${r.success ? "text-bone" : "text-[#e5484d]"}`}>{r.success ? "Вы выбрались" : "Вы пали"}</div>
+      <div className="text-parch mt-2 text-sm">{stageLabel(r.dungeon)}</div>
       {r.pending ? (
-        <div className="text-dim my-6">Сохраняем итоги…</div>
+        <div className="text-dim my-6">Сохраняем итоги</div>
       ) : r.error ? (
-        <div className="my-6 text-[#e0505a]">{r.error}</div>
+        <div className="text-bad my-6">{r.error}</div>
       ) : (
-        <div className="my-5 space-y-1 text-lg">
-          <div>Опыт: <span className="text-gold">+{r.xp}</span>{!r.success && <span className="text-dim text-sm"> (половина — за смерть)</span>}</div>
-          <div>Золото: <span className="text-gold">+{r.gold}</span></div>
-          <div>Убито врагов: {r.kills}</div>
-          <div>Подобрано вещей: {r.items}</div>
-          {r.levels > 0 && <div className="text-[#7fe07f]">Новых уровней: {r.levels}!</div>}
-          {r.success && r.cleared === false && <div className="text-dim text-sm">Страж этапа жив — этап не засчитан.</div>}
-          {r.unlocked?.length ? <div className="text-[#8fd0ff]">Открыто: {r.unlocked.map((u) => stageLabel(u)).join(", ")}</div> : null}
-        </div>
+        <>
+          <dl className="my-6 grid grid-cols-2 gap-x-6 gap-y-4">
+            <div><dt className="label">Опыт</dt><dd className="text-[28px] leading-8">+{r.xp.toLocaleString("ru-RU")}</dd>{!r.success && <dd className="text-dim text-xs">половина за смерть</dd>}</div>
+            <div><dt className="label">Золото</dt><dd className="text-[28px] leading-8">+{r.gold.toLocaleString("ru-RU")}</dd></div>
+            <div><dt className="label">Убито врагов</dt><dd className="text-lg">{r.kills}</dd></div>
+            <div><dt className="label">Подобрано вещей</dt><dd className="text-lg">{r.items}</dd></div>
+          </dl>
+          <div className="flex flex-col gap-1 text-sm">
+            {r.levels > 0 && <div className="text-good">Новый уровень{r.levels > 1 ? ` ×${r.levels}` : ""}</div>}
+            {r.success && r.cleared === false && <div className="text-dim">Страж этапа жив, этап не засчитан</div>}
+            {r.unlocked?.length ? <div className="text-parch">Открыто: {r.unlocked.map((u) => stageLabel(u)).join(", ")}</div> : null}
+          </div>
+        </>
       )}
       {story && !r.pending && (
-        <div className="mb-4 max-h-[40vh] overflow-y-auto text-left">
-          <div className="panel-title mb-1 text-[#e8c4a0]">{story.title}</div>
-          <div className="text-parch text-sm italic leading-5">{story.text}</div>
+        <div className="mt-6 max-h-[40vh] overflow-y-auto border-t border-line pt-4 pr-1">
+          <div className="font-[family-name:var(--font-head)] text-[22px] leading-7 font-semibold">{story.title}</div>
+          <p className="text-parch mt-1 font-[family-name:var(--font-head)] text-[17px] leading-6">{story.text}</p>
           {story.next && (
             <>
-              <div className="panel-title mt-3 mb-1 text-[#8fd0ff]">{story.next.title}</div>
-              <div className="text-parch text-sm italic leading-5">{story.next.text}</div>
+              <div className="mt-4 font-[family-name:var(--font-head)] text-[22px] leading-7 font-semibold">{story.next.title}</div>
+              <p className="text-parch mt-1 font-[family-name:var(--font-head)] text-[17px] leading-6">{story.next.text}</p>
             </>
           )}
-          {p?.stage.act === 5 && <div className="text-gold mt-3 text-sm">Открыт режим «Кошмар» — у Врат Глубин.</div>}
+          {p?.stage.act === 5 && <div className="text-flame mt-4 text-sm">У Врат Глубин открыт режим «Кошмар»</div>}
         </div>
       )}
-      {!r.pending && pr && (
-        <div className="mb-2 flex gap-2">
-          {next && (
-            <button className="btn btn-red flex-1 py-2" onClick={() => onNext(next!)}>
-              Дальше: {STAGES.find((s) => s.id === next!.replace("n:", ""))?.name}
-            </button>
-          )}
-          <button className="btn flex-1 py-2" onClick={() => onNext(r.dungeon)}>Ещё раз</button>
-        </div>
-      )}
-      <button className="btn btn-gold w-full py-2 text-lg" disabled={r.pending} onClick={onClose}>
-        Вернуться в лагерь
-      </button>
+      <div className="mt-6 flex flex-col gap-2">
+        {!r.pending && pr && (
+          <div className="flex gap-2">
+            {next && (
+              <button className="btn btn-primary h-11 flex-1" onClick={() => onNext(next!)}>
+                Дальше: {STAGES.find((s) => s.id === next!.replace("n:", ""))?.name}
+              </button>
+            )}
+            <button className={`btn h-11 ${next ? "" : "flex-1"}`} onClick={() => onNext(r.dungeon)}>Ещё раз</button>
+          </div>
+        )}
+        <button className={`btn h-11 w-full ${!next || r.pending ? "" : ""}`} disabled={r.pending} onClick={onClose}>
+          Вернуться в лагерь
+        </button>
+      </div>
     </div>
   );
 }
@@ -192,16 +200,16 @@ export function PausePanel({ onClose, onSettings, onHelp }: { onClose: () => voi
   const inDungeon = hud?.where === "dungeon";
   return (
     <div className="panel rise flex w-[320px] flex-col gap-2 p-6">
-      <div className="logo mb-3 text-center text-5xl">ПАУЗА</div>
-      <button className="btn py-2" onClick={onClose}>Продолжить</button>
-      <button className="btn py-2" onClick={onSettings}>Настройки</button>
-      <button className="btn py-2" onClick={onHelp}>Управление</button>
+      <div className="panel-title mb-4">Пауза</div>
+      <button className="btn btn-primary h-11" onClick={onClose}>Продолжить</button>
+      <button className="btn h-11" onClick={onSettings}>Настройки</button>
+      <button className="btn h-11" onClick={onHelp}>Управление</button>
       {inDungeon ? (
-        <button className="btn btn-red py-2" onClick={() => gameApi.game?.cb.runEnded(false)}>Сдаться (забег провален)</button>
+        <button className="btn btn-danger h-11" onClick={() => gameApi.game?.cb.runEnded(false)}>Сдаться, забег провален</button>
       ) : (
-        <button className="btn btn-red py-2" onClick={() => set({ screen: "select", char: null, panel: null, hud: null })}>К выбору героя</button>
+        <button className="btn h-11" onClick={() => set({ screen: "select", char: null, panel: null, hud: null })}>К выбору героя</button>
       )}
-      {inDungeon && <div className="text-dim text-center text-xs">Одиночная игра на паузе. Чтобы уйти без потерь, вернитесь к порталу входа.</div>}
+      {inDungeon && <p className="text-dim mt-2 text-xs">Чтобы уйти без потерь, вернитесь к порталу входа</p>}
     </div>
   );
 }
@@ -209,17 +217,17 @@ export function PausePanel({ onClose, onSettings, onHelp }: { onClose: () => voi
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const { settings, setSettings } = useGame();
   const slider = (key: keyof Settings, label: string, min: number, max: number, step: number, fmt?: (v: number) => string) => (
-    <label className="flex items-center gap-3 text-sm">
-      <span className="w-48">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={settings[key] as number} onChange={(e) => setSettings({ [key]: Number(e.target.value) })} className="flex-1 accent-[#c9a46a]" />
-      <span className="w-12 text-right">{fmt ? fmt(settings[key] as number) : String(settings[key])}</span>
+    <label className="flex h-8 items-center gap-4 text-sm">
+      <span className="text-parch w-56">{label}</span>
+      <input type="range" min={min} max={max} step={step} value={settings[key] as number} onChange={(e) => setSettings({ [key]: Number(e.target.value) })} className="flex-1 accent-[#e3a45a]" />
+      <span className="w-14 text-right">{fmt ? fmt(settings[key] as number) : String(settings[key])}</span>
     </label>
   );
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   return (
     <Panel title="Настройки" onClose={onClose}>
       <div className="flex flex-col gap-2">
-        <h3 className="panel-title">Изображение</h3>
+        <h3 className="label">Изображение</h3>
         {slider("brightness", "Яркость", 0.8, 2.2, 0.05, (v) => `${Math.round(v * 100)}%`)}
         {slider("vhs", "Сила эффекта VHS", 0, 1, 0.05, pct)}
         {slider("grain", "Зерно", 0, 1, 0.05, pct)}
@@ -230,20 +238,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         {slider("pixel", "Пикселизация", 0.5, 3, 0.25, (v) => `×${v}`)}
         {slider("resolution", "Разрешение рендера (строк)", 180, 720, 60)}
         {slider("fov", "Поле зрения", 55, 100, 1, (v) => `${v}°`)}
-        <h3 className="panel-title mt-2">Управление</h3>
+        <h3 className="label mt-4">Управление</h3>
         {slider("sensitivity", "Чувствительность мыши", 0.2, 3, 0.05, (v) => v.toFixed(2))}
-        <label className="flex items-center gap-3 text-sm">
-          <span className="w-48">Инверсия по вертикали</span>
-          <input type="checkbox" checked={settings.invertY} onChange={(e) => setSettings({ invertY: e.target.checked })} className="accent-[#c9a46a]" />
+        <label className="flex h-8 items-center gap-4 text-sm">
+          <span className="text-parch w-56">Инверсия по вертикали</span>
+          <input type="checkbox" checked={settings.invertY} onChange={(e) => setSettings({ invertY: e.target.checked })} className="accent-[#e3a45a]" />
         </label>
-        <label className="flex items-center gap-3 text-sm">
-          <span className="w-48">Покачивание камеры</span>
-          <input type="checkbox" checked={settings.bob} onChange={(e) => setSettings({ bob: e.target.checked })} className="accent-[#c9a46a]" />
+        <label className="flex h-8 items-center gap-4 text-sm">
+          <span className="text-parch w-56">Покачивание камеры</span>
+          <input type="checkbox" checked={settings.bob} onChange={(e) => setSettings({ bob: e.target.checked })} className="accent-[#e3a45a]" />
         </label>
-        <h3 className="panel-title mt-2">Звук</h3>
+        <h3 className="label mt-4">Звук</h3>
         {slider("volume", "Громкость", 0, 1, 0.05, pct)}
         {slider("music", "Музыка и фон", 0, 1, 0.05, pct)}
-        <button className="btn mt-3 self-start" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>Сбросить</button>
+        <button className="btn mt-4 self-start" onClick={() => setSettings({ ...DEFAULT_SETTINGS })}>Сбросить настройки</button>
       </div>
     </Panel>
   );
@@ -254,26 +262,27 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
     ["WASD", "движение"], ["Мышь", "обзор (кликните по экрану, чтобы захватить указатель)"], ["Стрелки", "поворот и наклон взгляда без мыши"], ["Shift", "бег (тратит выносливость)"],
     ["Пробел", "уклонение — короткий рывок с неуязвимостью"], ["ЛКМ", "атака; зажать и отпустить — сильный удар; лук — натянуть и отпустить; посох/жезл — заряд"],
     ["ПКМ", "блок щитом или оружием (в начале блока — парирование), у магов — магический заслон, у лучника — прицел"],
-    ["Q / R / F", "навыки из книги навыков"], ["1 / 2", "зелье здоровья / маны"], ["E", "действие: поднять, открыть, поговорить, осмотреть стену"],
+    ["Q R F G Z X", "навыки из книги навыков"], ["1 / 2", "зелье здоровья / маны"], ["E", "действие: поднять, открыть, поговорить, осмотреть стену"],
     ["I", "сумка и снаряжение"], ["C", "персонаж и атрибуты"], ["B", "книга навыков"], ["M / Tab", "карта"], ["Esc", "пауза"],
   ];
   return (
     <Panel title="Управление и советы" onClose={onClose}>
-      <div className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 text-sm">
+      <div className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm">
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
-            <span className="text-gold">{k}</span>
-            <span>{v}</span>
+            <span className="flex flex-wrap gap-1">{k.split(" / ").join(" ").split(" ").map((x) => <span key={x} className="kbd">{x}</span>)}</span>
+            <span className="text-parch">{v}</span>
           </div>
         ))}
       </div>
-      <div className="text-parch mt-4 space-y-1 text-sm">
-        <div>• Враги заносят оружие перед ударом — это время, чтобы отпрыгнуть или поднять щит.</div>
-        <div>• Красные круги и полосы на полу — куда ударит босс. Уходите из них.</div>
-        <div>• Треснувшая кладка звучит пусто: осмотрите её (E), за ней бывает тайник.</div>
-        <div>• Нежить слаба к святому урону. Проклятые вещи сильнее обычных, но с изъяном.</div>
-        <div>• Предметы сохраняются на сервере сразу при подборе, опыт и золото — по итогам спуска.</div>
-      </div>
+      <div className="label mt-6 mb-2">Советы</div>
+      <ul className="text-parch flex list-disc flex-col gap-1 pl-5 text-sm">
+        <li>Враги заносят оружие перед ударом, в это время можно отпрыгнуть или поднять щит</li>
+        <li>Красные круги и полосы на полу показывают, куда ударит босс</li>
+        <li>Треснувшая кладка звучит пусто: осмотрите её, за ней бывает тайник</li>
+        <li>Нежить слаба к святому урону. Проклятые вещи сильнее обычных, но с изъяном</li>
+        <li>Предметы сохраняются сразу при подборе, опыт и золото по итогам спуска</li>
+      </ul>
     </Panel>
   );
 }
@@ -283,9 +292,11 @@ export function NotePanel({ onClose }: { onClose: () => void }) {
   if (!note) return null;
   return (
     <div className="rise relative w-[min(460px,92vw)] p-7 text-[#2a1a0e]" style={{ background: "linear-gradient(#cdbf98, #b8a67c)", boxShadow: "inset 0 0 40px #6a4a2a88, 0 8px 0 #00000080", clipPath: "polygon(0 2%, 4% 0, 30% 1%, 62% 0, 97% 2%, 100% 30%, 99% 70%, 100% 97%, 70% 100%, 35% 99%, 3% 100%, 0 70%, 1% 35%)" }}>
-      <div className="mb-3 text-center text-lg" style={{ fontFamily: "var(--font-head)" }}>{note.title}</div>
-      <div className="text-[15px] leading-6">{note.text}</div>
-      <button className="btn mt-5 w-full" onClick={onClose}>Убрать записку [E / Esc]</button>
+      <div className="mb-3 text-center text-[24px] leading-7 font-semibold" style={{ fontFamily: "var(--font-head)" }}>{note.title}</div>
+      <div className="text-[19px] leading-7" style={{ fontFamily: "var(--font-head)", fontWeight: 500 }}>{note.text}</div>
+      <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-[4px] border border-[#2a1a0e33] py-2 text-sm text-[#2a1a0e] transition-colors hover:bg-[#2a1a0e14]" onClick={onClose}>
+        Убрать записку <span className="rounded-[4px] border border-[#2a1a0e55] px-1 text-[11px]">E</span>
+      </button>
     </div>
   );
 }

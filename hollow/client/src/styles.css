@@ -1,23 +1,45 @@
 @import "tailwindcss";
 
+/*
+ * Дизайн-система «Последняя свеча»: почти чёрные тёплые поверхности,
+ * три роли текста, один акцент — свечное пламя. Цвет живёт только в игре,
+ * в предметах (редкость) и в стихиях навыков.
+ * Проход по чек-листу unslop (Damir Sokolovsky, @heydamir, CC BY 4.0).
+ */
 @theme {
-  --font-ui: "Pixelify Sans", ui-monospace, monospace;
-  --font-head: "Ruslan Display", "Pixelify Sans", serif;
-  --font-logo: "Jacquard 12", "Ruslan Display", serif;
-  --color-ink: #0b0806;
-  --color-coal: #15100c;
-  --color-soot: #1f1813;
-  --color-ash: #3a2f25;
-  --color-bone: #d8cdb2;
-  --color-parch: #b8a98a;
-  --color-dim: #7d705c;
-  --color-gold: #c9a46a;
-  --color-ember: #e0793a;
-  --color-blood: #9b2a35;
+  --font-ui: "IBM Plex Mono", ui-monospace, monospace;
+  --font-head: "Cormorant Garamond", Georgia, serif;
+  --font-logo: "Jacquard 12", "Cormorant Garamond", serif;
+
+  /* поверхности */
+  --color-ink: #0e0d0b;
+  --color-coal: #141311;
+  --color-soot: #1a1816;
+  --color-ash: #24211d;
+  --color-line: #efe9de14;
+  --color-line-strong: #efe9de24;
+
+  /* текст */
+  --color-bone: #ece6da;
+  --color-parch: #aaa398;
+  --color-dim: #8a847a;
+
+  /* акцент — пламя свечи */
+  --color-gold: #e3a45a;
+  --color-flame: #e3a45a;
+  --color-flame-ink: #1c1309;
+
+  /* смысловые */
+  --color-good: #4cc38a;
+  --color-bad: #e5484d;
+  --color-blood: #b4303a;
+  --color-mana: #4a74c0;
+  --color-stam: #a8915a;
+  --color-ember: #e3a45a;
   --color-rust: #6e2a1f;
   --color-moss: #7f9a6a;
-  --color-mana: #4a6fb0;
-  --color-stam: #b59a3a;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html,
@@ -25,13 +47,15 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: #0b0806;
+  background: var(--color-coal);
   color: var(--color-bone);
   font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 20px;
   overflow: hidden;
   user-select: none;
-  -webkit-font-smoothing: none;
-  image-rendering: pixelated;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
@@ -39,7 +63,8 @@ button {
   cursor: pointer;
 }
 
-input {
+input,
+select {
   font-family: inherit;
 }
 
@@ -47,87 +72,123 @@ canvas {
   image-rendering: pixelated;
 }
 
-/* Рамка в духе старых RPG: тёмная плашка с двойным скосом. */
+/* Панель: ровная поверхность, волосяная рамка, глубина — шагом поверхности. */
 .panel {
-  background: linear-gradient(#1a130eee, #0f0b08f2);
-  border: 2px solid #4a3b2c;
-  box-shadow:
-    inset 0 0 0 2px #0b0806,
-    inset 0 0 0 3px #2b221a,
-    0 6px 0 #00000080;
+  background: #141311f5;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px #00000080;
+}
+.panel .panel {
+  background: var(--color-soot);
+  border-color: var(--color-line);
+  border-radius: 6px;
+  box-shadow: none;
 }
 
 .panel-title {
   font-family: var(--font-head);
-  color: var(--color-gold);
-  letter-spacing: 0.06em;
-  text-shadow: 2px 2px 0 #000;
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 28px;
+  color: var(--color-bone);
 }
 
+/* Кнопки: спокойная поверхность; один яркий вариант — главное действие. */
 .btn {
-  background: linear-gradient(#3a2d22, #261d16);
-  border: 2px solid #5c4935;
-  box-shadow:
-    inset 0 2px 0 #6e5840,
-    inset 0 -2px 0 #120d09;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 14px;
+  border-radius: 4px;
+  background: var(--color-ash);
+  border: 1px solid var(--color-line-strong);
+  box-shadow: inset 0 1px 0 #ffffff0d;
   color: var(--color-bone);
-  padding: 6px 14px;
-  text-shadow: 1px 1px 0 #000;
-  transition: filter 0.08s;
+  font-size: 13px;
+  transition:
+    background-color 150ms var(--ease),
+    border-color 150ms var(--ease),
+    color 150ms var(--ease),
+    transform 120ms var(--ease);
 }
 .btn:hover:not(:disabled) {
-  filter: brightness(1.25);
-  color: #fff3d6;
+  background: #2d2a25;
+  border-color: #efe9de33;
 }
 .btn:active:not(:disabled) {
-  box-shadow:
-    inset 0 2px 0 #120d09,
-    inset 0 -1px 0 #6e5840;
+  transform: scale(0.98);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--color-flame);
+  outline-offset: 2px;
 }
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
-.btn-red {
-  background: linear-gradient(#6a2228, #43141a);
-  border-color: #8c3038;
-  box-shadow:
-    inset 0 2px 0 #a44a50,
-    inset 0 -2px 0 #1e0709;
-}
+/* выбранный переключатель или вкладка — шаг поверхности, без цвета */
+.btn.is-on,
 .btn-gold {
-  background: linear-gradient(#6b5228, #43321a);
-  border-color: #a07e44;
-  box-shadow:
-    inset 0 2px 0 #c9a46a,
-    inset 0 -2px 0 #1e1407;
+  background: #34302a;
+  border-color: #efe9de40;
+  color: var(--color-bone);
+  box-shadow: inset 0 1px 0 #ffffff1f;
+}
+/* главное действие экрана */
+.btn-primary,
+.btn-red {
+  background: var(--color-flame);
+  border-color: var(--color-flame);
+  color: var(--color-flame-ink);
+  font-weight: 500;
+  box-shadow: inset 0 1px 0 #ffffff40;
+}
+.btn-primary:hover:not(:disabled),
+.btn-red:hover:not(:disabled) {
+  background: #eab06c;
+  border-color: #eab06c;
+}
+/* разрушительное действие: красный текст на спокойной кнопке */
+.btn-danger {
+  color: #f07b7f;
+}
+.btn-danger:hover:not(:disabled) {
+  border-color: #e5484d66;
 }
 
 .field {
-  background: #0b0806;
-  border: 2px solid #4a3b2c;
-  box-shadow: inset 2px 2px 0 #000;
+  min-height: 36px;
+  background: var(--color-ink);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 4px;
   color: var(--color-bone);
-  padding: 6px 8px;
+  padding: 6px 10px;
   outline: none;
+  transition: border-color 150ms var(--ease);
+}
+.field::placeholder {
+  color: var(--color-dim);
 }
 .field:focus {
-  border-color: var(--color-gold);
+  border-color: #e3a45a99;
 }
 
-/* Ячейка инвентаря / хотбара как на референсе. */
+/* Ячейка инвентаря и хотбара. */
 .slot {
   position: relative;
   width: 44px;
   height: 44px;
-  background: #0d0a07;
-  border: 2px solid #3d3126;
-  box-shadow:
-    inset 2px 2px 0 #000,
-    inset -1px -1px 0 #2b221a;
+  background: var(--color-ink);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 150ms var(--ease);
 }
 .slot.hot {
-  border-color: var(--color-gold);
+  border-color: var(--color-flame);
 }
 .slot img,
 .slot canvas {
@@ -138,44 +199,74 @@ canvas {
 
 .bar {
   position: relative;
-  height: 14px;
-  background: #0b0806;
-  border: 2px solid #3d3126;
-  box-shadow: inset 2px 2px 0 #000;
+  height: 12px;
+  background: #0a0908;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 2px;
   overflow: hidden;
 }
 .bar > i {
   position: absolute;
   inset: 0 auto 0 0;
   display: block;
-  transition: width 0.12s linear;
+  transition: width 120ms linear;
 }
 .bar > span {
   position: absolute;
   inset: 0;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 10px;
   text-align: center;
-  text-shadow: 1px 1px 0 #000;
+  color: #f4efe6;
 }
 
 .scroll::-webkit-scrollbar {
   width: 8px;
 }
 .scroll::-webkit-scrollbar-thumb {
-  background: #4a3b2c;
+  background: #efe9de1f;
+  border-radius: 4px;
 }
 .scroll::-webkit-scrollbar-track {
-  background: #0b0806;
+  background: transparent;
 }
 
 .logo {
   font-family: var(--font-logo);
-  color: #e8dcc0;
-  text-shadow:
-    3px 3px 0 #3a0d0f,
-    0 0 24px #9b2a3580;
-  letter-spacing: 0.04em;
+  color: var(--color-bone);
+  letter-spacing: 0.02em;
+}
+
+/* Подпись-ключ: клавиша в маленькой рамке. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--color-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--color-parch);
+  background: #ffffff08;
+}
+
+/* Метка видеокассеты — фирменная деталь всех экранов. */
+.osd {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 16px;
+  color: #ece6dacc;
+  text-shadow: 0 0 2px #000;
+}
+
+.label {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-dim);
 }
 
 .tooltip {
@@ -184,19 +275,6 @@ canvas {
   z-index: 60;
   max-width: 300px;
   font-size: 13px;
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.86;
-  }
-}
-.flicker {
-  animation: flicker 3s infinite;
 }
 
 @keyframes rise {
@@ -210,15 +288,11 @@ canvas {
   }
 }
 .rise {
-  animation: rise 0.25s ease-out both;
+  animation: rise 300ms var(--ease) both;
 }
 
-/* Лёгкий VHS-шум поверх меню (сама игра шумит в шейдере). */
-.menu-noise::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(0deg, #0000 0 2px, #0000002e 2px 3px);
-  mix-blend-mode: multiply;
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }

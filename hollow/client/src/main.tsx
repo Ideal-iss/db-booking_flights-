@@ -1,10 +1,12 @@
 import { createRoot } from "react-dom/client";
-import "@fontsource/pixelify-sans/cyrillic-400.css";
-import "@fontsource/pixelify-sans/latin-400.css";
-import "@fontsource/pixelify-sans/cyrillic-700.css";
-import "@fontsource/pixelify-sans/latin-700.css";
-import "@fontsource/ruslan-display/cyrillic-400.css";
-import "@fontsource/ruslan-display/latin-400.css";
+import "@fontsource/ibm-plex-mono/cyrillic-400.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/cyrillic-500.css";
+import "@fontsource/ibm-plex-mono/latin-500.css";
+import "@fontsource/cormorant-garamond/cyrillic-500.css";
+import "@fontsource/cormorant-garamond/latin-500.css";
+import "@fontsource/cormorant-garamond/cyrillic-600.css";
+import "@fontsource/cormorant-garamond/latin-600.css";
 import "@fontsource/jacquard-12/latin-400.css";
 import "./styles.css";
 import { App } from "./ui/App";

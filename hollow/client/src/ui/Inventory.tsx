@@ -83,22 +83,24 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
   const st = deriveStats(char);
   const inDungeon = hud?.where === "dungeon";
   return (
-    <Panel title="Снаряжение и сумка" onClose={onClose} wide>
+    <Panel title="Снаряжение и сумка" onClose={onClose} className="!w-[min(760px,96vw)]">
       <div className="flex flex-wrap gap-6">
         <div className="flex flex-col items-center gap-3">
           <EquipDoll />
-          <div className="text-parch w-[180px] text-xs leading-5">
-            <div>Урон: {st.dmg[0]}–{st.dmg[1]}</div>
-            {st.attackMode !== "melee" || st.spell[1] > 3 ? <div>Сила чар: {st.spell[0]}–{st.spell[1]}</div> : null}
-            <div>Броня: {st.armor} ({Math.round(st.damageReduction * 100)}%)</div>
-            <div>Здоровье: {st.maxHp} · Мана: {st.maxMana}</div>
-            <div>Крит: {Math.round(st.critChance * 100)}% · Блок: {Math.round(st.block * 100)}%</div>
-          </div>
+          <dl className="grid w-[200px] grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-xs">
+            <dt className="text-dim">Урон</dt><dd>{st.dmg[0]}–{st.dmg[1]}</dd>
+            {st.attackMode !== "melee" || st.spell[1] > 3 ? (<><dt className="text-dim">Сила чар</dt><dd>{st.spell[0]}–{st.spell[1]}</dd></>) : null}
+            <dt className="text-dim">Броня</dt><dd>{st.armor} · {Math.round(st.damageReduction * 100)}%</dd>
+            <dt className="text-dim">Здоровье</dt><dd>{st.maxHp}</dd>
+            <dt className="text-dim">Мана</dt><dd>{st.maxMana}</dd>
+            <dt className="text-dim">Крит</dt><dd>{Math.round(st.critChance * 100)}%</dd>
+            <dt className="text-dim">Блок</dt><dd>{Math.round(st.block * 100)}%</dd>
+          </dl>
         </div>
         <div className="flex flex-col gap-2">
-          <div className="text-parch flex justify-between text-sm">
-            <span>Сумка {char.inventory.length}/{INV}</span>
-            <span className="text-gold">{char.gold} золота</span>
+          <div className="flex justify-between text-sm">
+            <span className="text-parch">Сумка {char.inventory.length} из {INV}</span>
+            <span>{char.gold.toLocaleString("ru-RU")} зол.</span>
           </div>
           <Grid
             items={char.inventory}
@@ -107,7 +109,7 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
             from="inventory"
             onDrop={invDrop}
             onRight={(it) => { audio.play("click"); void gameApi.op({ op: "equip", uid: it.uid, slot: slotForItem(it, char) }); }}
-            extra={() => "ПКМ — надеть · перетащите, чтобы переложить"}
+            extra={() => "ПКМ надеть, перетащите, чтобы переложить"}
           />
           <div className="flex items-center gap-3">
             <div
@@ -123,21 +125,21 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
                 } catch { /* нет */ }
               }}
             >
-              <span className="text-dim text-xs">🗑 выбросить</span>
+              <span className="text-dim text-xs">Выбросить</span>
             </div>
             {confirm && (
               <div className="flex items-center gap-2 text-sm">
-                Выбросить «{char.inventory.find((i) => i.uid === confirm)?.name}»?
-                <button className="btn btn-red px-2 py-0" onClick={() => { void gameApi.op({ op: "destroy", uid: confirm }); setConfirm(null); }}>Да</button>
-                <button className="btn px-2 py-0" onClick={() => setConfirm(null)}>Нет</button>
+                <span className="text-parch">Выбросить «{char.inventory.find((i) => i.uid === confirm)?.name}»</span>
+                <button className="btn btn-danger" onClick={() => { void gameApi.op({ op: "destroy", uid: confirm }); setConfirm(null); }}>Выбросить</button>
+                <button className="btn" onClick={() => setConfirm(null)}>Оставить</button>
               </div>
             )}
           </div>
-          {inDungeon && <div className="text-dim max-w-[420px] text-xs">Игра на паузе. Смена снаряжения в одиночном забеге действует сразу; в кооперативе — со следующего спуска.</div>}
+          {inDungeon && <p className="text-dim max-w-[420px] text-xs">Игра на паузе, новое снаряжение действует сразу</p>}
           <div className="flex items-center gap-2 text-sm">
             <img src={itemIcon("health")} className="h-6 w-6" alt="" /> {char.potions.health}
             <img src={itemIcon("mana")} className="ml-2 h-6 w-6" alt="" /> {char.potions.mana}
-            <span className="text-dim ml-2 text-xs">(запас в лагере; в забеге счётчик на панели внизу)</span>
+            <span className="text-dim ml-2 text-xs">зелья в запасе</span>
           </div>
         </div>
       </div>
@@ -159,10 +161,10 @@ export function StashPanel({ onClose }: { onClose: () => void }) {
   };
   return (
     <Panel title="Сундук отряда" onClose={onClose} wide>
-      <div className="text-dim mb-3 text-sm">Здесь вещи в безопасности. Перетащите предмет или нажмите ПКМ, чтобы переложить.</div>
+      <p className="text-parch mb-4 text-sm">Здесь вещи в безопасности. Перетащите предмет или нажмите ПКМ, чтобы переложить</p>
       <div className="flex flex-wrap gap-6">
         <div>
-          <div className="text-parch mb-1 text-sm">Хранилище {char.stash.length}/{STASH}</div>
+          <div className="label mb-2">Хранилище {char.stash.length} из {STASH}</div>
           <Grid
             items={char.stash}
             size={STASH}
@@ -176,7 +178,7 @@ export function StashPanel({ onClose }: { onClose: () => void }) {
           />
         </div>
         <div>
-          <div className="text-parch mb-1 text-sm">Сумка {char.inventory.length}/{INV}</div>
+          <div className="label mb-2">Сумка {char.inventory.length} из {INV}</div>
           <Grid
             items={char.inventory}
             size={INV}

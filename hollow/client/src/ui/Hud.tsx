@@ -35,27 +35,31 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 select-none">
       {/* OSD как на кассете */}
-      <div className="absolute top-3 left-4 text-[15px] tracking-wider text-[#e8e4dc] [text-shadow:2px_2px_0_#000]">
+      <div className="osd absolute top-4 left-6">
         <div>▶ PLAY</div>
-        <div className="text-xs opacity-80">SP {clock}</div>
-        <div className="text-gold mt-1 text-xs">{hud.dungeonName}</div>
+        <div>SP {clock}</div>
+        <div className="text-parch mt-1">{hud.dungeonName}</div>
       </div>
 
-      {locked && lock.soft && <div className="absolute top-3 left-1/2 -translate-x-1/2 text-xs text-[#e0a84a] [text-shadow:1px_1px_0_#000]">мышь не захвачена · поворот: курсор у края или стрелки · Esc — пауза</div>}
+      {locked && lock.soft && <div className="osd text-parch absolute top-4 left-1/2 -translate-x-1/2">Мышь не захвачена: поворот курсором у края экрана или стрелками</div>}
 
       {/* босс */}
       {hud.boss && (
-        <div className="absolute top-4 left-1/2 w-[min(560px,70vw)] -translate-x-1/2 text-center">
-          <div className="panel-title mb-1 text-lg text-[#e8c4a0]">{hud.boss.name}{hud.boss.phase === 2 ? " — ярость" : hud.boss.phase === 3 ? " — разлом" : ""}</div>
-          <Bar value={hud.boss.hp} max={hud.boss.maxHp} color="#9b2a35" className="!h-4" />
+        <div className="absolute top-6 left-1/2 w-[min(560px,70vw)] -translate-x-1/2 text-center">
+          <div className="mb-2 flex items-baseline justify-center gap-3 [text-shadow:0_0_4px_#000]">
+            <span className="font-[family-name:var(--font-head)] text-[22px] leading-6 font-semibold">{hud.boss.name}</span>
+            {hud.boss.phase >= 2 && <span className="text-bad text-xs">{hud.boss.phase === 2 ? "ярость" : "разлом"}</span>}
+          </div>
+          <Bar value={hud.boss.hp} max={hud.boss.maxHp} color="#b4303a" className="!h-2.5" />
         </div>
       )}
       {!hud.boss && hud.target && (
-        <div className="absolute top-4 left-1/2 w-[260px] -translate-x-1/2 text-center">
-          <div className="text-sm [text-shadow:1px_1px_0_#000]" style={{ color: hud.target.elite ? "#e0a84a" : "#d8cdb2" }}>
-            {hud.target.name} · {hud.target.level} ур.
+        <div className="absolute top-6 left-1/2 w-[260px] -translate-x-1/2 text-center">
+          <div className="mb-1 text-[13px] [text-shadow:0_0_4px_#000]">
+            <span className={hud.target.elite ? "text-flame" : "text-bone"}>{hud.target.name}</span>
+            <span className="text-parch"> · {hud.target.level} ур.</span>
           </div>
-          <Bar value={hud.target.hp} max={hud.target.maxHp} color="#8a2a2a" className="!h-2.5" />
+          <Bar value={hud.target.hp} max={hud.target.maxHp} color="#b4303a" className="!h-1.5" />
         </div>
       )}
 
@@ -67,26 +71,26 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
           <div className="absolute top-0 left-[7px] h-[5px] w-[2px] bg-[#e8dcc0cc]" />
           <div className="absolute bottom-0 left-[7px] h-[5px] w-[2px] bg-[#e8dcc0cc]" />
         </div>
-        {hud.draw > 0 && <div className="absolute top-6 left-1/2 h-1 w-12 -translate-x-1/2 bg-black"><div className="h-full bg-[#e0b84a]" style={{ width: `${hud.draw * 100}%` }} /></div>}
+        {hud.draw > 0 && <div className="absolute top-6 left-1/2 h-1 w-12 -translate-x-1/2 rounded-full bg-black/70"><div className="bg-flame h-full rounded-full" style={{ width: `${hud.draw * 100}%` }} /></div>}
       </div>
       {hud.prompt && (
-        <div className="absolute top-[58%] left-1/2 -translate-x-1/2 text-center text-[15px] [text-shadow:2px_2px_0_#000]">
-          <span className="mr-2 border-2 border-[#c9a46a] bg-black/70 px-1.5 text-[#e0b84a]">E</span>
+        <div className="absolute top-[58%] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-[4px] bg-[#141311d9] px-3 py-1.5 text-[13px]">
+          <span className="kbd">E</span>
           {hud.prompt}
         </div>
       )}
       {!hud.alive && (
         <div className="absolute top-[35%] left-1/2 -translate-x-1/2 text-center">
-          <div className="logo text-6xl text-[#c8343a]">ВЫ ПАЛИ</div>
-          {hud.allies.some((a) => a.alive) && <div className="text-parch mt-2">Союзник может поднять вас (E рядом с телом)</div>}
+          <div className="font-[family-name:var(--font-head)] text-[56px] leading-none font-semibold text-[#e5484d] [text-shadow:0_0_8px_#000]">Вы пали</div>
+          {hud.allies.some((a) => a.alive) && <div className="text-parch mt-3">Союзник может поднять вас, если подойдёт и нажмёт E</div>}
         </div>
       )}
-      {hud.reviving > 0 && <div className="absolute top-[64%] left-1/2 -translate-x-1/2 text-[#7fe07f]">Поднимаем союзника… {hud.reviving.toFixed(1)} с</div>}
+      {hud.reviving > 0 && <div className="text-good absolute top-[64%] left-1/2 -translate-x-1/2">Поднимаем союзника, {hud.reviving.toFixed(1)} с</div>}
 
       {/* журнал */}
-      <div className="absolute bottom-28 left-4 flex w-[420px] flex-col gap-0.5 text-sm">
+      <div className="absolute bottom-32 left-6 flex w-[400px] flex-col gap-1 text-[13px] leading-[18px]">
         {log.map((l) => (
-          <div key={l.id} className="rise [text-shadow:1px_1px_0_#000,2px_2px_0_#000]" style={{ color: l.color || "#d8cdb2", opacity: Math.max(0, Math.min(1, (9000 - (now - l.t)) / 1500)) }}>
+          <div key={l.id} className="rise [text-shadow:0_0_3px_#000,0_1px_2px_#000]" style={{ color: logColor(l.color), opacity: Math.max(0, Math.min(1, (9000 - (now - l.t)) / 1500)) }}>
             {l.text}
           </div>
         ))}
@@ -96,55 +100,75 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
       {hud.allies.length > 0 && (
         <div className="absolute top-[190px] right-4 flex w-[160px] flex-col gap-1">
           {hud.allies.map((a, i) => (
-            <div key={i} className="text-xs [text-shadow:1px_1px_0_#000]">
-              <div style={{ color: a.alive ? "#d8cdb2" : "#c8343a" }}>{a.name}{a.alive ? "" : " (пал)"}</div>
-              <Bar value={a.hp} max={a.maxHp} color="#a02a2a" className="!h-2" />
+            <div key={i} className="text-xs [text-shadow:0_0_3px_#000]">
+              <div className={a.alive ? "text-bone" : "text-bad"}>{a.name}{a.alive ? "" : " · пал"}</div>
+              <Bar value={a.hp} max={a.maxHp} color="#b4303a" className="!h-1.5" />
             </div>
           ))}
         </div>
       )}
 
       {/* нижняя панель */}
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5">
-        <div className="flex w-[520px] gap-2">
-          <Bar value={hud.hp} max={hud.maxHp} extra={hud.absorb} color="#b02a30" label={`${hud.hp} / ${hud.maxHp}`} className="flex-1 !h-4" />
-          <Bar value={hud.mana} max={hud.maxMana} color="#3a5aa8" label={`${hud.mana} / ${hud.maxMana}`} className="flex-1 !h-4" />
+      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+        <div className="flex w-[560px] gap-3">
+          <Bar value={hud.hp} max={hud.maxHp} extra={hud.absorb} color="#b4303a" label={`${hud.hp} / ${hud.maxHp}`} className="flex-1 !h-4 [&>span]:!text-[11px] [&>span]:!leading-[14px]" />
+          <Bar value={hud.mana} max={hud.maxMana} color="#4a74c0" label={`${hud.mana} / ${hud.maxMana}`} className="flex-1 !h-4 [&>span]:!text-[11px] [&>span]:!leading-[14px]" />
         </div>
-        <Bar value={hud.stamina} max={hud.maxStamina} color="#b59a3a" className="w-[300px] !h-2" />
-        <div className="panel flex items-end gap-1.5 px-2 py-1.5">
+        <Bar value={hud.stamina} max={hud.maxStamina} color="#a8915a" className="w-[280px] !h-1" />
+        <div className="panel flex items-end gap-1 px-2 pt-2 pb-1">
           <HotSlot k="ЛКМ" icon={weapon ? itemIcon(BASE_BY_ID[weapon.base].icon) : itemIcon("gloves")} />
           <HotSlot k="ПКМ" icon={char.equipment.offhand ? itemIcon(BASE_BY_ID[char.equipment.offhand.base].icon) : itemIcon("shield")} dim />
-          <div className="w-2" />
+          <div className="mx-1 h-11 w-px self-start bg-line" />
           {HOTKEYS.map((k, i) => {
             const id = char.hotbar[i];
             const sk = id ? SKILL_BY_ID[id] : null;
             const cd = id ? hud.cds[id] || 0 : 0;
             return <HotSlot key={k} k={k} icon={sk ? skillIcon(sk.icon) : undefined} cd={cd} total={sk?.cooldown || 1} />;
           })}
-          <div className="w-2" />
+          <div className="mx-1 h-11 w-px self-start bg-line" />
           <HotSlot k="1" icon={itemIcon("health")} count={hud.potions.health} />
           <HotSlot k="2" icon={itemIcon("mana")} count={hud.potions.mana} />
         </div>
-        <div className="flex w-[520px] items-center gap-2 text-[11px] [text-shadow:1px_1px_0_#000]">
-          <span className="text-gold">{hud.level} ур.</span>
-          <Bar value={hud.xp} max={hud.xpNeed} color="#c9a46a" className="flex-1 !h-1.5" />
-          <span className="text-gold">{hud.gold} зол.</span>
+        <div className="flex w-[560px] items-center gap-3 text-xs [text-shadow:0_0_3px_#000]">
+          <span className="text-bone">Ур. {hud.level}</span>
+          <Bar value={hud.xp} max={hud.xpNeed} color="#e3a45a" className="flex-1 !h-1" />
+          <span className="text-parch">{hud.gold.toLocaleString("ru-RU")} зол.</span>
         </div>
       </div>
 
       {!locked && !panel && (
-        <div className="pointer-events-auto absolute inset-0 flex cursor-pointer items-center justify-center bg-black/30" onClick={onClickCanvas}>
-          <div className="panel px-6 py-4 text-center">
-            <div className="panel-title text-xl">Кликните, чтобы играть</div>
-            <div className="text-parch mt-1 text-sm">WASD — ходить · мышь — смотреть · ЛКМ — атака (зажать — сильная) · ПКМ — блок/прицел</div>
-            <div className="text-parch text-sm">Shift — бег · Пробел — уклонение · E — действие · Q/R/F/G/Z/X — навыки · 1/2 — зелья</div>
-            <div className="text-parch text-sm">I — сумка · C — персонаж · B — навыки · M — карта · Esc — пауза · F1 — помощь</div>
-            {lock.soft && <div className="mt-2 text-xs text-[#e0a84a]">Браузер не разрешил захват мыши — включён режим без захвата: поворачивайтесь мышью, подводя курсор к краю экрана, или стрелками.</div>}
+        <div className="pointer-events-auto absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40" onClick={onClickCanvas}>
+          <div className="panel rise w-[520px] p-6">
+            <div className="panel-title">Кликните, чтобы играть</div>
+            <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
+              {CONTROLS.map(([k, v]) => (
+                <div key={v} className="flex items-center justify-between gap-3">
+                  <dt className="text-parch">{v}</dt>
+                  <dd className="flex gap-1">{k.split(" ").map((x) => <span key={x} className="kbd">{x}</span>)}</dd>
+                </div>
+              ))}
+            </dl>
+            {lock.soft && <p className="text-parch mt-4 text-xs">Браузер не разрешил захват мыши. Поворачивайтесь, подводя курсор к краю экрана, или стрелками</p>}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+const CONTROLS: [string, string][] = [
+  ["W A S D", "Ходить"], ["Shift", "Бег"], ["ЛКМ", "Атака"], ["Space", "Уклонение"], ["ПКМ", "Блок или прицел"], ["E", "Действие"],
+  ["Q R F", "Навыки"], ["G Z X", "Навыки"], ["1 2", "Зелья"], ["I", "Сумка"], ["C", "Персонаж"], ["B", "Навыки"], ["M", "Карта"], ["Esc", "Пауза"],
+];
+
+/** Цвета журнала: старые яркие оттенки сводим к палитре, смысл сохраняем. */
+function logColor(c?: string) {
+  if (!c) return "#ece6da";
+  const m: Record<string, string> = {
+    "#c9a46a": "#ece6da", "#d8cdb2": "#aaa398", "#ffd84a": "#e3a45a", "#e0505a": "#e5484d", "#ff5a4a": "#e5484d", "#ff3a2a": "#e5484d",
+    "#ff6a4a": "#e5484d", "#7fe07f": "#4cc38a", "#8fd0ff": "#9fb4d8", "#4a6fb0": "#9fb4d8", "#c8b89a": "#aaa398",
+  };
+  return m[c.toLowerCase()] || c;
 }
 
 function HotSlot(props: { k: string; icon?: string; cd?: number; total?: number; count?: number; dim?: boolean }) {
@@ -156,14 +180,14 @@ function HotSlot(props: { k: string; icon?: string; cd?: number; total?: number;
         {cdK > 0 && (
           <>
             <div className="absolute inset-x-0 bottom-0 bg-black/70" style={{ height: `${cdK * 100}%` }} />
-            <div className="absolute inset-0 flex items-center justify-center text-sm [text-shadow:1px_1px_0_#000]">{Math.ceil(props.cd!)}</div>
+            <div className="absolute inset-0 flex items-center justify-center text-[13px] [text-shadow:0_0_3px_#000]">{Math.ceil(props.cd!)}</div>
           </>
         )}
         {props.count !== undefined && (
-          <span className={`absolute right-0.5 bottom-0 text-xs [text-shadow:1px_1px_0_#000] ${props.count ? "text-bone" : "text-[#e0505a]"}`}>{props.count}</span>
+          <span className={`absolute right-1 bottom-0.5 text-[11px] leading-none [text-shadow:0_0_3px_#000] ${props.count ? "text-bone" : "text-bad"}`}>{props.count}</span>
         )}
       </div>
-      <span className="text-dim text-[10px] leading-3">{props.k}</span>
+      <span className="text-dim mt-1 text-[10px] leading-3">{props.k}</span>
     </div>
   );
 }
@@ -179,7 +203,7 @@ function Minimap() {
       const { d, explored, x, z, yaw } = data;
       const S = 6; // пикселей на клетку
       const R = 11;
-      g.fillStyle = "#0b0806";
+      g.fillStyle = "#121110";
       g.fillRect(0, 0, c.width, c.height);
       const pcx = x / CELL, pcz = z / CELL;
       for (let j = -R; j <= R; j++)
@@ -190,7 +214,7 @@ function Minimap() {
           if (!explored[idx]) continue;
           const cell = d.cells[idx];
           if (cell === Cell.Wall) continue;
-          g.fillStyle = cell === Cell.Secret ? "#4a3a2a" : "#6a5a48";
+          g.fillStyle = cell === Cell.Secret ? "#3a3632" : "#4d4943";
           g.fillRect(c.width / 2 + (cx - pcx) * S, c.height / 2 + (cz - pcz) * S, S, S);
         }
       const pt = (wx: number, wz: number, col: string, r = 2) => {
@@ -199,8 +223,8 @@ function Minimap() {
         g.fillStyle = col;
         g.fillRect(px - r, pz - r, r * 2, r * 2);
       };
-      for (const n of data.npcs) pt(n.x, n.z, "#c9a46a", 2);
-      for (const a of data.allies) pt(a.x, a.z, "#7fe07f", 2);
+      for (const n of data.npcs) pt(n.x, n.z, "#aaa398", 2);
+      for (const a of data.allies) pt(a.x, a.z, "#4cc38a", 2);
       if (data.exitOpen) pt(d.exit.x, d.exit.z, "#8fd0ff", 3);
       // компас к логову босса (или к открытому порталу)
       const boss = d.rooms[d.bossRoom];
@@ -229,7 +253,7 @@ function Minimap() {
       g.save();
       g.translate(c.width / 2, c.height / 2);
       g.rotate(-yaw);
-      g.fillStyle = "#ffe9a0";
+      g.fillStyle = "#ece6da";
       g.beginPath();
       g.moveTo(0, -5);
       g.lineTo(4, 4);
@@ -240,5 +264,5 @@ function Minimap() {
     }, 150);
     return () => clearInterval(id);
   }, []);
-  return <canvas ref={ref} width={160} height={160} className="panel absolute top-4 right-4 h-[160px] w-[160px] p-0" />;
+  return <canvas ref={ref} width={160} height={160} className="panel absolute top-4 right-6 h-[160px] w-[160px] p-0" />;
 }

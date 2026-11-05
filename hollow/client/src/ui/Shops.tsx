@@ -18,43 +18,44 @@ export function MerchantPanel({ onClose }: { onClose: () => void }) {
   };
   return (
     <Panel title="Ольгерд, торговец" onClose={onClose} wide>
-      <div className="text-parch mb-3 text-sm">
-        Золото: <span className="text-gold">{char.gold}</span> · Товар обновляется после каждого спуска. ПКМ по вещи в сумке — продать.
+      <div className="mb-4 flex items-baseline justify-between gap-4 text-sm">
+        <span className="text-parch">Товар обновляется после каждого спуска. ПКМ по вещи в сумке продаёт её</span>
+        <span className="shrink-0">{char.gold.toLocaleString("ru-RU")} зол.</span>
       </div>
       <div className="flex flex-wrap gap-6">
         <div className="w-[440px]">
-          <h3 className="panel-title mb-2">Товары</h3>
+          <h3 className="label mb-2">Товары</h3>
           <div className="flex flex-col gap-1">
             {stock.map((it, i) =>
               it ? (
-                <div key={i} className="flex items-center gap-2 border-b border-[#2b221a] pb-1">
-                  <ItemSlot item={it} size={40} extra={`Цена: ${it.price} зол.`} />
+                <div key={i} className="flex items-center gap-3 border-b border-line py-1">
+                  <ItemSlot item={it} size={40} extra={`Цена ${it.price} зол.`} />
                   <div className="flex-1 text-sm" style={{ color: RARITIES[it.rarity].color }}>{it.name}</div>
-                  <button className="btn px-2 py-0.5 text-sm" disabled={char.gold < it.price} onClick={() => { audio.play("gold"); void gameApi.op({ op: "buy", index: i }); }}>
-                    {it.price} зол.
+                  <button className="btn w-24" disabled={char.gold < it.price} onClick={() => { audio.play("gold"); void gameApi.op({ op: "buy", index: i }); }}>
+                    {it.price.toLocaleString("ru-RU")}
                   </button>
                 </div>
               ) : (
-                <div key={i} className="text-dim border-b border-[#2b221a] py-2 text-sm">— продано —</div>
+                <div key={i} className="text-dim flex h-[49px] items-center border-b border-line text-sm">Продано</div>
               ),
             )}
           </div>
-          <h3 className="panel-title mt-4 mb-2">Зелья</h3>
+          <h3 className="label mt-6 mb-2">Зелья</h3>
           {(["health", "mana"] as const).map((k) => (
-            <div key={k} className="mb-1 flex items-center gap-2">
+            <div key={k} className="flex items-center gap-3 py-1">
               <img src={itemIcon(k)} className="h-8 w-8" alt="" />
-              <span className="flex-1 text-sm">{POTIONS[k].name} (у вас {char.potions[k]}/20)</span>
-              <button className="btn px-2 py-0.5 text-sm" disabled={char.gold < POTIONS[k].price} onClick={() => gameApi.op({ op: "buy_potion", kind: k, n: 1 })}>
-                1 — {POTIONS[k].price}
+              <span className="flex-1 text-sm">{POTIONS[k].name} <span className="text-dim">· у вас {char.potions[k]} из 20</span></span>
+              <button className="btn" disabled={char.gold < POTIONS[k].price} onClick={() => gameApi.op({ op: "buy_potion", kind: k, n: 1 })}>
+                1 за {POTIONS[k].price}
               </button>
-              <button className="btn px-2 py-0.5 text-sm" disabled={char.gold < POTIONS[k].price * 5} onClick={() => gameApi.op({ op: "buy_potion", kind: k, n: 5 })}>
-                5 — {POTIONS[k].price * 5}
+              <button className="btn" disabled={char.gold < POTIONS[k].price * 5} onClick={() => gameApi.op({ op: "buy_potion", kind: k, n: 5 })}>
+                5 за {POTIONS[k].price * 5}
               </button>
             </div>
           ))}
         </div>
         <div>
-          <h3 className="panel-title mb-2">Ваша сумка</h3>
+          <h3 className="label mb-2">Ваша сумка</h3>
           <Grid
             items={char.inventory}
             size={40}
@@ -77,7 +78,7 @@ export function MerchantPanel({ onClose }: { onClose: () => void }) {
               } catch { /* нет */ }
             }}
           >
-            <span className="text-gold text-sm">Перетащите сюда, чтобы продать</span>
+            <span className="text-parch text-sm">Перетащите сюда, чтобы продать</span>
           </div>
         </div>
       </div>
@@ -97,43 +98,46 @@ export function BlacksmithPanel({ onClose }: { onClose: () => void }) {
   const next = it ? { ...it, upgrade: (it.upgrade || 0) + 1 } : null;
   return (
     <Panel title="Бруна, кузнец" onClose={onClose}>
-      <div className="text-parch mb-3 text-sm">Заточка усиливает урон оружия (+10% за уровень) и броню доспехов (+12%). Максимум +5. Золото: <span className="text-gold">{char.gold}</span></div>
+      <div className="mb-4 flex items-baseline justify-between gap-4 text-sm">
+        <span className="text-parch">Заточка добавляет оружию 10% урона, доспехам 12% брони за уровень, до +5</span>
+        <span className="shrink-0">{char.gold.toLocaleString("ru-RU")} зол.</span>
+      </div>
       <div className="flex flex-wrap gap-6">
         <div>
-          <div className="text-dim mb-1 text-xs">Надето</div>
+          <div className="label mb-2">Надето</div>
           <div className="mb-3 flex flex-wrap gap-1">
             {equipped.map((x) => (
-              <div key={x.uid} onClick={() => setSel(x.uid)} className={it?.uid === x.uid ? "outline-2 outline-[#c9a46a]" : ""}>
+              <div key={x.uid} onClick={() => setSel(x.uid)} className={`rounded-[4px] ${it?.uid === x.uid ? "outline-2 outline-offset-1 outline-[#e3a45a]" : ""}`}>
                 <ItemSlot item={x} />
               </div>
             ))}
           </div>
-          <div className="text-dim mb-1 text-xs">В сумке</div>
+          <div className="label mb-2">В сумке</div>
           <div className="flex max-w-[420px] flex-wrap gap-1">
             {char.inventory.map((x) => (
-              <div key={x.uid} onClick={() => setSel(x.uid)} className={it?.uid === x.uid ? "outline-2 outline-[#c9a46a]" : ""}>
+              <div key={x.uid} onClick={() => setSel(x.uid)} className={`rounded-[4px] ${it?.uid === x.uid ? "outline-2 outline-offset-1 outline-[#e3a45a]" : ""}`}>
                 <ItemSlot item={x} />
               </div>
             ))}
           </div>
         </div>
         {it && base && next && (
-          <div className="panel min-w-[240px] flex-1 p-3">
+          <div className="panel min-w-[240px] flex-1 p-4">
             <div style={{ color: RARITIES[it.rarity].color }}>{it.name} {it.upgrade ? `+${it.upgrade}` : ""}</div>
             {base.slot === "weapon" && (
               <div className="mt-1 text-sm">
-                Урон: {weaponDamage(it).dmg[0]}–{weaponDamage(it).dmg[1]} → <span className="text-[#7fe07f]">{weaponDamage(next).dmg[0]}–{weaponDamage(next).dmg[1]}</span>
+                Урон {weaponDamage(it).dmg[0]}–{weaponDamage(it).dmg[1]} → <span className="text-good">{weaponDamage(next).dmg[0]}–{weaponDamage(next).dmg[1]}</span>
               </div>
             )}
             {base.armor ? (
               <div className="mt-1 text-sm">
-                Броня: {Math.round(base.armor * (1 + 0.12 * (it.upgrade || 0)))} → <span className="text-[#7fe07f]">{Math.round(base.armor * (1 + 0.12 * (next.upgrade || 0)))}</span>
+                Броня {Math.round(base.armor * (1 + 0.12 * (it.upgrade || 0)))} → <span className="text-good">{Math.round(base.armor * (1 + 0.12 * (next.upgrade || 0)))}</span>
               </div>
             ) : null}
             {cost === null ? (
-              <div className="text-gold mt-3">Заточено до предела.</div>
+              <div className="text-parch mt-4">Заточено до предела</div>
             ) : (
-              <button className="btn btn-gold mt-3 w-full" disabled={char.gold < cost} onClick={() => { audio.play("block"); void gameApi.op({ op: "upgrade", uid: it.uid }); }}>
+              <button className="btn btn-primary mt-4 h-10 w-full" disabled={char.gold < cost} onClick={() => { audio.play("block"); void gameApi.op({ op: "upgrade", uid: it.uid }); }}>
                 Заточить за {cost} зол.
               </button>
             )}

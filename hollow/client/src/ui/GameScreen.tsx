@@ -230,6 +230,7 @@ export function GameScreen() {
       const session = new LocalSession(RAPIER, { dungeon, seed: r.run.seed, level: r.run.level, char: c, name: c.name });
       runRef.current = { id: r.run.id, dungeon, coop: false, items: 0, kills: 0 };
       closePanel();
+      useGame.setState({ log: [] });
       g.enterDungeon(session, `${stageLabel(dungeon)} (ур. ${r.run.level})`);
     } catch (x) {
       say(x instanceof ApiError ? x.message : "Ошибка.", "#e0505a");
@@ -254,7 +255,7 @@ export function GameScreen() {
   return (
     <div className="relative h-full w-full bg-black">
       <div ref={host} className="absolute inset-0" />
-      {!ready && !loadErr && <div className="logo flicker absolute inset-0 flex items-center justify-center text-5xl">THE HOLLOW</div>}
+      {!ready && !loadErr && <div className="logo bg-coal absolute inset-0 flex items-center justify-center text-6xl">THE HOLLOW</div>}
       {loadErr && <div className="absolute inset-0 flex items-center justify-center text-[#e0505a]">Не удалось запустить игру: {loadErr}</div>}
       {ready && <Hud onClickCanvas={() => gameRef.current?.input.lock()} />}
       {panel && (

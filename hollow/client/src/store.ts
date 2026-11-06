@@ -43,6 +43,8 @@ export interface Hud {
   hp: number; maxHp: number; mana: number; maxMana: number; stamina: number; maxStamina: number;
   absorb: number;
   alive: boolean;
+  /** Сколько секунд герой лежит (0 — жив). */
+  deadFor: number;
   level: number; xp: number; xpNeed: number;
   cds: Record<string, number>;
   potions: { health: number; mana: number };

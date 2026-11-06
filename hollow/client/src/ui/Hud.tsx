@@ -81,8 +81,8 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
           {hud.prompt}
         </div>
       )}
-      {!hud.alive && (
-        <div className="absolute top-[35%] left-1/2 -translate-x-1/2 text-center">
+      {!hud.alive && (hud.deadFor < 4.5 || hud.allies.some((a) => a.alive)) && (
+        <div className="absolute top-[35%] left-1/2 -translate-x-1/2 text-center transition-opacity duration-700" style={{ opacity: hud.allies.some((a) => a.alive) ? 1 : Math.max(0, Math.min(1, (4.5 - hud.deadFor) / 1.2)) }}>
           <div className="font-[family-name:var(--font-head)] text-[56px] leading-none font-semibold text-[#e5484d] [text-shadow:0_0_8px_#000]">Вы пали</div>
           {hud.allies.some((a) => a.alive) && <div className="text-parch mt-3">Союзник может поднять вас, если подойдёт и нажмёт E</div>}
         </div>
@@ -133,6 +133,12 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
         </div>
         <div className="flex w-[560px] items-center gap-3 text-xs [text-shadow:0_0_3px_#000]">
           <span className="text-bone">Ур. {hud.level}</span>
+          {(char.attrPoints > 0 || char.skillPoints > 0) && (
+            <span className="pts-badge" title="Есть нераспределённые очки">
+              {char.attrPoints > 0 && <>+{char.attrPoints} атр. <span className="kbd">C</span></>}
+              {char.skillPoints > 0 && <>{char.attrPoints > 0 ? " · " : ""}+{char.skillPoints} нав. <span className="kbd">B</span></>}
+            </span>
+          )}
           <Bar value={hud.xp} max={hud.xpNeed} color="#e3a45a" className="flex-1 !h-1" />
           <span className="text-parch">{hud.gold.toLocaleString("ru-RU")} зол.</span>
         </div>
@@ -159,7 +165,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
 }
 
 const CONTROLS: [string, string][] = [
-  ["W A S D", "Ходить"], ["Shift", "Бег"], ["ЛКМ", "Атака"], ["Space", "Уклонение"], ["ПКМ", "Блок или прицел"], ["E", "Действие"],
+  ["W A S D", "Ходить"], ["Shift", "Бег"], ["ЛКМ", "Атака"], ["Space", "Прыжок"], ["V", "Уклонение"], ["ПКМ", "Блок или прицел"], ["E", "Действие"],
   ["Q R F", "Навыки"], ["G Z X", "Навыки"], ["1 2", "Зелья"], ["I", "Сумка"], ["C", "Персонаж"], ["B", "Навыки"], ["M", "Карта"], ["J", "Поручения"], ["Esc", "Пауза"],
 ];
 

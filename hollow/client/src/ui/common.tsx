@@ -39,6 +39,9 @@ export function Panel(props: { title: string; nav?: boolean; onClose?: () => voi
 /** Вкладки для перехода между окнами прямо из открытого окна. */
 function PanelNav() {
   const panel = useGame((s) => s.panel);
+  const char = useGame((s) => s.char);
+  // точка на вкладке — там есть что распределить
+  const dot: Partial<Record<string, number>> = { character: char?.attrPoints || 0, skills: char?.skillPoints || 0 };
   const home = navHomePanel();
   const tabs: { id: Exclude<GamePanel, null>; name: string; key?: string }[] = [...NAV_TABS];
   if (home && NPC_PANELS[home]) tabs.unshift({ id: home, name: NPC_PANELS[home]! });
@@ -52,6 +55,7 @@ function PanelNav() {
       {tabs.map((t) => (
         <button key={t.id} className={`navtab ${t.id === panel ? "is-on" : ""}`} aria-current={t.id === panel ? "page" : undefined} onClick={() => go(t.id)}>
           {t.name}
+          {!!dot[t.id] && <span className="pts-dot" aria-label={`свободных очков: ${dot[t.id]}`}>{dot[t.id]}</span>}
           {t.key && <span className="kbd">{t.key}</span>}
         </button>
       ))}

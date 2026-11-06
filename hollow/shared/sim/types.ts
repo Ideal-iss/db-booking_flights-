@@ -81,6 +81,8 @@ export interface SimEnemy {
   def: EnemyDef;
   team: "enemy" | "ally";
   owner?: string;
+  /** Когда враг в следующий раз пересмотрит цель. */
+  retargetAt?: number;
   elite?: string;
   boss: boolean;
   level: number;

@@ -179,7 +179,8 @@ export class Sim {
       if (pose.y < -1.6) return this.fall(p);
     } else {
       // по высоте — не выше прыжка над полом; ниже пола (в ямах до приземления) можно
-      p.y = clamp(pose.y, ground - 3, ground + (this.t < p.allowJumpUntil ? 2 : 0.6));
+      // прыжок поднимает героя примерно на 1.3 м над полом
+      p.y = clamp(pose.y, ground - 3, ground + (this.t < p.allowJumpUntil ? 2 : 1.7));
       // точка возврата — центр клетки, где стоял твёрдо (у края легко снова соскользнуть)
       if (Math.abs(pose.y - ground) < 0.5 && !liquidAt(this.d, nx, nz)) this.safe.set(p.id, { x: (worldToCell(nx) + 0.5) * CELL, z: (worldToCell(nz) + 0.5) * CELL });
     }
@@ -631,8 +632,11 @@ export class Sim {
       p.level = lv;
       p.char.level = lv;
       p.stats = deriveStats(p.char);
-      p.hp = p.stats.maxHp;
-      p.mana = p.stats.maxMana;
+      // новый уровень лечит наполовину: половина запаса здоровья и маны сверху
+      if (p.alive) {
+        this.healPlayer(p, p.stats.maxHp * 0.5);
+        p.mana = Math.min(p.stats.maxMana, p.mana + p.stats.maxMana * 0.5);
+      }
       this.events.push({ t: "levelup", p: p.id, level: lv });
     }
   }

@@ -35,6 +35,25 @@ function resolveTarget(sim: Sim, e: SimEnemy): Target | null {
     if (best) return { id: best.id, x: best.x, z: best.z, r: best.def.radius, player: null, ally: best };
     return null;
   }
+  // раз в секунду враг пересматривает цель: призванные союзники тоже враги,
+  // и тот, кто ближе (или бьёт его), перетягивает внимание на себя
+  if (e.target && sim.t >= (e.retargetAt || 0)) {
+    e.retargetAt = sim.t + 1 + Math.random() * 0.4;
+    const cur = sim.players.get(e.target) || sim.enemies.get(e.target);
+    const curD = cur ? Math.hypot(cur.x - e.x, cur.z - e.z) : Infinity;
+    let best: SimEnemy | null = null, bd = Math.min(curD * 0.8, 14);
+    for (const a of sim.enemies.values()) {
+      if (a.team !== "ally" || a.state === "dead") continue;
+      const d = Math.hypot(a.x - e.x, a.z - e.z) * (a.target === e.id ? 0.7 : 1);
+      if (d < bd) { bd = d; best = a; }
+    }
+    if (best && best.id !== e.target) e.target = best.id;
+    else if (!sim.players.has(e.target)) {
+      // отвлёкся на призванного, но герой гораздо ближе — возвращается к нему
+      const p = sim.nearestPlayer(e, 70, false);
+      if (p && Math.hypot(p.x - e.x, p.z - e.z) < curD * 0.6) e.target = p.id;
+    }
+  }
   if (e.target) {
     const p = sim.players.get(e.target);
     if (p && p.alive && p.connected) return { id: p.id, x: p.x, z: p.z, r: 0.4, player: p, ally: null };
@@ -44,16 +63,21 @@ function resolveTarget(sim: Sim, e: SimEnemy): Target | null {
   }
   // Принудительный вызов рыцаря держит цель.
   const p = sim.nearestPlayer(e, e.awake ? 70 : e.def.aggro, !e.awake);
+  // призванный союзник ближе героя — цель он
+  let ally: SimEnemy | null = null, ad = p ? Math.hypot(p.x - e.x, p.z - e.z) : e.awake ? 14 : 8;
+  for (const a of sim.enemies.values()) {
+    if (a.team !== "ally" || a.state === "dead") continue;
+    const d = Math.hypot(a.x - e.x, a.z - e.z);
+    if (d < ad) { ad = d; ally = a; }
+  }
+  e.retargetAt = sim.t + 1;
+  if (ally) {
+    e.target = ally.id;
+    return { id: ally.id, x: ally.x, z: ally.z, r: ally.def.radius, player: null, ally };
+  }
   if (p) {
     e.target = p.id;
     return { id: p.id, x: p.x, z: p.z, r: 0.4, player: p, ally: null };
-  }
-  // призванные скелеты рядом тоже цель
-  for (const a of sim.enemies.values()) {
-    if (a.team === "ally" && a.state !== "dead" && Math.hypot(a.x - e.x, a.z - e.z) < 6) {
-      e.target = a.id;
-      return { id: a.id, x: a.x, z: a.z, r: a.def.radius, player: null, ally: a };
-    }
   }
   return null;
 }

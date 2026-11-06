@@ -16,6 +16,8 @@ export class FpsController {
   yaw: number; pitch = 0;
   vy = 0;
   grounded = true;
+  /** Скорость удара о землю в кадре приземления (0 — не приземлялся). */
+  landed = 0;
   moving = false;
   sprinting = false;
   speed = 0;
@@ -50,6 +52,14 @@ export class FpsController {
       this.openedSecrets.add(id);
       openSecret(this.phys, id);
     }
+  }
+
+  /** Прыжок: только с земли, высота около 1.5 м — хватает, чтобы запрыгнуть на уступ. */
+  jump() {
+    if (!this.grounded) return false;
+    this.vy = 8.2;
+    this.grounded = false;
+    return true;
   }
 
   /** Треснувший пол обвалился: убираем плиту из физики. */
@@ -98,9 +108,13 @@ export class FpsController {
     }
     this.vy -= 22 * dt;
     if (this.grounded && this.vy < 0) this.vy = -1;
+    const wasAir = !this.grounded;
     this.ctl.computeColliderMovement(this.collider, { x: mx, y: this.vy * dt, z: mz });
     const m = this.ctl.computedMovement();
     this.grounded = this.ctl.computedGrounded();
+    // приземление после полёта — для звука и тряски
+    this.landed = wasAir && this.grounded ? Math.max(0, -this.vy) : 0;
+    if (this.vy > 0 && m.y < this.vy * dt * 0.5) this.vy = 0; // макушкой в потолок
     this.x += m.x;
     this.y = Math.max(CHASM_Y, this.y + m.y);
     this.z += m.z;

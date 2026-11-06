@@ -179,6 +179,11 @@ export class Game {
   enterHub() {
     this.clearScene();
     this.mode = "hub";
+    // в лагере герой снова цел: прежний снимок из подземелья больше не действует
+    this.self = null;
+    this.ents = null;
+    this.engine.desat = 0;
+    this.deadSince = -1;
     this.dungeonName = "Лагерь «Последняя свеча»";
     const { d, npcs } = buildHub(this.char.cleared);
     this.npcs = npcs;
@@ -918,11 +923,17 @@ export class Game {
         audio.play("step", undefined, c.sprinting ? 0.9 : 0.6);
       }
     }
+    // прыжок — пробел, и в лагере, и в подземелье
+    if (alive && inp.pressed.includes("Space") && c.jump()) audio.play("dodge", undefined, 0.45);
+    if (c.landed > 6) {
+      audio.play("step", undefined, Math.min(1, c.landed / 10));
+      if (c.landed > 11) this.shake = Math.max(this.shake, 0.1);
+    }
     this.interactTarget = this.findInteraction();
     if (inp.pressed.includes("KeyE") && this.interactTarget) this.interactTarget.act();
     if (this.mode !== "dungeon" || !alive) return;
 
-    if (inp.pressed.includes("Space")) {
+    if (inp.pressed.includes("KeyV")) {
       this.act({ t: "dodge" });
       if (this.self && this.self.stamina >= 20) {
         const sin = Math.sin(c.yaw), cos = Math.cos(c.yaw);
@@ -1063,8 +1074,13 @@ export class Game {
     }
   }
 
+  /** Когда герой пал (сек. игры), −1 — жив. Плашка «Вы пали» гаснет через несколько секунд. */
+  private deadSince = -1;
+
   private pushHud(draw: number) {
     const s = this.self;
+    if (s && !s.alive) { if (this.deadSince < 0) this.deadSince = this.now; }
+    else this.deadSince = -1;
     const st = this.stats;
     const lv = levelFromXp(this.char.xp);
     const hud: Hud = {
@@ -1073,6 +1089,7 @@ export class Game {
       stamina: s ? s.stamina : st.maxStamina, maxStamina: s ? s.maxStamina : st.maxStamina,
       absorb: s ? s.absorb : 0,
       alive: s ? s.alive : true,
+      deadFor: this.deadSince >= 0 ? this.now - this.deadSince : 0,
       level: s ? s.level : this.char.level,
       xp: lv.into, xpNeed: lv.need,
       cds: s ? s.cds : {},

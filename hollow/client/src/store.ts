@@ -56,6 +56,8 @@ export interface Hud {
   where: "hub" | "dungeon";
   dungeonName: string;
   draw: number;
+  /** Найденные, но ещё не потраченные ключи. */
+  keys: number;
 }
 
 export interface LogLine { id: number; text: string; color?: string; t: number }

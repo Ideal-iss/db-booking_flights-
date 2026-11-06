@@ -4,6 +4,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { Engine, disposeTree } from "./engine";
 import { LevelView } from "./level";
 import { LightPool, probeAt } from "./lighting";
+import { lineOfSight } from "@shared/physics";
 import { AmbientFx } from "./dressing";
 import { NOTES } from "@shared/data/lore";
 import { FpsController, EYE } from "./controller";
@@ -219,6 +220,8 @@ export class Game {
     this.ents.push(s, this.now);
     this.self = s.players.find((p) => p.id === this.session!.selfId) || null;
     this.ctl.openSecrets(s.opened.secrets);
+    if (s.opened.doors?.length) this.ctl.openSecrets(s.opened.doors);
+    for (const id of s.opened.cracks || []) this.ctl.collapse(id);
   }
 
   private onEvents(events: SimEvent[]) {
@@ -550,6 +553,65 @@ export class Game {
         case "lever":
           audio.play("lever", pos);
           break;
+        case "key":
+          if (e.p === me) {
+            audio.play("keyring");
+            this.cb.say(`Найден ключ. Ключей: ${this.ents?.latest?.keyCount ?? 1}`, "#e8c050");
+          } else this.cb.say("Союзник нашёл ключ", "#e8c050");
+          break;
+        case "locked":
+          if (e.p === me) {
+            audio.play("locked");
+            this.cb.say("Заперто. Ключ где-то на этаже", "#c8b89a");
+          }
+          break;
+        case "door": {
+          const o = this.session?.dungeon.doors?.find((x) => x.id === e.id);
+          const dp = o ? { x: (o.cx + 0.5) * CELL, z: (o.cy + 0.5) * CELL } : undefined;
+          audio.play(e.kind === "gate" ? "gate" : "unlock", dp);
+          if (e.kind === "key" && e.p === me) this.cb.say("Ключ поворачивается. Дверь открыта", "#e8c050");
+          if (e.kind === "gate") this.cb.say("Где-то с лязгом поднимается решётка", "#c9a46a");
+          break;
+        }
+        case "plate":
+          audio.play("plate", pos);
+          if (this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 12) this.shake = Math.max(this.shake, 0.15);
+          break;
+        case "creak": {
+          const cr = this.session?.dungeon.cracks?.find((x) => x.id === e.id);
+          const cp = cr ? { x: (cr.cells[0][0] + 0.5) * CELL, z: (cr.cells[0][1] + 0.5) * CELL } : undefined;
+          audio.play("creak", cp, 0.8);
+          this.shake = Math.max(this.shake, 0.12);
+          if (cp) ents.burst(cp.x + (Math.random() - 0.5) * 3, 0.1, cp.z + (Math.random() - 0.5) * 3, "#6a6050", 6, { speed: 0.8, up: 1, size: 0.06, life: 0.6 });
+          break;
+        }
+        case "collapse": {
+          const cr = this.session?.dungeon.cracks?.find((x) => x.id === e.id);
+          if (cr) {
+            for (const [x, y] of cr.cells) ents.burst((x + 0.5) * CELL, 0.2, (y + 0.5) * CELL, "#5a5048", 10, { speed: 3, up: 2, size: 0.14, life: 1.1 });
+            const cp = { x: (cr.cells[0][0] + 0.5) * CELL, z: (cr.cells[0][1] + 0.5) * CELL };
+            audio.play("rumble", cp);
+            this.ctl?.collapse(cr.id);
+            if (this.ctl && Math.hypot(this.ctl.x - cp.x, this.ctl.z - cp.z) < 14) this.shake = Math.max(this.shake, 0.8);
+            this.cb.say("Пол уходит из-под ног!", "#ff9a5a");
+          }
+          break;
+        }
+        case "fell":
+          if (e.p === me) {
+            audio.play("fall");
+            audio.play("hurt");
+            this.engine.fade = Math.max(this.engine.fade, 0.9);
+            this.cb.say("Вы сорвались в бездну… и очнулись у края", "#ff6a4a");
+          }
+          break;
+        case "burn":
+          if (e.p === me) {
+            audio.play("sizzle");
+            this.engine.hurt = Math.max(this.engine.hurt, 0.5);
+            if (this.ctl) ents.burst(this.ctl.x, this.ctl.y + 0.3, this.ctl.z, "#ff7a2a", 8, { speed: 1, up: 2, additive: true, size: 0.12, life: 0.5 });
+          }
+          break;
         case "lever_wait":
           if (e.p === me) this.cb.say("Рычаг ещё не взвёлся.", "#c8b89a");
           break;
@@ -772,10 +834,20 @@ export class Game {
         };
       }
     }
-    for (const ch of d.chests) if (!s.opened.chests.includes(ch.id) && near(ch.x, ch.z, 2.6)) return { label: "Открыть сундук", act: () => this.act({ t: "interact" }) };
+    for (const ch of d.chests) if (!s.opened.chests.includes(ch.id) && near(ch.x, ch.z, 2.6) && this.ctl && lineOfSight(RAPIER, this.ctl.phys, this.ctl.x, 1.3, this.ctl.z, ch.x, 1.3, ch.z)) return { label: "Открыть сундук", act: () => this.act({ t: "interact" }) };
     for (const c of d.chandeliers) if (!(s.opened.chandeliers || []).includes(c.id) && near(c.ax, c.az, 2.2)) return { label: "Перерезать верёвку люстры", act: () => this.act({ t: "interact" }) };
+    for (const o of d.doors || []) {
+      if (o.kind !== "key" || (s.opened.doors || []).includes(o.id)) continue;
+      if (!near((o.cx + 0.5) * CELL, (o.cy + 0.5) * CELL, 2.8)) continue;
+      const have = s.keyCount ?? 0;
+      return { label: have > 0 ? `Отпереть дверь ключом (ключей: ${have})` : "Заперто — нужен ключ", act: () => this.act({ t: "interact" }) };
+    }
     for (const lv of d.levers) {
       if (!near(lv.x, lv.z, 2.0)) continue;
+      if (lv.opens) {
+        if (lv.opens.every((id) => (s.opened.doors || []).includes(id))) continue;
+        return { label: "Потянуть рычаг решётки", act: () => this.act({ t: "interact" }) };
+      }
       const cd = s.levers?.[lv.id] || 0;
       return { label: cd > 0 ? `Рычаг взводится… ${Math.ceil(cd)} с` : "Потянуть рычаг огненных решёток", act: () => this.act({ t: "interact" }) };
     }
@@ -1008,7 +1080,7 @@ export class Game {
       prompt: this.interactTarget ? this.interactTarget.label : "",
       boss: null, target: null, buffs: s ? s.buffs : [], gold: this.char.gold,
       reviving: s ? s.reviving : 0,
-      allies: [], where: this.mode, dungeonName: this.dungeonName, draw,
+      allies: [], where: this.mode, dungeonName: this.dungeonName, draw, keys: this.ents?.latest?.keyCount ?? 0,
     };
     if (this.session instanceof LocalSession) {
       const p = this.session.sim.players.get(this.session.selfId);

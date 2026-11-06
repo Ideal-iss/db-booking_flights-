@@ -1,6 +1,7 @@
 /** Исполнение активных навыков в симуляции. */
 import { SKILL_BY_ID, synergyMult, type BuffSpec, type Element } from "../data/skills";
 import { CELL, walkable, worldToCell } from "../dungeon/generate";
+import { groundAt } from "../dungeon/terrain";
 import { lineOfSight, rayToWall } from "../physics";
 import { ELEMENT_LIST, type Sim } from "./sim";
 import type { Buff, SimEnemy, SimPlayer } from "./types";
@@ -168,6 +169,7 @@ export function useSkill(sim: Sim, p: SimPlayer, slot: number, aim?: { x: number
       if (!t) { sim.events.push({ t: "nosight", p: p.id }); used = false; break; }
       p.x = t.x; p.z = t.z;
       p.iframesUntil = sim.t + 0.45;
+      p.y = groundAt(sim.d, t.x, t.z);
       sim.events.push({ t: "teleport", p: p.id, x: t.x, y: p.y, z: t.z, yaw: p.yaw, leap: 1 });
       sim.breakInRadius(t.x, t.z, e.radius, p);
       for (const en of sim.enemies.values()) {
@@ -185,6 +187,7 @@ export function useSkill(sim: Sim, p: SimPlayer, slot: number, aim?: { x: number
       sim.events.push({ t: "blink_from", p: p.id, x: p.x, z: p.z, el: e.element || "arcane" });
       p.x = t.x; p.z = t.z;
       p.iframesUntil = sim.t + 0.25;
+      p.y = groundAt(sim.d, t.x, t.z);
       sim.events.push({ t: "teleport", p: p.id, x: t.x, y: p.y, z: t.z, yaw: p.yaw });
       if (e.novaDmg) {
         for (const en of sim.enemies.values()) {
@@ -251,6 +254,7 @@ export function useSkill(sim: Sim, p: SimPlayer, slot: number, aim?: { x: number
         const r = sim.rollWeapon(p, e.dmg, e.guaranteedCrit);
         sim.damageEnemy(tgt, r.dmg, "physical", p, { crit: r.crit, knock: e.knock, melee: true });
       }
+      p.y = groundAt(sim.d, tx, tz);
       sim.events.push({ t: "teleport", p: p.id, x: tx, y: p.y, z: tz, yaw: p.yaw });
       break;
     }

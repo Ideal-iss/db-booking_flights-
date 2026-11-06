@@ -1,5 +1,6 @@
 /** Искусственный интеллект врагов, призванных союзников и боссов. */
 import { walkable, worldToCell } from "../dungeon/generate";
+import { groundAt } from "../dungeon/terrain";
 import { lineOfSight } from "../physics";
 import type { Sim } from "./sim";
 import type { SimEnemy, SimPlayer } from "./types";
@@ -512,7 +513,8 @@ function bossResolve(sim: Sim, e: SimEnemy, t: Target, gap: number) {
       const tx = data.x, tz = data.z;
       if (walkable(sim.d, worldToCell(tx), worldToCell(tz), sim.opened.secrets) && e.body) {
         e.x = tx; e.z = tz;
-        e.body.setNextKinematicTranslation({ x: tx, y: e.def.height / 2, z: tz });
+        e.y = groundAt(sim.d, tx, tz);
+        e.body.setNextKinematicTranslation({ x: tx, y: e.y + e.def.height / 2, z: tz });
       }
       sim.events.push({ t: "slam", id: e.id });
       return recover(sim, e, 1.0);

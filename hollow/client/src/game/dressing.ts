@@ -5,6 +5,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { Rng } from "@shared/rng";
 import { CELL, Cell, ceilAt, type Dungeon } from "@shared/dungeon/generate";
 import { litMaterial, type LightField } from "./lighting";
+import { cellFloor, groundAt, stairAt } from "@shared/dungeon/terrain";
 import { cobwebTexture, decalTexture, glowTexture, pixelTexture, stoneTexture, woodTexture, metalTexture } from "./textures";
 
 type Bucket = Map<THREE.Material, THREE.BufferGeometry[]>;
@@ -21,7 +22,12 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
   const rng = new Rng((d.seed * 2654435761) >>> 0 ^ 0x9e37);
   const W = d.w, H = d.h;
   const floor = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && d.cells[y * W + x] === Cell.Floor;
-  const wallAt = (x: number, y: number) => !floor(x, y) && !(x >= 0 && y >= 0 && x < W && y < H && d.cells[y * W + x] === Cell.Secret);
+  const wallAt = (x: number, y: number) => x < 0 || y < 0 || x >= W || y >= H || d.cells[y * W + x] === Cell.Wall;
+  // высота пола клетки; «плоский» пол — без воды, лестниц, мостов и трещин (там мусор не лежит)
+  const gf = (x: number, y: number) => cellFloor(d, x, y);
+  const crackSet = new Set<number>();
+  for (const c of d.cracks || []) for (const [cx, cy] of c.cells) crackSet.add(cy * W + cx);
+  const flat = (x: number, y: number) => floor(x, y) && !d.liquid?.[y * W + x] && !d.bridge?.[y * W + x] && !stairAt(d, x, y) && !crackSet.has(y * W + x);
   const theme = d.theme.id;
   const pal = d.theme.palette;
   const solid: Bucket = new Map();
@@ -49,13 +55,14 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
   const sides: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      if (!floor(x, y)) continue;
+      if (!floor(x, y) || d.bridge?.[y * W + x]) continue;
       const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
+      const g = gf(x, y);
       for (const [dx, dy] of sides) {
         if (!wallAt(x + dx, y + dy)) continue;
         const px = cx + dx * (CELL / 2 - 0.06), pz = cz + dy * (CELL / 2 - 0.06);
-        if (dx) box(solid, darkStone, 0.14, 0.26, CELL, px, 0.13, pz);
-        else box(solid, darkStone, CELL, 0.26, 0.14, px, 0.13, pz);
+        if (dx) box(solid, darkStone, 0.14, 0.26, CELL, px, g + 0.13, pz);
+        else box(solid, darkStone, CELL, 0.26, 0.14, px, g + 0.13, pz);
       }
     }
 
@@ -63,20 +70,21 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
   const support = theme === "cathedral" ? stone : wood;
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      if (!floor(x, y) || theme === "hub") continue;
+      if (!flat(x, y) || theme === "hub") continue;
       const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
+      const g = gf(x, y);
       const ns = wallAt(x, y - 1) && wallAt(x, y + 1) && floor(x - 1, y) && floor(x + 1, y);
       const ew = wallAt(x - 1, y) && wallAt(x + 1, y) && floor(x, y - 1) && floor(x, y + 1);
       const hc = d.ceil[y * W + x];
       if ((ns || ew) && (x + y) % 3 === 0) {
         const t = 0.24;
         if (ns) {
-          box(solid, support, t, hc - 0.5, t, cx, (hc - 0.5) / 2, cz - CELL / 2 + t / 2 + 0.02);
-          box(solid, support, t, hc - 0.5, t, cx, (hc - 0.5) / 2, cz + CELL / 2 - t / 2 - 0.02);
+          box(solid, support, t, hc - 0.5 - g, t, cx, g + (hc - 0.5 - g) / 2, cz - CELL / 2 + t / 2 + 0.02);
+          box(solid, support, t, hc - 0.5 - g, t, cx, g + (hc - 0.5 - g) / 2, cz + CELL / 2 - t / 2 - 0.02);
           box(solid, support, t + 0.06, 0.3, CELL, cx, hc - 0.55, cz);
         } else {
-          box(solid, support, t, hc - 0.5, t, cx - CELL / 2 + t / 2 + 0.02, (hc - 0.5) / 2, cz);
-          box(solid, support, t, hc - 0.5, t, cx + CELL / 2 - t / 2 - 0.02, (hc - 0.5) / 2, cz);
+          box(solid, support, t, hc - 0.5 - g, t, cx - CELL / 2 + t / 2 + 0.02, g + (hc - 0.5 - g) / 2, cz);
+          box(solid, support, t, hc - 0.5 - g, t, cx + CELL / 2 - t / 2 - 0.02, g + (hc - 0.5 - g) / 2, cz);
           box(solid, support, CELL, 0.3, t + 0.06, cx, hc - 0.55, cz);
         }
       }
@@ -100,7 +108,9 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       if (!floor(x, y) || !rng.chance(0.3)) continue;
+      if (!flat(x, y)) continue;
       const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
+      const gy = gf(x, y);
       const walls = sides.filter(([dx, dy]) => wallAt(x + dx, y + dy));
       if (!walls.length) continue;
       const [dx, dy] = rng.pick(walls);
@@ -110,12 +120,12 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
         const px = cx + dx * (CELL / 2 - off) + (dx ? 0 : along), pz = cz + dy * (CELL / 2 - off) + (dy ? 0 : along);
         const s = rng.range(0.06, 0.17);
         const g = rock.clone();
-        g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(px, s * 0.6, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rng.range(0, 3), rng.range(0, 3), 0)), new THREE.Vector3(s, s * 0.7, s * 1.2)));
+        g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(px, gy + s * 0.6, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rng.range(0, 3), rng.range(0, 3), 0)), new THREE.Vector3(s, s * 0.7, s * 1.2)));
         put(solid, rng.chance(0.7) ? darkStone : stone, g);
       }
       if ((theme === "crypt" || theme === "catacombs") && rng.chance(0.5)) {
         for (let i = 0; i < rng.int(1, 3); i++) {
-          box(solid, bone, rng.range(0.25, 0.45), 0.05, 0.06, cx + dx * (CELL / 2 - 0.5) + rng.range(-1, 1) * (dx ? 0.2 : 1), 0.03, cz + dy * (CELL / 2 - 0.5) + rng.range(-1, 1) * (dy ? 0.2 : 1), rng.range(0, 3));
+          box(solid, bone, rng.range(0.25, 0.45), 0.05, 0.06, cx + dx * (CELL / 2 - 0.5) + rng.range(-1, 1) * (dx ? 0.2 : 1), gy + 0.03, cz + dy * (CELL / 2 - 0.5) + rng.range(-1, 1) * (dy ? 0.2 : 1), rng.range(0, 3));
         }
       }
     }
@@ -160,12 +170,13 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       if (!floor(x, y) || !rng.chance(theme === "hub" ? 0.22 : 0.38)) continue;
+      if (!flat(x, y)) continue;
       const kind = rng.weighted(pool, (p) => p[1])[0];
       const size = rng.range(1.0, kind === "puddle" ? 2.2 : 2.6);
       const g = new THREE.PlaneGeometry(size, size);
       g.rotateX(-Math.PI / 2);
       g.rotateY(rng.range(0, Math.PI * 2));
-      g.translate((x + rng.range(0.25, 0.75)) * CELL, 0.012 + (layer++ % 7) * 0.002, (y + rng.range(0.25, 0.75)) * CELL);
+      g.translate((x + rng.range(0.25, 0.75)) * CELL, gf(x, y) + 0.012 + (layer++ % 7) * 0.002, (y + rng.range(0.25, 0.75)) * CELL);
       addDecal(`${kind}:${rng.int(0, 2)}`, g);
     }
   // подтёки и сажа на стенах
@@ -180,7 +191,8 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
         const cx = (x + 0.5) * CELL + dx * (CELL / 2 - 0.02), cz = (y + 0.5) * CELL + dy * (CELL / 2 - 0.02);
         g.rotateY(Math.atan2(-dx, -dy));
         const along = rng.range(-0.8, 0.8);
-        g.translate(cx + (dx ? 0 : along), kind === "moss" ? h / 2 + 0.05 : Math.max(h / 2 + 0.3, d.ceil[y * W + x] - h / 2 - rng.range(0, 1.2)), cz + (dy ? 0 : along));
+        const g0 = gf(x, y);
+        g.translate(cx + (dx ? 0 : along), kind === "moss" ? g0 + h / 2 + 0.05 : Math.max(g0 + h / 2 + 0.3, d.ceil[y * W + x] - h / 2 - rng.range(0, 1.2)), cz + (dy ? 0 : along));
         addDecal(`${kind}:${rng.int(0, 2)}`, g);
       }
     }
@@ -190,7 +202,7 @@ export function dressLevel(d: Dungeon, field: LightField, group: THREE.Group) {
     const g = new THREE.PlaneGeometry(1.1, 1.6);
     g.rotateY(p.rot);
     const dx = Math.sin(p.rot), dz = Math.cos(p.rot);
-    g.translate(p.x - dx * 0.2, 3.7, p.z - dz * 0.2);
+    g.translate(p.x - dx * 0.2, groundAt(d, p.x, p.z) + 3.7, p.z - dz * 0.2);
     addDecal("soot:0", g);
   }
   for (const [key, geos] of decals) {
@@ -304,7 +316,7 @@ export class AmbientFx {
         let x = px + r.range(-9, 9), z = pz + r.range(-9, 9);
         if (Math.hypot(x - px, z - pz) < 1.2) x += 2;
         if (!this.floorAt(x, z)) { m.y = -10; m.life = 0.3; }
-        else Object.assign(m, { x, y: r.range(0.3, ceilAt(this.d, x, z) - 0.4), z, vx: r.range(-0.06, 0.06), vy: r.range(-0.03, 0.04), vz: r.range(-0.06, 0.06), life: r.range(4, 9), max: 8 });
+        else Object.assign(m, { x, y: r.range(groundAt(this.d, x, z) + 0.3, ceilAt(this.d, x, z) - 0.4), z, vx: r.range(-0.06, 0.06), vy: r.range(-0.03, 0.04), vz: r.range(-0.06, 0.06), life: r.range(4, 9), max: 8 });
       }
       m.x += (m.vx + Math.sin(t * 0.7 + i) * 0.03) * dt;
       m.y += m.vy * dt;
@@ -326,7 +338,7 @@ export class AmbientFx {
       if (s.life > 0 && s.kind === 2) {
         s.vy -= 14 * dt;
         s.y += s.vy * dt;
-        if (s.y <= 0.03) {
+        if (s.y <= groundAt(this.d, s.x, s.z) + 0.03) {
           this.splash(s.x, s.z);
           s.life = 0;
         }

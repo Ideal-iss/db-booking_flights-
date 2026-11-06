@@ -305,6 +305,49 @@ class AudioEngine {
       case "windup":
         this.noiseHit(out, t, { type: "bandpass", f: 300, f2: 900, q: 2, a: 0.2, d: 0.2, gain: 0.15 * v });
         break;
+      case "keyring":
+        // звон ключа: два высоких тона
+        this.tone(out, t, { type: "triangle", f: 2600, d: 0.25, gain: 0.1 * v });
+        this.tone(out, t + 0.08, { type: "triangle", f: 3300, d: 0.3, gain: 0.08 * v });
+        this.noiseHit(out, t, { type: "highpass", f: 5000, d: 0.04, gain: 0.15 * v });
+        break;
+      case "unlock":
+        this.tone(out, t, { type: "square", f: 420, f2: 260, d: 0.05, gain: 0.1 * v });
+        this.noiseHit(out, t + 0.06, { type: "bandpass", f: 1600, q: 4, d: 0.08, gain: 0.35 * v });
+        this.noiseHit(out, t + 0.25, { type: "lowpass", f: 400, f2: 150, a: 0.15, d: 0.7, gain: 0.35 * v });
+        this.tone(out, t + 0.25, { type: "sawtooth", f: 90, f2: 70, a: 0.2, d: 0.6, gain: 0.05 * v });
+        break;
+      case "locked":
+        this.noiseHit(out, t, { type: "bandpass", f: 900, q: 5, d: 0.06, gain: 0.35 * v });
+        this.noiseHit(out, t + 0.1, { type: "bandpass", f: 800, q: 5, d: 0.06, gain: 0.3 * v });
+        break;
+      case "gate":
+        // цепи и тяжёлое железо ползёт вверх
+        for (let i = 0; i < 14; i++) this.noiseHit(out, t + i * 0.07, { type: "bandpass", f: 1400 + (i % 3) * 300, q: 6, d: 0.04, gain: 0.22 * v });
+        this.tone(out, t, { type: "sawtooth", f: 60, f2: 80, a: 0.2, d: 1.1, gain: 0.07 * v });
+        break;
+      case "plate":
+        this.noiseHit(out, t, { type: "lowpass", f: 500, f2: 120, d: 0.2, gain: 0.5 * v });
+        this.tone(out, t, { type: "square", f: 140, f2: 90, d: 0.1, gain: 0.08 * v });
+        break;
+      case "creak":
+        this.noiseHit(out, t, { type: "bandpass", f: 260 + Math.random() * 120, q: 6, a: 0.05, d: 0.25, gain: 0.35 * v });
+        for (let i = 0; i < 3; i++) this.noiseHit(out, t + Math.random() * 0.2, { type: "highpass", f: 3000, d: 0.02, gain: 0.15 * v });
+        break;
+      case "rumble":
+        this.noiseHit(out, t, { type: "lowpass", f: 400, f2: 60, a: 0.05, d: 1.4, gain: 0.95 * v });
+        this.tone(out, t, { type: "sine", f: 50, f2: 28, d: 1.2, gain: 0.5 * v });
+        for (let i = 0; i < 8; i++) this.noiseHit(out, t + 0.2 + Math.random() * 0.9, { type: "bandpass", f: 700 + Math.random() * 900, q: 2, d: 0.08, gain: 0.3 * v });
+        break;
+      case "splash":
+        this.noiseHit(out, t, { type: "bandpass", f: 1100, f2: 500, q: 1.2, d: 0.22, gain: 0.25 * v });
+        break;
+      case "sizzle":
+        this.noiseHit(out, t, { type: "highpass", f: 3000, f2: 6000, a: 0.02, d: 0.4, gain: 0.3 * v });
+        break;
+      case "fall":
+        this.noiseHit(out, t, { type: "bandpass", f: 600, f2: 200, q: 1, a: 0.3, d: 0.7, gain: 0.35 * v });
+        break;
       case "slam":
         this.noiseHit(out, t, { type: "lowpass", f: 600, f2: 60, d: 0.6, gain: 0.8 * v });
         this.tone(out, t, { type: "sine", f: 70, f2: 30, d: 0.5, gain: 0.5 * v });

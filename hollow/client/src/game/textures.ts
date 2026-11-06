@@ -524,3 +524,33 @@ export function textTexture(text: string, color: string, size = 16): { tex: THRE
   tex.colorSpace = THREE.SRGBColorSpace;
   return { tex, w: c.width, h: c.height };
 }
+
+/** Поверхность жидкости: рябь и блики (вода, кровь, лава, пустота). */
+export function liquidTexture(kind: "water" | "blood" | "lava" | "void"): THREE.CanvasTexture {
+  const base = { water: "#24404c", blood: "#4a0808", lava: "#d8460c", void: "#140a22" }[kind];
+  const hi = { water: "#6a9aac", blood: "#8a1a14", lava: "#ffd060", void: "#7a4ab8" }[kind];
+  return make(`liquid:${kind}`, 32, (g, rng, s) => {
+    g.fillStyle = base;
+    g.fillRect(0, 0, s, s);
+    // волнистые полосы
+    for (let i = 0; i < (kind === "lava" ? 20 : 14); i++) {
+      const y = rng.int(0, s - 1), x = rng.int(0, s - 1), len = rng.int(3, kind === "lava" ? 10 : 7);
+      g.fillStyle = shade(hi, 1, 0.25, rng);
+      g.globalAlpha = kind === "lava" ? rng.range(0.5, 1) : rng.range(0.25, 0.6);
+      for (let k = 0; k < len; k++) g.fillRect((x + k) % s, (y + (k % 3 === 1 ? 1 : 0)) % s, 1, 1);
+    }
+    if (kind === "lava") {
+      // тёмная корка
+      g.fillStyle = "#5a1404";
+      for (let i = 0; i < 26; i++) {
+        g.globalAlpha = rng.range(0.4, 0.9);
+        g.fillRect(rng.int(0, s - 1), rng.int(0, s - 1), rng.int(2, 5), rng.int(1, 3));
+      }
+    }
+    if (kind === "void") {
+      g.fillStyle = "#e0c8ff";
+      for (let i = 0; i < 10; i++) { g.globalAlpha = rng.range(0.4, 1); g.fillRect(rng.int(0, s - 1), rng.int(0, s - 1), 1, 1); }
+    }
+    g.globalAlpha = 1;
+  });
+}

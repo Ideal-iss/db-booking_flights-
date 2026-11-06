@@ -4,6 +4,7 @@
  * значки — пиксельные глифы, путь к цели — пунктир по разведанному, герой — стрелка с конусом взгляда.
  */
 import { CELL, Cell, type Dungeon } from "@shared/dungeon/generate";
+import { DIRS, cellFloor, passable, stairAt } from "@shared/dungeon/terrain";
 
 export interface MapData {
   d: Dungeon;
@@ -13,7 +14,7 @@ export interface MapData {
   yaw: number;
   allies: { x: number; z: number; name: string }[];
   exitOpen: boolean;
-  opened?: { chests: string[]; secrets: string[]; shrines: string[] };
+  opened?: { chests: string[]; secrets: string[]; shrines: string[]; doors?: string[]; keys?: string[]; plates?: string[]; cracks?: string[] };
   npcs: { x: number; z: number; name: string; kind: string }[];
   notesRead?: Set<string>;
 }
@@ -37,6 +38,10 @@ const GLYPHS: Record<string, string[]> = {
   secret: ["....k....", "...kpk...", "kkkkpkkkk", "kpppwpppk", ".kppppk..", "..kpppk..", ".kppkppk.", ".kpk.kpk.", ".kk...kk."],
   npc: ["...kkk...", "..kgggk..", "..kgggk..", "...kkk...", "..kgggk..", ".kgggggk.", ".kgggggk.", ".kgggggk.", ".kkkkkkk."],
   ally: ["...kkk...", "..keeek..", "..keeek..", "...kkk...", "..keeek..", ".keeeeek.", ".keeeeek.", ".keeeeek.", ".kkkkkkk."],
+  key: [".........", "..kkk....", ".kgggk...", ".kg.gk...", ".kgggkkkk", "..kkkgggk", "......kgk", "......kgk", "......kk."],
+  door: ["..kkkkk..", ".kGGGGGk.", "kGggggGGk", "kGgGGgGGk", "kGggggGyk", "kGgGGgGGk", "kGggggGGk", "kGGGGGGGk", "kkkkkkkkk"],
+  gate: ["kkkkkkkkk", "kWkWkWkWk", "kWkWkWkWk", "kWWWWWWWk", "kWkWkWkWk", "kWkWkWkWk", "kWWWWWWWk", "kWkWkWkWk", "kkkkkkkkk"],
+  plate: [".........", ".........", ".kkkkkkk.", "kssssssk.", "ksWsWssk.", "kssssssk.", ".kkkkkkk.", ".........", "........."],
   fire: ["....k....", "...kok...", "..koyok..", "..koyok..", ".kooyook.", ".koyyyok.", "kkkkkkkkk", "kGkGkGkGk", "kkkkkkkkk"],
 };
 const glyphCache = new Map<string, HTMLCanvasElement>();
@@ -76,7 +81,8 @@ const ROOM_TINT: Partial<Record<string, string>> = { boss: "#8a2a24", shrine: "#
 /** Кратчайший путь по проходимым клеткам (BFS). Возвращает список клеток от героя к цели. */
 export function findPath(d: Dungeon, openSecret: (cx: number, cy: number) => boolean, from: [number, number], to: [number, number]): [number, number][] {
   const W = d.w, H = d.h;
-  const ok = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && (d.cells[y * W + x] === Cell.Floor || (d.cells[y * W + x] === Cell.Secret && openSecret(x, y)));
+  // путь ведёт по ступеням и через запертые двери (их откроют ключом или рычагом), но не по воздуху
+  const ok = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && (d.cells[y * W + x] === Cell.Floor || d.cells[y * W + x] === Cell.Door || (d.cells[y * W + x] === Cell.Secret && openSecret(x, y)));
   if (!ok(from[0], from[1])) return [];
   const prev = new Int32Array(W * H).fill(-1);
   const q = [from[1] * W + from[0]];
@@ -88,7 +94,7 @@ export function findPath(d: Dungeon, openSecret: (cx: number, cy: number) => boo
     const x = i % W, y = (i / W) | 0;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy, j = ny * W + nx;
-      if (ok(nx, ny) && prev[j] < 0) { prev[j] = i; q.push(j); }
+      if (prev[j] < 0 && passable(d, x, y, nx, ny, ok, false)) { prev[j] = i; q.push(j); }
     }
   }
   if (prev[goal] < 0) return [];
@@ -136,8 +142,13 @@ export function drawMap(g: CanvasRenderingContext2D, data: MapData, o: DrawOpts)
   const floorAt = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= d.w || y >= d.h) return false;
     const c = d.cells[y * d.w + x];
-    return c === Cell.Floor || (c === Cell.Secret && openSecret(x, y));
+    return c === Cell.Floor || c === Cell.Door || c === Cell.Chasm || (c === Cell.Secret && openSecret(x, y));
   };
+  const LIQ = ["", "#2c5868", "#6a1612", "#d8561a", "#3a2266"];
+  const crackSet = new Map<number, string>();
+  for (const c of d.cracks || []) for (const [cx, cy] of c.cells) crackSet.set(cy * d.w + cx, c.id);
+  const doorAt = new Map<number, NonNullable<Dungeon["doors"]>[number]>();
+  for (const o of d.doors || []) doorAt.set(o.cy * d.w + o.cx, o);
   const roomOf = new Int16Array(d.w * d.h).fill(-1);
   d.rooms.forEach((r, i) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (x >= 0 && y >= 0 && x < d.w && y < d.h) roomOf[y * d.w + x] = i; });
 
@@ -183,13 +194,78 @@ export function drawMap(g: CanvasRenderingContext2D, data: MapData, o: DrawOpts)
     let col = r && ROOM_TINT[r.kind] ? mixHex(floorBase, ROOM_TINT[r.kind]!, 0.32) : floorBase;
     if (!r) col = mixHex(col, "#0e0d0b", 0.12); // коридоры чуть темнее комнат
     if (d.cells[i] === Cell.Secret) col = mixHex(col, "#5a2a8a", 0.4);
+    // высота: выше — светлее, ниже — темнее
+    const h = d.cells[i] === Cell.Chasm ? 0 : cellFloor(d, x, y);
+    if (h > 0.1) col = mixHex(col, "#fff4dc", Math.min(0.4, h * 0.12));
+    else if (h < -0.1) col = mixHex(col, "#0e0d0b", Math.min(0.5, -h * 0.16));
     if ((x + y) % 2) col = mixHex(col, "#0e0d0b", 0.06);
+    const lq = d.liquid?.[i] || 0;
+    if (d.cells[i] === Cell.Chasm) col = "#050404";
+    else if (d.bridge?.[i]) col = "#6a4a2c";
+    else if (lq) col = lq === 3 ? mixHex(LIQ[3], "#ffd060", 0.25 + 0.25 * Math.sin(o.t * 3 + x + y)) : mixHex(LIQ[lq], "#0e0d0b", (x + y) % 2 ? 0.08 : 0);
     g.fillStyle = col;
     g.fillRect(x * S, y * S, S, S);
-    if (S >= 9) {
+    if (d.cells[i] === Cell.Chasm && S >= 6) {
+      // пустота: редкие искры
+      g.fillStyle = "rgba(160,140,200,0.35)";
+      if ((x * 7 + y * 13) % 5 === 0) g.fillRect(x * S + S * 0.3, y * S + S * 0.6, 1, 1);
+      if ((x * 3 + y * 5) % 4 === 0) g.fillRect(x * S + S * 0.7, y * S + S * 0.25, 1, 1);
+    }
+    if (d.bridge?.[i] && S >= 6) {
+      g.fillStyle = "rgba(0,0,0,0.35)";
+      const along = floorAt(x - 1, y) && d.cells[i - 1] !== Cell.Chasm || floorAt(x + 1, y) && d.cells[i + 1] !== Cell.Chasm;
+      for (let k = 1; k < 4; k++) along ? g.fillRect(x * S + (k * S) / 4, y * S, 1, S) : g.fillRect(x * S, y * S + (k * S) / 4, S, 1);
+    }
+    const st = stairAt(d, x, y);
+    if (st) {
+      // ступени: полосы поперёк, светлеют к верху
+      const [ux, uy] = DIRS[st.dir];
+      for (let k = 0; k < 4; k++) {
+        g.fillStyle = `rgba(255,244,220,${0.06 + k * 0.07})`;
+        const f = ux > 0 || uy > 0 ? k / 4 : 1 - (k + 1) / 4;
+        if (ux) g.fillRect(x * S + f * S, y * S, Math.max(1, S / 4 - 1), S);
+        else g.fillRect(x * S, y * S + f * S, S, Math.max(1, S / 4 - 1));
+      }
+    }
+    if (crackSet.has(i) && S >= 6) {
+      const opened = data.opened?.cracks?.includes(crackSet.get(i)!);
+      g.strokeStyle = opened ? "rgba(0,0,0,0.6)" : "rgba(10,8,6,0.55)";
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(x * S + S * 0.1, y * S + S * 0.3); g.lineTo(x * S + S * 0.5, y * S + S * 0.55); g.lineTo(x * S + S * 0.9, y * S + S * 0.4);
+      g.moveTo(x * S + S * 0.5, y * S + S * 0.55); g.lineTo(x * S + S * 0.45, y * S + S * 0.95);
+      g.stroke();
+    }
+    const door = doorAt.get(i);
+    if (door && !data.opened?.doors?.includes(door.id)) {
+      g.fillStyle = door.kind === "key" ? "#c08a3a" : "#9a9aa2";
+      const t = Math.max(2, Math.round(S / 4));
+      if (door.axis === "x") g.fillRect(x * S, y * S + S / 2 - t / 2, S, t);
+      else g.fillRect(x * S + S / 2 - t / 2, y * S, t, S);
+    }
+    if (S >= 9 && !lq && d.cells[i] !== Cell.Chasm) {
       g.fillStyle = "rgba(0,0,0,0.16)";
       g.fillRect(x * S, y * S + S - 1, S, 1);
       g.fillRect(x * S + S - 1, y * S, 1, S);
+    }
+  }
+  // 2б. уступы: где не перейти без лестницы — тёмный срез со стороны нижней клетки
+  {
+    const walk = (x: number, y: number) => floorAt(x, y) && d.cells[y * d.w + x] !== Cell.Chasm;
+    const lt = Math.max(1, Math.round(S / 6));
+    g.fillStyle = "rgba(8,6,4,0.75)";
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!walk(x, y) || !ex(x, y)) continue;
+      const me = cellFloor(d, x, y);
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (!floorAt(nx, ny)) continue;
+        if (passable(d, x, y, nx, ny, walk, false)) continue;
+        // рисует только верхняя клетка — край обрыва
+        if (d.cells[ny * d.w + nx] !== Cell.Chasm && cellFloor(d, nx, ny) > me) continue;
+        if (dx === 0) g.fillRect(x * S, dy < 0 ? y * S : y * S + S - lt, S, lt);
+        else g.fillRect(dx < 0 ? x * S : x * S + S - lt, y * S, lt, S);
+      }
     }
   }
   // 3. светлая кромка там, где пол упирается в стену
@@ -250,6 +326,9 @@ export function drawMap(g: CanvasRenderingContext2D, data: MapData, o: DrawOpts)
   for (const l of d.levers) put("lever", l.x, l.z);
   for (const s of d.shrines) put(data.opened?.shrines.includes(s.id) ? "shrineUsed" : "shrine", s.x, s.z);
   for (const c of d.chests) put(data.opened?.chests.includes(c.id) ? "chestOpen" : "chest", c.x, c.z);
+  for (const k of d.keys || []) if (!data.opened?.keys?.includes(k.id)) put("key", k.x, k.z);
+  for (const p of d.plates || []) put("plate", p.x, p.z);
+  for (const o of d.doors || []) if (!data.opened?.doors?.includes(o.id)) put(o.kind === "key" ? "door" : "gate", (o.cx + 0.5) * CELL, (o.cy + 0.5) * CELL);
   if (obj) {
     const wx = (obj.cx + 0.5) * CELL, wz = (obj.cy + 0.5) * CELL;
     // цель всегда видна и мерцает

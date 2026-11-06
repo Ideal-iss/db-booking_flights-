@@ -1,5 +1,6 @@
 /** Отображение сущностей из снимков симуляции: враги, союзники, снаряды, зоны, добыча, эффекты. */
 import * as THREE from "three";
+import { groundAt } from "@shared/dungeon/terrain";
 import type { Snapshot } from "@shared/sim/types";
 import { RARITIES } from "@shared/data/items";
 import { makeAvatar, makeEnemy, makeFlame, makeWeapon, poseRig, setAvatarWeapons, type EnemyModel, type Rig } from "./models";
@@ -162,6 +163,11 @@ export class Entities {
     this.syncDrops(s);
   }
 
+  /** Высота пола под точкой. */
+  gy(x: number, z: number) {
+    return groundAt(this.field.d, x, z);
+  }
+
   get latest() {
     return this.snapB;
   }
@@ -174,7 +180,7 @@ export class Entities {
       if (!v) {
         const model = makeEnemy(e.type, e.elite);
         model.rig.root.add(blobShadow(model.rig.height * 0.75 + 0.4));
-        model.rig.root.position.set(e.x, 0, e.z);
+        model.rig.root.position.set(e.x, e.y ?? 0, e.z);
         model.rig.root.rotation.y = e.yaw;
         this.scene.add(model.rig.root);
         const h = [...e.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
@@ -315,12 +321,11 @@ export class Entities {
       seen.add(g.id);
       const have = this.grounds.get(g.id);
       if (have) {
-        have.obj.position.x = g.x;
-        have.obj.position.z = g.z;
+        have.obj.position.set(g.x, this.gy(g.x, g.z) + 0.04, g.z);
         continue;
       }
       const grp = new THREE.Group();
-      grp.position.set(g.x, 0.04, g.z);
+      grp.position.set(g.x, this.gy(g.x, g.z) + 0.04, g.z);
       let color = "#ff3a2a";
       let fill: THREE.Mesh | undefined;
       const flat = (geo: THREE.BufferGeometry, c: string, o: number, map?: THREE.Texture) => {
@@ -444,7 +449,7 @@ export class Entities {
       seen.add(d.id);
       if (this.drops.has(d.id)) continue;
       const g = new THREE.Group();
-      g.position.set(d.x, 0, d.z);
+      g.position.set(d.x, this.gy(d.x, d.z), d.z);
       let label: THREE.Sprite | undefined;
       if (d.kind === "item") {
         const color = RARITIES[d.rarity as keyof typeof RARITIES]?.color || "#fff";
@@ -534,7 +539,7 @@ export class Entities {
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }),
     );
     m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.15, z);
+    m.position.set(x, this.gy(x, z) + 0.15, z);
     m.scale.setScalar(0.3);
     this.scene.add(m);
     this.rings.push({ m, life: 0.45, max: 0.45, r });
@@ -578,7 +583,7 @@ export class Entities {
       new THREE.MeshBasicMaterial({ map: decalTexture(kind, Math.floor(Math.random() * 3)), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, color: "#9a9088" }),
     );
     m.rotation.y = Math.random() * Math.PI * 2;
-    m.position.set(x, 0.018 + (this.splats.length % 9) * 0.001, z);
+    m.position.set(x, this.gy(x, z) + 0.018 + (this.splats.length % 9) * 0.001, z);
     m.renderOrder = 1;
     this.scene.add(m);
     this.splats.push(m);
@@ -635,7 +640,8 @@ export class Entities {
       v.z = a.z + (b.z - a.z) * alpha;
       v.yaw = lerpYaw(a.yaw, b.yaw, alpha);
       const rig = v.model.rig;
-      rig.root.position.set(v.x, 0, v.z);
+      const vy = (a.y ?? 0) + ((b.y ?? 0) - (a.y ?? 0)) * alpha;
+      rig.root.position.set(v.x, vy, v.z);
       rig.root.rotation.y = v.yaw;
       const moved = Math.hypot(b.x - a.x, b.z - a.z) / span;
       const moving = Math.min(1, moved / 2);
@@ -671,14 +677,14 @@ export class Entities {
         const o = b.state === "dead" ? 0.25 : b.phased ? 0.22 + 0.08 * Math.sin(t * 9 + v.phase) : 0.7;
         for (const m of rig.mats) m.opacity += (o - m.opacity) * Math.min(1, dt * 10);
       }
-      if (b.state === "dead" && dead > 25) rig.root.position.y = -Math.min(1.5, (dead - 25) * 0.1);
+      if (b.state === "dead" && dead > 25) rig.root.position.y = vy - Math.min(1.5, (dead - 25) * 0.1);
     }
     for (const [, v] of this.players) {
       const a = v.prev, b = v.cur;
       v.x = a.x + (b.x - a.x) * alpha;
       v.z = a.z + (b.z - a.z) * alpha;
       v.yaw = lerpYaw(a.yaw, b.yaw, alpha);
-      v.rig.root.position.set(v.x, 0, v.z);
+      v.rig.root.position.set(v.x, (a.y ?? 0) + ((b.y ?? 0) - (a.y ?? 0)) * alpha, v.z);
       v.rig.root.rotation.y = v.yaw;
       const moved = Math.hypot(b.x - a.x, b.z - a.z) / span;
       v.phase += dt * (3 + moved * 2.4);

@@ -4,7 +4,8 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { CELL, Cell, WALL_H, ceilAt, type Dungeon } from "@shared/dungeon/generate";
 import type { Snapshot } from "@shared/sim/types";
 import { LightField, litMaterial, probeAt, staticLights } from "./lighting";
-import { ceilingTexture, floorTexture, wallTexture, glowTexture, metalTexture, crateTexture, paperTexture, woodTexture } from "./textures";
+import { ceilingTexture, floorTexture, wallTexture, glowTexture, metalTexture, crateTexture, paperTexture, woodTexture, liquidTexture, stoneTexture, decalTexture } from "./textures";
+import { CHASM_Y, DIRS, LIQUID_DEPTH, STAIR_RISE, cellFloor, edgeHeight, groundAt, stairAt } from "@shared/dungeon/terrain";
 import { dressLevel } from "./dressing";
 import { humanoid, makeChest, makeFlame, makeProp, makeWeapon, type Rig } from "./models";
 
@@ -32,6 +33,14 @@ export class LevelView {
   notes = new Map<string, { obj: THREE.Group; glow: THREE.Sprite; read: boolean }>();
   chandeliers = new Map<string, { obj: THREE.Group; chain: THREE.Object3D; rope: THREE.Object3D; flames: THREE.Sprite[]; y: number; fallT: number; vy: number; landed: boolean }>();
   levers = new Map<string, { handle: THREE.Group; vents: THREE.Mesh[] }>();
+  doors = new Map<string, { pivot: THREE.Group; kind: "key" | "gate"; open: number; target: number }>();
+  keys = new Map<string, THREE.Group>();
+  plates = new Map<string, { obj: THREE.Mesh; down: boolean }>();
+  cracks = new Map<string, { slab: THREE.Group; ramp: THREE.Group; t: number; pit: number; parts: { m: THREE.Object3D; vy: number; spin: number }[] }>();
+  liquidTex: THREE.Texture[] = [];
+  private gy(x: number, z: number) {
+    return groundAt(this.d, x, z);
+  }
 
   constructor(d: Dungeon) {
     this.d = d;
@@ -52,6 +61,7 @@ export class LevelView {
     this.buildLevers();
     this.buildSecrets();
     this.buildTraps();
+    this.buildTerrainMechanics();
     this.exitPortal = this.buildExit();
   }
 
@@ -99,17 +109,52 @@ export class LevelView {
     };
     const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const ceilOf = (x: number, y: number) => d.ceil[y * d.w + x];
+    // открытые клетки: пол, двери, пропасти (у пропасти стены уходят вниз)
+    const open = (x: number, y: number) => x >= 0 && y >= 0 && x < d.w && y < d.h && d.cells[y * d.w + x] !== Cell.Wall && d.cells[y * d.w + x] !== Cell.Secret;
+    const crackOf = new Map<number, number>();
+    for (const c of d.cracks || []) for (const [cx, cy] of c.cells) crackOf.set(cy * d.w + cx, c.pitH);
+    const deep = (x: number, y: number) => d.cells[y * d.w + x] === Cell.Chasm || !!d.bridge?.[y * d.w + x];
+    // статический низ клетки: под треснувшей плитой — уже дно ямы, под мостом — дно пропасти
+    const base = (x: number, y: number) => (deep(x, y) ? CHASM_Y : crackOf.has(y * d.w + x) ? crackOf.get(y * d.w + x)! : cellFloor(d, x, y));
+    const edge = (x: number, y: number, dx: number, dy: number) => (deep(x, y) ? CHASM_Y : crackOf.has(y * d.w + x) ? crackOf.get(y * d.w + x)! : edgeHeight(d, x, y, dx, dy));
+    const abyss: number[] = [], abyssUv: number[] = [], abyssN: number[] = [];
+    const liquids = new Map<number, { p: number[]; u: number[]; n: number[] }>();
+    const steps: THREE.BufferGeometry[] = [];
     for (let y = 0; y < d.h; y++)
       for (let x = 0; x < d.w; x++) {
-        if (!this.isFloor(x, y)) continue;
+        if (!open(x, y)) continue;
         const x0 = x * CELL, z0 = y * CELL, x1 = x0 + CELL, z1 = z0 + CELL;
         const h = ceilOf(x, y);
-        const sv = Math.max(3, Math.round(h / 1.15));
         const inCave = caveCells[y * d.w + x] === 1;
         const F = floorSets[inCave ? 3 : fv(x, y)];
-        quad(F.p, F.u, F.n, V(x0, 0, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [0, 0]);
+        const st = stairAt(d, x, y);
+        const g = st ? st.h0 : base(x, y);
+        if (st) {
+          // ступени: четыре коробки, низ — до самого низкого соседа сбоку
+          const [ux, uy] = DIRS[st.dir];
+          let bottom = st.h0;
+          for (const [sx, sy] of [[uy, ux], [-uy, -ux]]) if (open(x + sx, y + sy)) bottom = Math.min(bottom, edge(x + sx, y + sy, -sx, -sy));
+          bottom = Math.max(CHASM_Y, bottom) - 0.02;
+          for (let k = 0; k < 4; k++) {
+            const top = st.h0 + (k + 1) * (STAIR_RISE / 4);
+            const along = (k + 0.5) * (CELL / 4) - CELL / 2;
+            const bg = new THREE.BoxGeometry(ux ? CELL / 4 : CELL, top - bottom, uy ? CELL / 4 : CELL).toNonIndexed();
+            bg.translate((x + 0.5) * CELL + ux * along, (top + bottom) / 2, (y + 0.5) * CELL + uy * along);
+            steps.push(bg);
+          }
+        } else if (deep(x, y)) {
+          quad(abyss, abyssUv, abyssN, V(x0, CHASM_Y, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 1, 1, [1, 1], [0, 0]);
+        } else {
+          quad(F.p, F.u, F.n, V(x0, g, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [0, 0]);
+          const lq = d.liquid?.[y * d.w + x] || 0;
+          if (lq) {
+            if (!liquids.has(lq)) liquids.set(lq, { p: [], u: [], n: [] });
+            const L = liquids.get(lq)!;
+            quad(L.p, L.u, L.n, V(x0, g + LIQUID_DEPTH - 0.04, z1), V(CELL, 0, 0), V(0, 0, -CELL), V(0, 1, 0), 2, 2, [1, 1], [x * 0.37, y * 0.53]);
+          }
+        }
         quad(ceils, ceilUv, ceilN, V(x0, h, z0), V(CELL, 0, 0), V(0, 0, CELL), V(0, -1, 0), 2, 2, [1, 1], [0, 0]);
-        // стены смотрят внутрь клетки; их высота — высота потолка этой клетки
+        // стены смотрят внутрь клетки; их высота — от пола клетки до потолка
         const faces: [number, number, THREE.Vector3, THREE.Vector3, THREE.Vector3, number][] = [
           [0, -1, V(x0, 0, z0), V(CELL, 0, 0), V(0, 0, 1), 0],
           [0, 1, V(x1, 0, z1), V(-CELL, 0, 0), V(0, 0, -1), 1],
@@ -118,15 +163,29 @@ export class LevelView {
         ];
         for (const [dx, dy, o, ux, n, side] of faces) {
           const W = wallSets[inCave ? 4 : wv(x, y, side)];
-          if (!this.isFloor(x + dx, y + dy)) {
-            quad(W.p, W.u, W.n, o, ux, V(0, h, 0), n, 2, sv, [1, h / CELL], [0, 0]);
-          } else {
-            // соседний пол с потолком ниже: перемычка над проходом (арка в коридор)
-            const h2 = ceilOf(x + dx, y + dy);
-            if (h2 < h - 0.05) {
-              const oo = o.clone().setY(h2);
-              quad(W.p, W.u, W.n, oo, ux, V(0, h - h2, 0), n, 2, Math.max(1, Math.round((h - h2) / 1.15)), [1, (h - h2) / CELL], [0, h2 / CELL]);
-            }
+          if (!open(x + dx, y + dy)) {
+            const bot = g, hh = h - bot;
+            quad(W.p, W.u, W.n, o.clone().setY(bot), ux, V(0, hh, 0), n, 2, Math.max(3, Math.round(hh / 1.15)), [1, hh / CELL], [0, bot / CELL]);
+            continue;
+          }
+          // соседний пол с потолком ниже: перемычка над проходом (арка в коридор)
+          const h2 = ceilOf(x + dx, y + dy);
+          if (h2 < h - 0.05) {
+            const oo = o.clone().setY(h2);
+            quad(W.p, W.u, W.n, oo, ux, V(0, h - h2, 0), n, 2, Math.max(1, Math.round((h - h2) / 1.15)), [1, (h - h2) / CELL], [0, h2 / CELL]);
+          }
+          // уступ: сосед ниже — каменный срез смотрит на него
+          if (st) {
+            const [sx, sy] = DIRS[st.dir];
+            if (dx !== sx && dx !== -sx) continue;
+            if (dy !== sy && dy !== -sy) continue;
+          }
+          const me = st ? edgeHeight(d, x, y, dx, dy) : g;
+          const nb = edge(x + dx, y + dy, -dx, -dy);
+          if (nb < me - 0.01) {
+            const hh = me - nb;
+            const oo = o.clone().add(ux).setY(nb);
+            quad(W.p, W.u, W.n, oo, ux.clone().negate(), V(0, hh, 0), n.clone().negate(), 2, Math.max(1, Math.round(hh / 1.15)), [1, hh / CELL], [0, nb / CELL]);
           }
         }
       }
@@ -168,6 +227,41 @@ export class LevelView {
     wallSets.forEach((w, i) => w.p.length && mk(w.p, w.u, w.n, i === 4 ? wallTexture("rock", pal.wall, pal.wall2) : wallTexture(d.theme.wallStyle, pal.wall, pal.wall2, i)));
     floorSets.forEach((f, i) => f.p.length && mk(f.p, f.u, f.n, i === 3 ? floorTexture("dirt", pal.floor, pal.floor2) : floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, i)));
     mk(ceils, ceilUv, ceilN, ceilingTexture(pal.ceil));
+    if (steps.length) {
+      const g = mergeGeometries(steps, false)!;
+      this.field.bakeGeometry(g, 0.2);
+      this.group.add(new THREE.Mesh(g, litMaterial({ map: floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, 1), baked: true, color: "#d8d0c4" })));
+    }
+    if (abyss.length) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(abyss, 3));
+      this.group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: d.theme.id === "abyss" ? "#0c0614" : "#040302" })));
+    }
+    const LQ: Record<number, "water" | "blood" | "lava" | "void"> = { 1: "water", 2: "blood", 3: "lava", 4: "void" };
+    for (const [k, L] of liquids) {
+      const kind = LQ[k];
+      const tex = liquidTexture(kind).clone();
+      tex.needsUpdate = true;
+      this.liquidTex.push(tex);
+      tex.userData.speed = kind === "lava" ? 0.05 : kind === "void" ? 0.03 : 0.08;
+      if (kind === "lava" || kind === "void") {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(L.p, 3));
+        g.setAttribute("uv", new THREE.Float32BufferAttribute(L.u, 2));
+        this.group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, color: kind === "lava" ? "#ffffff" : "#c8b0ff", transparent: kind === "void", opacity: 0.92 })));
+      } else {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(L.p, 3));
+        g.setAttribute("uv", new THREE.Float32BufferAttribute(L.u, 2));
+        g.setAttribute("normal", new THREE.Float32BufferAttribute(L.n, 3));
+        this.field.bakeGeometry(g, 0.3);
+        const m = litMaterial({ map: tex, baked: true, transparent: true, opacity: kind === "water" ? 0.72 : 0.86, color: kind === "water" ? "#9ab8c4" : "#c03028" });
+        m.depthWrite = false;
+        const mesh = new THREE.Mesh(g, m);
+        mesh.renderOrder = 2;
+        this.group.add(mesh);
+      }
+    }
   }
 
   private buildProps() {
@@ -176,10 +270,10 @@ export class LevelView {
     for (const p of this.d.props) {
       if (p.kind.startsWith("npc:")) continue;
       const { obj, flames } = makeProp(p.kind, pal);
-      obj.position.set(p.x, 0, p.z);
+      obj.position.set(p.x, this.gy(p.x, p.z), p.z);
       // настенные вещи развёрнуты от стены
       obj.rotation.y = p.wall ? p.rot + Math.PI : p.rot;
-      if (p.kind === "portal") obj.rotation.y = 0;
+      if (p.kind === "portal") obj.rotation.y = p.rot;
       obj.updateMatrixWorld(true);
       for (const f of flames || []) this.addFlame(f.clone().applyMatrix4(obj.matrixWorld), p.kind === "candles" || p.kind === "niche" || p.kind === "altar" ? 0.45 : p.kind === "brazier" ? 2.0 : 1.0);
       const keep: THREE.Object3D[] = [];
@@ -307,7 +401,7 @@ export class LevelView {
       }
       broken.visible = false;
       for (const o of [whole, broken]) {
-        o.position.set(b.x, 0, b.z);
+        o.position.set(b.x, this.gy(b.x, b.z), b.z);
         o.rotation.y = b.rot;
         this.group.add(o);
       }
@@ -326,7 +420,7 @@ export class LevelView {
       glow.scale.setScalar(0.9);
       glow.position.y = 0.15;
       g.add(glow);
-      g.position.set(n.x, 0, n.z);
+      g.position.set(n.x, this.gy(n.x, n.z), n.z);
       g.rotation.y = n.rot;
       this.group.add(g);
       this.notes.set(n.id, { obj: g, glow, read: false });
@@ -345,7 +439,7 @@ export class LevelView {
     for (const c of this.d.chests) {
       const probe = { value: probeAt(this.field, c.x, c.z, new THREE.Color()) };
       const { obj, lid } = makeChest(c.tier, probe);
-      obj.position.set(c.x, 0, c.z);
+      obj.position.set(c.x, this.gy(c.x, c.z), c.z);
       obj.rotation.y = c.rot;
       this.group.add(obj);
       this.chests.set(c.id, { lid, open: 0, target: 0, obj });
@@ -386,7 +480,7 @@ export class LevelView {
       this.group.add(chain);
       // верёвка от люстры к крюку на стене: её можно перерезать
       const rope = new THREE.Group();
-      const anchor = new THREE.Vector3(c.ax, 1.5, c.az);
+      const anchor = new THREE.Vector3(c.ax, this.gy(c.ax, c.az) + 1.5, c.az);
       const pulley = new THREE.Vector3(c.ax, top - 0.3, c.az);
       const ropeMat = new THREE.MeshBasicMaterial({ color: "#8a6a42" });
       const seg = (a: THREE.Vector3, b: THREE.Vector3) => {
@@ -403,7 +497,7 @@ export class LevelView {
       rope.add(cleat);
       this.group.add(rope);
       this.group.add(obj);
-      this.chandeliers.set(c.id, { obj, chain, rope, flames, y: c.y, fallT: -1, vy: 0, landed: false });
+      this.chandeliers.set(c.id, { obj, chain, rope, flames, y: this.gy(c.x, c.z), fallT: -1, vy: 0, landed: false });
     }
   }
 
@@ -412,7 +506,7 @@ export class LevelView {
     const grateMat = new THREE.MeshBasicMaterial({ color: "#0c0806" });
     for (const lv of this.d.levers) {
       const plate = new THREE.Group();
-      plate.position.set(lv.x, 1.25, lv.z);
+      plate.position.set(lv.x, this.gy(lv.x, lv.z) + 1.25, lv.z);
       plate.rotation.y = lv.rot;
       const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.08), iron);
       plate.add(back);
@@ -430,11 +524,11 @@ export class LevelView {
       for (const v of lv.vents) {
         const g = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), grateMat.clone());
         g.rotation.x = -Math.PI / 2;
-        g.position.set(v.x, 0.018, v.z);
+        g.position.set(v.x, this.gy(v.x, v.z) + 0.018, v.z);
         this.group.add(g);
         for (let i = -2; i <= 2; i++) {
           const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.12), iron);
-          b.position.set(v.x, 0.03, v.z + i * 0.42);
+          b.position.set(v.x, this.gy(v.x, v.z) + 0.03, v.z + i * 0.42);
           this.group.add(b);
         }
         vents.push(g);
@@ -464,7 +558,7 @@ export class LevelView {
     const plate = litMaterial({ color: "#3a3430", probe: { value: new THREE.Color(0.2, 0.17, 0.14) } });
     for (const t of this.d.traps) {
       const g = new THREE.Group();
-      g.position.set(t.x, 0, t.z);
+      g.position.set(t.x, this.gy(t.x, t.z), t.z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 2.2), plate);
       base.position.y = 0.02;
       g.add(base);
@@ -483,10 +577,194 @@ export class LevelView {
     }
   }
 
+  /** Двери, решётки, ключи, плиты, треснувший пол, мосты. */
+  private buildTerrainMechanics() {
+    const d = this.d;
+    const pal = d.theme.palette;
+    const probeOf = (x: number, z: number) => ({ value: probeAt(this.field, x, z, new THREE.Color()) });
+    const iron = (x: number, z: number) => litMaterial({ color: "#5a5a60", map: metalTexture("#5a5a60"), probe: probeOf(x, z) });
+    // двери и решётки
+    for (const o of d.doors || []) {
+      const cx = (o.cx + 0.5) * CELL, cz = (o.cy + 0.5) * CELL;
+      const g0 = cellFloor(d, o.cx, o.cy);
+      const holder = new THREE.Group();
+      holder.position.set(cx, g0, cz);
+      if (o.axis === "z") holder.rotation.y = Math.PI / 2;
+      const DH = 3.0;
+      // перемычка над проёмом до потолка
+      const top = d.ceil[o.cy * d.w + o.cx];
+      if (top - g0 > DH + 0.05) {
+        const lg = new THREE.BoxGeometry(CELL, top - g0 - DH, 0.9);
+        lg.translate(0, DH + (top - g0 - DH) / 2, 0);
+        holder.add(new THREE.Mesh(lg, litMaterial({ map: wallTexture(d.theme.wallStyle, pal.wall, pal.wall2, 1), probe: probeOf(cx, cz) })));
+      }
+      // косяки
+      for (const s of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, DH, 0.5), litMaterial({ map: stoneTexture(pal.wall2), probe: probeOf(cx, cz) }));
+        post.position.set(s * (CELL / 2 - 0.15), DH / 2, 0);
+        holder.add(post);
+      }
+      const pivot = new THREE.Group();
+      holder.add(pivot);
+      const W = CELL - 0.6;
+      if (o.kind === "key") {
+        // дубовая дверь на петлях с железными полосами и замком
+        pivot.position.x = -W / 2;
+        const wood = litMaterial({ map: woodTexture(), color: "#a07850", probe: probeOf(cx, cz) });
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(W, DH - 0.05, 0.18), wood);
+        slab.position.set(W / 2, (DH - 0.05) / 2, 0);
+        pivot.add(slab);
+        const m = iron(cx, cz);
+        for (const y of [0.45, 1.5, 2.55]) {
+          const band = new THREE.Mesh(new THREE.BoxGeometry(W - 0.1, 0.12, 0.24), m);
+          band.position.set(W / 2, y, 0);
+          pivot.add(band);
+        }
+        const lock = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.3), litMaterial({ color: "#b08a3a", probe: probeOf(cx, cz) }));
+        lock.position.set(W - 0.35, 1.3, 0);
+        pivot.add(lock);
+        const hole = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: "#0a0604" }));
+        hole.position.set(W - 0.35, 1.27, 0);
+        pivot.add(hole);
+      } else {
+        // решётка: прутья и поперечины, уходит вверх
+        const m = iron(cx, cz);
+        for (let i = 0; i <= 8; i++) {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07, DH, 0.07), m);
+          bar.position.set(-W / 2 + (i / 8) * W, DH / 2, 0);
+          pivot.add(bar);
+          const tip = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 4), m);
+          tip.position.set(bar.position.x, -0.05, 0);
+          tip.rotation.x = Math.PI;
+          pivot.add(tip);
+        }
+        for (const y of [0.5, 1.6, 2.7]) {
+          const cross = new THREE.Mesh(new THREE.BoxGeometry(W, 0.09, 0.1), m);
+          cross.position.set(0, y, 0);
+          pivot.add(cross);
+        }
+      }
+      this.group.add(holder);
+      this.doors.set(o.id, { pivot, kind: o.kind, open: 0, target: 0 });
+    }
+    // ключи: золото и свет — видно издалека
+    const gold = new THREE.MeshBasicMaterial({ color: "#e8c050" });
+    for (const k of d.keys || []) {
+      const g = new THREE.Group();
+      g.position.set(k.x, this.gy(k.x, k.z) + 0.9, k.z);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.035, 4, 10), gold);
+      ring.position.y = 0.22;
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.05), gold);
+      shaft.position.y = -0.05;
+      const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.05), gold);
+      t1.position.set(0.06, -0.18, 0);
+      const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.05), gold);
+      t2.position.set(0.045, -0.08, 0);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: "#ffd060", transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+      glow.scale.setScalar(1.3);
+      g.add(ring, shaft, t1, t2, glow);
+      this.group.add(g);
+      this.keys.set(k.id, g);
+    }
+    // нажимные плиты
+    for (const p of d.plates || []) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 1.5), litMaterial({ map: stoneTexture("#8a8070"), color: "#b0a690", probe: probeOf(p.x, p.z) }));
+      m.position.set(p.x, this.gy(p.x, p.z) + 0.06, p.z);
+      const rune = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), new THREE.MeshBasicMaterial({ map: decalTexture("crack", 1), color: "#c9a46a", transparent: true, depthWrite: false }));
+      rune.rotation.x = -Math.PI / 2;
+      rune.position.y = 0.065;
+      m.add(rune);
+      this.group.add(m);
+      this.plates.set(p.id, { obj: m, down: false });
+    }
+    // треснувший пол: плита сверху, под ней яма и пандус из обломков
+    const crackTex = floorTexture(d.theme.floorStyle, pal.floor, pal.floor2, 2);
+    for (const c of d.cracks || []) {
+      const slab = new THREE.Group();
+      const parts: { m: THREE.Object3D; vy: number; spin: number }[] = [];
+      const mat = litMaterial({ map: crackTex, color: "#c8bcaa", probe: probeOf((c.cells[0][0] + 0.5) * CELL, (c.cells[0][1] + 0.5) * CELL) });
+      const crackMat = new THREE.MeshBasicMaterial({ map: decalTexture("crack", 0), color: "#000000", transparent: true, opacity: 0.85, depthWrite: false });
+      for (const [x, y] of c.cells) {
+        // каждую клетку — четырьмя кусками, чтобы обвал выглядел обвалом
+        for (let i = 0; i < 4; i++) {
+          const piece = new THREE.Mesh(new THREE.BoxGeometry(CELL / 2 - 0.02, 0.3, CELL / 2 - 0.02), mat);
+          piece.position.set((x + 0.25 + (i % 2) * 0.5) * CELL, -0.15, (y + 0.25 + (i >> 1) * 0.5) * CELL);
+          const cr = new THREE.Mesh(new THREE.PlaneGeometry(CELL / 2, CELL / 2), crackMat);
+          cr.rotation.x = -Math.PI / 2;
+          cr.rotation.z = i * 1.3;
+          cr.position.y = 0.152;
+          piece.add(cr);
+          slab.add(piece);
+          parts.push({ m: piece, vy: 0, spin: (Math.random() - 0.5) * 3 });
+        }
+      }
+      this.group.add(slab);
+      const ramp = new THREE.Group();
+      const rock = litMaterial({ map: stoneTexture(pal.wall2), color: "#a89c8c", probe: probeOf((c.ramp.cx + 0.5) * CELL, (c.ramp.cy + 0.5) * CELL) });
+      const rises = Math.round(-c.pitH / STAIR_RISE);
+      const [ux, uy] = DIRS[c.ramp.dir];
+      for (let k = 0; k < rises; k++) {
+        const sx = c.ramp.cx - ux * (rises - 1 - k), sy = c.ramp.cy - uy * (rises - 1 - k);
+        const h0 = c.pitH + k * STAIR_RISE;
+        for (let j = 0; j < 4; j++) {
+          const top = h0 + (j + 1) * (STAIR_RISE / 4);
+          const along = (j + 0.5) * (CELL / 4) - CELL / 2;
+          const b = new THREE.Mesh(new THREE.BoxGeometry(ux ? CELL / 4 + 0.1 : CELL - 0.2, top - c.pitH, uy ? CELL / 4 + 0.1 : CELL - 0.2), rock);
+          b.position.set((sx + 0.5) * CELL + ux * along, (top + c.pitH) / 2, (sy + 0.5) * CELL + uy * along);
+          b.rotation.y = (Math.random() - 0.5) * 0.12;
+          ramp.add(b);
+        }
+      }
+      ramp.visible = false;
+      this.group.add(ramp);
+      this.cracks.set(c.id, { slab, ramp, t: -1, pit: c.pitH, parts });
+    }
+    // мосты: доски поперёк, балки и верёвочные перила
+    if (d.bridge) {
+      const wood: THREE.BufferGeometry[] = [];
+      const rope: THREE.BufferGeometry[] = [];
+      const put = (arr: THREE.BufferGeometry[], w: number, h: number, dd: number, x: number, y: number, z: number, ry = 0) => {
+        const g = new THREE.BoxGeometry(w, h, dd).toNonIndexed();
+        g.rotateY(ry);
+        g.translate(x, y, z);
+        arr.push(g);
+      };
+      for (let y = 0; y < d.h; y++)
+        for (let x = 0; x < d.w; x++) {
+          if (!d.bridge[y * d.w + x]) continue;
+          const solidSide = (xx: number, yy: number) => d.cells[yy * d.w + xx] !== Cell.Chasm && d.cells[yy * d.w + xx] !== Cell.Wall;
+          const alongX = solidSide(x - 1, y) || solidSide(x + 1, y) || (!solidSide(x, y - 1) && !solidSide(x, y + 1) && (!!d.bridge[y * d.w + x - 1] || !!d.bridge[y * d.w + x + 1]));
+          const cx = (x + 0.5) * CELL, cz = (y + 0.5) * CELL;
+          const ry = alongX ? 0 : Math.PI / 2;
+          const hy = groundAt(d, cx, cz);
+          // доски поперёк пролёта
+          for (let i = 0; i < 7; i++) {
+            const off = -CELL / 2 + 0.22 + i * 0.43;
+            put(wood, 0.36, 0.08, CELL - 0.3, alongX ? cx + off : cx, hy - 0.04, alongX ? cz : cz + off, ry);
+          }
+          for (const s of [-1, 1]) {
+            put(wood, CELL, 0.16, 0.18, alongX ? cx : cx + s * (CELL / 2 - 0.2), hy - 0.14, alongX ? cz + s * (CELL / 2 - 0.2) : cz, ry);
+            const px = alongX ? cx - CELL / 2 + 0.1 : cx + s * (CELL / 2 - 0.2), pz = alongX ? cz + s * (CELL / 2 - 0.2) : cz - CELL / 2 + 0.1;
+            put(wood, 0.12, 1.1, 0.12, px, hy + 0.45, pz);
+            put(rope, CELL, 0.04, 0.04, alongX ? cx : cx + s * (CELL / 2 - 0.2), hy + 0.95, alongX ? cz + s * (CELL / 2 - 0.2) : cz, ry);
+          }
+        }
+      if (wood.length) {
+        const g = mergeGeometries(wood, false)!;
+        this.field.bakeGeometry(g, 0.3);
+        this.group.add(new THREE.Mesh(g, litMaterial({ map: woodTexture(), baked: true, color: "#b89a74" })));
+      }
+      if (rope.length) {
+        const g = mergeGeometries(rope, false)!;
+        this.group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: "#6a5232" })));
+      }
+    }
+  }
+
   private buildExit(): THREE.Group {
     const g = new THREE.Group();
     if (this.d.exit.x < 0) return g;
-    g.position.set(this.d.exit.x, 0, this.d.exit.z);
+    g.position.set(this.d.exit.x, this.gy(this.d.exit.x, this.d.exit.z), this.d.exit.z);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 6, 20), new THREE.MeshBasicMaterial({ color: "#8fd0ff" }));
     ring.position.y = 1.5;
     g.add(ring);
@@ -629,8 +907,8 @@ export class LevelView {
         } else {
           c.chain.visible = false;
           c.vy += 22 * dt;
-          c.obj.position.y = Math.max(0.12, c.obj.position.y - c.vy * dt);
-          if (c.obj.position.y <= 0.12) {
+          c.obj.position.y = Math.max(c.y + 0.12, c.obj.position.y - c.vy * dt);
+          if (c.obj.position.y <= c.y + 0.12) {
             c.landed = true;
             c.obj.rotation.set(0.25, 0, 0.18);
           }
@@ -649,6 +927,51 @@ export class LevelView {
       lv.handle.rotation.x += (target - lv.handle.rotation.x) * Math.min(1, dt * 12);
       // решётки тлеют, пока рычаг перезаряжается
       for (const v of lv.vents) (v.material as THREE.MeshBasicMaterial).color.setRGB(0.05 + Math.min(1, cd / 12) * 0.35, 0.03 + Math.min(1, cd / 12) * 0.08, 0.02);
+    }
+    for (const tex of this.liquidTex) {
+      const sp = tex.userData.speed as number;
+      tex.offset.set(Math.sin(t * 0.3) * 0.04 + t * sp * 0.3, t * sp);
+    }
+    if (opened) {
+      for (const id of opened.doors || []) {
+        const o = this.doors.get(id);
+        if (o) o.target = 1;
+      }
+      for (const id of opened.keys || []) {
+        const k = this.keys.get(id);
+        if (k) k.visible = false;
+      }
+      for (const id of opened.plates || []) {
+        const p = this.plates.get(id);
+        if (p && !p.down) { p.down = true; p.obj.position.y -= 0.08; }
+      }
+      for (const id of opened.cracks || []) {
+        const c = this.cracks.get(id);
+        if (c && c.t < 0) { c.t = t; c.ramp.visible = true; }
+      }
+    }
+    for (const o of this.doors.values()) {
+      if (o.open === o.target) continue;
+      o.open = Math.min(1, o.open + dt * (o.kind === "gate" ? 0.7 : 1.4));
+      const k = 1 - (1 - o.open) ** 2;
+      if (o.kind === "key") o.pivot.rotation.y = -k * 1.75;
+      else o.pivot.position.y = k * 2.95;
+    }
+    for (const k of this.keys.values()) {
+      if (!k.visible) continue;
+      k.rotation.y = t * 2;
+      k.position.y += Math.sin(t * 2.4) * 0.002;
+    }
+    for (const c of this.cracks.values()) {
+      if (c.t < 0 || t - c.t > 3) continue;
+      // обломки падают на дно ямы и остаются там грудой
+      for (const p of c.parts) {
+        if (p.m.position.y <= c.pit + 0.16) continue;
+        p.vy += 18 * dt;
+        p.m.position.y = Math.max(c.pit + 0.16, p.m.position.y - p.vy * dt);
+        p.m.rotation.x += p.spin * dt * 0.4;
+        p.m.rotation.z += p.spin * 0.3 * dt;
+      }
     }
     for (const c of this.chests.values()) {
       c.open += (c.target - c.open) * Math.min(1, dt * 6);

@@ -3,7 +3,8 @@
 import type RAPIER_NS from "@dimforge/rapier3d-compat";
 import { Rng, clamp, hashString } from "../rng";
 import { CELL, Cell, ceilAt, generateDungeon, walkable, worldToCell, type Dungeon } from "../dungeon/generate";
-import { buildDungeonPhysics, groups, lineOfSight, openSecret, rayToWall, GROUP_ENEMY, GROUP_PLAYER, GROUP_WALL, type DungeonPhysics, type Rapier } from "../physics";
+import { buildDungeonPhysics, collapseCrackPhysics, groups, lineOfSight, openSecret, rayToWall, GROUP_ENEMY, GROUP_PLAYER, GROUP_WALL, type DungeonPhysics, type Rapier } from "../physics";
+import { CHASM_Y, Liquid, collapseCrack, groundAt, isChasm, liquidAt, openDoorCell, passable } from "../dungeon/terrain";
 import { ENEMIES, scaleEnemy } from "../data/enemies";
 import { BASE_BY_ID, POTIONS, rollLoot, type DropTier } from "../data/items";
 import { deriveStats, levelFromXp, type CharacterData } from "../data/stats";
@@ -62,7 +63,17 @@ export class Sim {
   grounds: Ground[] = [];
   drops = new Map<string, Drop>();
   events: SimEvent[] = [];
-  opened = { chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>(), broken: new Set<string>(), chandeliers: new Set<string>(), mimics: new Set<string>() };
+  opened = {
+    chests: new Set<string>(), secrets: new Set<string>(), shrines: new Set<string>(), broken: new Set<string>(), chandeliers: new Set<string>(), mimics: new Set<string>(),
+    doors: new Set<string>(), keys: new Set<string>(), plates: new Set<string>(), cracks: new Set<string>(),
+  };
+  /** Ключи у отряда (общие на всех). */
+  keyCount = 0;
+  /** Сколько стоят на трещине — пол рушится не сразу. */
+  private crackT = new Map<string, number>();
+  /** Последняя твёрдая точка игрока — сюда возвращаем после падения в пропасть. */
+  private safe = new Map<string, { x: number; z: number }>();
+  private hazardAt = 0;
   leverCd = new Map<string, number>();
   fuses: { id: string; x: number; z: number; at: number; by: string | null }[] = [];
   colliderOwner = new Map<number, string>();
@@ -100,7 +111,7 @@ export class Sim {
     );
     const p: SimPlayer = {
       id: init.id, name: init.name, char: structuredClone(init.char), stats,
-      x: sx, y: 0, z: sz, yaw: this.d.start.yaw, pitch: 0,
+      x: sx, y: groundAt(this.d, sx, sz), z: sz, yaw: this.d.start.yaw, pitch: 0,
       hp: stats.maxHp, mana: stats.maxMana, stamina: stats.maxStamina,
       alive: true, sprinting: false, moving: false, blocking: false, blockStart: -9, aiming: false,
       dodgeUntil: 0, iframesUntil: 0, staminaDelayUntil: 0,
@@ -147,7 +158,8 @@ export class Sim {
     const dist = Math.hypot(pose.x - p.x, pose.z - p.z);
     const allowed = maxSpeed * dt * 1.35 + 0.5;
     let nx = pose.x, nz = pose.z;
-    const cell = (x: number, z: number) => walkable(this.d, worldToCell(x), worldToCell(z), this.opened.secrets);
+    // над пропастью тоже можно оказаться — оттуда падают
+    const cell = (x: number, z: number) => walkable(this.d, worldToCell(x), worldToCell(z), this.opened.secrets) || isChasm(this.d, x, z);
     if (!Number.isFinite(nx) || !Number.isFinite(nz)) return;
     if (dist > allowed || !cell(nx, nz)) {
       // Подозрительное перемещение — оставляем на месте и поправляем клиента.
@@ -161,7 +173,16 @@ export class Sim {
       this.events.push({ t: "correct", p: id, x: nx, y: p.y, z: nz });
     }
     p.x = nx; p.z = nz;
-    p.y = clamp(pose.y, 0, this.t < p.allowJumpUntil ? 2 : 0.6);
+    const ground = groundAt(this.d, nx, nz);
+    if (isChasm(this.d, nx, nz)) {
+      p.y = clamp(pose.y, CHASM_Y, 3);
+      if (pose.y < -1.6) return this.fall(p);
+    } else {
+      // по высоте — не выше прыжка над полом; ниже пола (в ямах до приземления) можно
+      p.y = clamp(pose.y, ground - 3, ground + (this.t < p.allowJumpUntil ? 2 : 0.6));
+      // точка возврата — центр клетки, где стоял твёрдо (у края легко снова соскользнуть)
+      if (Math.abs(pose.y - ground) < 0.5 && !liquidAt(this.d, nx, nz)) this.safe.set(p.id, { x: (worldToCell(nx) + 0.5) * CELL, z: (worldToCell(nz) + 0.5) * CELL });
+    }
     p.yaw = pose.yaw;
     p.pitch = clamp(pose.pitch, -1.5, 1.5);
     p.moving = pose.moving && dist > 0.01;
@@ -194,6 +215,17 @@ export class Sim {
       case "interact": return this.interact(p);
       case "potion": return this.drinkPotion(p, a.kind);
     }
+  }
+
+  /** Упал в пропасть: урон и возврат к последнему краю. */
+  private fall(p: SimPlayer) {
+    const s = this.safe.get(p.id) || { x: this.d.start.x, z: this.d.start.z };
+    p.x = s.x; p.z = s.z;
+    p.y = groundAt(this.d, s.x, s.z);
+    p.body.setNextKinematicTranslation({ x: p.x, y: p.y + 0.9, z: p.z });
+    this.events.push({ t: "fell", p: p.id });
+    this.events.push({ t: "correct", p: p.id, x: p.x, y: p.y, z: p.z });
+    this.damagePlayer(p, p.stats.maxHp * 0.18, "physical", null, { aoe: true });
   }
 
   private drinkPotion(p: SimPlayer, kind: "health" | "mana") {
@@ -704,7 +736,7 @@ export class Sim {
     }
     if (bestDrop) return this.pickup(p, bestDrop);
     for (const c of this.d.chests) {
-      if (!this.opened.chests.has(c.id) && near(c.x, c.z, 2.6)) {
+      if (!this.opened.chests.has(c.id) && near(c.x, c.z, 2.6) && lineOfSight(this.R, this.phys, p.x, 1.3, p.z, c.x, 1.3, c.z)) {
         if (c.mimic) return this.wakeMimic(c.id, p);
         this.opened.chests.add(c.id);
         this.events.push({ t: "chest", id: c.id, p: p.id });
@@ -736,8 +768,23 @@ export class Sim {
     for (const c of this.d.chandeliers) {
       if (!this.opened.chandeliers.has(c.id) && near(c.ax, c.az, 2.2)) return this.dropChandelier(c.id, p);
     }
+    for (const o of this.d.doors || []) {
+      if (o.kind !== "key" || this.opened.doors.has(o.id)) continue;
+      if (!near((o.cx + 0.5) * CELL, (o.cy + 0.5) * CELL, 2.8)) continue;
+      if (this.keyCount <= 0) { this.events.push({ t: "locked", id: o.id, p: p.id }); return; }
+      this.keyCount--;
+      return this.openDoor(o.id, p);
+    }
     for (const lv of this.d.levers) {
-      if (near(lv.x, lv.z, 2.0)) return this.pullLever(lv.id, p);
+      if (!near(lv.x, lv.z, 2.0)) continue;
+      if (lv.opens) {
+        if (lv.opens.every((id) => this.opened.doors.has(id))) continue;
+        this.leverCd.set(lv.id, this.t + 9999);
+        this.events.push({ t: "lever", id: lv.id, p: p.id });
+        for (const id of lv.opens) this.openDoor(id, p);
+        return;
+      }
+      return this.pullLever(lv.id, p);
     }
     if (this.bossDead && near(this.d.exit.x, this.d.exit.z, 2.8)) return this.finish(true, p.id, "exit");
     if (near(this.d.entrance.x, this.d.entrance.z, 2.6)) return this.finish(true, p.id, "entrance");
@@ -779,7 +826,7 @@ export class Sim {
     );
     const e: SimEnemy = {
       id, type, def, team: o.team || "enemy", owner: o.owner, elite: o.elite, boss: !!o.boss, level,
-      x, y: 0, z, yaw: this.rng.range(0, Math.PI * 2),
+      x, y: groundAt(this.d, x, z), z, yaw: this.rng.range(0, Math.PI * 2),
       hp: sc.maxHp * power, maxHp: sc.maxHp * power, dmg: sc.dmg * power, speed: sc.speed, armor: sc.armor, xp: sc.xp,
       state: "idle", stateT: 0, move: "", target: null, cd: this.rng.range(0, 1), awake: false,
       slowUntil: 0, slowPct: 0, freezeUntil: 0, stunUntil: 0, blindUntil: 0, vulnUntil: 0, vulnPct: 0, dots: [],
@@ -816,14 +863,26 @@ export class Sim {
     if (e.def.behavior === "phantom") {
       e.x = clamp(e.x + dx, CELL, (this.d.w - 1) * CELL);
       e.z = clamp(e.z + dz, CELL, (this.d.h - 1) * CELL);
-      e.body.setNextKinematicTranslation({ x: e.x, y: e.def.height / 2, z: e.z });
+      e.y = Math.max(0, groundAt(this.d, e.x, e.z));
+      e.body.setNextKinematicTranslation({ x: e.x, y: e.y + e.def.height / 2, z: e.z });
       return;
     }
-    this.controller.computeColliderMovement(e.collider, { x: dx, y: 0, z: dz }, undefined, undefined, (c) => c.handle !== e.collider!.handle);
+    // в воде и крови вязнут
+    const liq = liquidAt(this.d, e.x, e.z);
+    if (liq === Liquid.Water || liq === Liquid.Blood) { dx *= 0.65; dz *= 0.65; }
+    this.controller.computeColliderMovement(e.collider, { x: dx, y: 0, z: dz }, undefined, undefined, (c) => c.handle !== e.collider!.handle && !this.phys.terrain.has(c.handle));
     const m = this.controller.computedMovement();
-    e.x += m.x;
-    e.z += m.z;
-    e.body.setNextKinematicTranslation({ x: e.x, y: e.def.height / 2, z: e.z });
+    // рельеф: в соседнюю клетку — только если до неё можно дойти (лестница или ровный пол)
+    const cx = worldToCell(e.x), cy = worldToCell(e.z);
+    const step = (nx: number, nz: number) => {
+      const tx = worldToCell(nx), ty = worldToCell(nz);
+      return (tx === cx && ty === cy) || passable(this.d, cx, cy, tx, ty, (a, b) => walkable(this.d, a, b, this.opened.secrets));
+    };
+    if (step(e.x + m.x, e.z + m.z)) { e.x += m.x; e.z += m.z; }
+    else if (step(e.x + m.x, e.z)) e.x += m.x;
+    else if (step(e.x, e.z + m.z)) e.z += m.z;
+    e.y = groundAt(this.d, e.x, e.z);
+    e.body.setNextKinematicTranslation({ x: e.x, y: e.y + e.def.height / 2, z: e.z });
   }
 
   /** Поле расстояний до ближайшего игрока по клеткам (обход стен). */
@@ -844,7 +903,7 @@ export class Sim {
       if (dist > 60) continue;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy;
-        if (!walkable(this.d, nx, ny, this.opened.secrets)) continue;
+        if (!passable(this.d, x, y, nx, ny, (a, b) => walkable(this.d, a, b, this.opened.secrets))) continue;
         const ni = ny * w + nx;
         if (this.flow[ni] === -1) { this.flow[ni] = dist + 1; q.push(ni); }
       }
@@ -855,14 +914,17 @@ export class Sim {
   pathDir(e: SimEnemy, tx: number, tz: number): [number, number] {
     const dx = tx - e.x, dz = tz - e.z;
     const len = Math.hypot(dx, dz) || 1;
-    if (len < 6 || lineOfSight(this.R, this.phys, e.x, 1, e.z, tx, 1, tz)) return [dx / len, dz / len];
     const cx = worldToCell(e.x), cy = worldToCell(e.z), w = this.d.w;
+    // напрямую — только если по прямой не мешает перепад высот
+    const sameLevel = Math.abs(groundAt(this.d, tx, tz) - groundAt(this.d, e.x, e.z)) < 0.5;
+    if (sameLevel && (len < 6 || lineOfSight(this.R, this.phys, e.x, 1, e.z, tx, 1, tz))) return [dx / len, dz / len];
+    const pw = (a: number, b: number) => walkable(this.d, a, b, this.opened.secrets);
     let best = this.flow[cy * w + cx], bx = cx, by = cy;
     for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
       const nx = cx + ox, ny = cy + oy;
       const v = this.flow[ny * w + nx];
-      if (v >= 0 && (best < 0 || v < best) && walkable(this.d, nx, ny, this.opened.secrets)) {
-        if (ox && oy && (!walkable(this.d, cx + ox, cy, this.opened.secrets) || !walkable(this.d, cx, cy + oy, this.opened.secrets))) continue;
+      if (v >= 0 && (best < 0 || v < best) && passable(this.d, cx, cy, nx, ny, pw)) {
+        if (ox && oy && (!passable(this.d, cx, cy, cx + ox, cy, pw) || !passable(this.d, cx, cy, cx, cy + oy, pw))) continue;
         best = v; bx = nx; by = ny;
       }
     }
@@ -896,6 +958,7 @@ export class Sim {
     this.stepProjectiles(dt);
     this.stepGrounds(dt);
     this.stepTraps();
+    this.stepTerrain(dt);
     if (this.fuses.length) {
       const due = this.fuses.filter((f) => f.at <= this.t);
       this.fuses = this.fuses.filter((f) => f.at > this.t);
@@ -1015,7 +1078,7 @@ export class Sim {
       const sx = pr.x, sy = pr.y, sz = pr.z;
       const mx = pr.vx * dt, my = pr.vy * dt, mz = pr.vz * dt;
       const len = Math.hypot(mx, my, mz);
-      const wall = rayToWall(this.R, this.phys, { x: sx, y: sy, z: sz }, { x: mx / len, y: my / len, z: mz / len }, len);
+      const wall = rayToWall(this.R, this.phys, { x: sx, y: sy, z: sz }, { x: mx / len, y: my / len, z: mz / len }, len, true);
       const travel = Math.min(len, wall);
       let alive = pr.life > 0;
       // попадания по существам вдоль отрезка
@@ -1088,7 +1151,7 @@ export class Sim {
       pr.x = sx + (mx / len) * travel;
       pr.y = sy + (my / len) * travel;
       pr.z = sz + (mz / len) * travel;
-      if (pr.y < 0.05) alive = false;
+      if (pr.y < groundAt(this.d, pr.x, pr.z) + 0.05) alive = false;
       // низкий потолок коридора останавливает снаряд, как стена
       if (alive && pr.y > ceilAt(this.d, pr.x, pr.z) - 0.1) {
         alive = false;
@@ -1133,7 +1196,7 @@ export class Sim {
       this.chainFrom(owner, g.x, 0.9, g.z, best, g.data.dmg, el, 3, null);
     } else {
       const fire = g.kind !== "sentry_blade_trap";
-      this.pointProjectile(g.owner, g.x, 0.7, g.z, best.x, 1, best.z, {
+      this.pointProjectile(g.owner, g.x, groundAt(this.d, g.x, g.z) + 0.7, g.z, best.x, best.y + 1, best.z, {
         kind: g.kind === "sentry_blade_trap" ? "knife" : "fireball", speed: fire ? 20 : 30, dmg: g.data.dmg, element: el, size: fire ? 0.22 : 0.12, explode: g.kind === "sentry_fire_trap" ? 1.6 : undefined,
       });
     }
@@ -1284,6 +1347,101 @@ export class Sim {
     }
   }
 
+  // ------------------------------------------------------------ рельеф и механизмы
+  private stepTerrain(dt: number) {
+    const d = this.d;
+    // ключи подбираются сами
+    for (const k of d.keys || []) {
+      if (this.opened.keys.has(k.id)) continue;
+      for (const p of this.players.values()) {
+        if (p.alive && Math.hypot(p.x - k.x, p.z - k.z) < 1.4) {
+          this.opened.keys.add(k.id);
+          this.keyCount++;
+          this.events.push({ t: "key", id: k.id, p: p.id });
+          break;
+        }
+      }
+    }
+    // нажимные плиты: игрок или враг на плите открывает решётки
+    for (const pl of d.plates || []) {
+      if (this.opened.plates.has(pl.id)) continue;
+      let on = false;
+      for (const p of this.players.values()) if (p.alive && Math.abs(p.x - pl.x) < 0.9 && Math.abs(p.z - pl.z) < 0.9) on = true;
+      for (const e of this.enemies.values()) if (e.state !== "dead" && !e.phased && Math.abs(e.x - pl.x) < 0.9 && Math.abs(e.z - pl.z) < 0.9) on = true;
+      if (!on) continue;
+      this.opened.plates.add(pl.id);
+      this.events.push({ t: "plate", id: pl.id, x: pl.x, z: pl.z });
+      for (const id of pl.opens) this.openDoor(id, null);
+    }
+    // треснувший пол рушится, если на нём постоять
+    for (const c of d.cracks || []) {
+      if (this.opened.cracks.has(c.id)) continue;
+      let on = false;
+      for (const p of this.players.values()) {
+        if (!p.alive) continue;
+        const cx = worldToCell(p.x), cy = worldToCell(p.z);
+        if (c.cells.some(([x, y]) => x === cx && y === cy)) on = true;
+      }
+      const t = on ? (this.crackT.get(c.id) || 0) + dt : Math.max(0, (this.crackT.get(c.id) || 0) - dt * 0.5);
+      this.crackT.set(c.id, t);
+      if (on && t > 0.2 && Math.floor((t - dt) / 0.2) !== Math.floor(t / 0.2)) this.events.push({ t: "creak", id: c.id });
+      if (t > 0.6) this.collapse(c.id);
+    }
+    // жидкости: кровь и лава жгут, раз в полсекунды
+    if (this.t - this.hazardAt >= 0.5) {
+      this.hazardAt = this.t;
+      for (const p of this.players.values()) {
+        if (!p.alive) continue;
+        const liq = liquidAt(d, p.x, p.z);
+        if (p.y > groundAt(d, p.x, p.z) + 0.5) continue;
+        if (liq === Liquid.Lava) { this.damagePlayer(p, p.stats.maxHp * 0.06, "fire", null, { aoe: true }); this.events.push({ t: "burn", p: p.id }); }
+        if (liq === Liquid.Blood) this.damagePlayer(p, p.stats.maxHp * 0.008, "dark", null, { aoe: true });
+        if (liq === Liquid.Void) this.damagePlayer(p, p.stats.maxHp * 0.03, "arcane", null, { aoe: true });
+      }
+      for (const e of this.enemies.values()) {
+        if (e.state === "dead" || e.phased || e.def.behavior === "boss") continue;
+        if (liquidAt(d, e.x, e.z) === Liquid.Lava) this.damageEnemy(e, e.maxHp * 0.08, "fire", null, { noDot: true });
+      }
+    }
+  }
+
+  /** Открыть дверь или решётку (by — кто открыл, null — механизм). */
+  openDoor(id: string, by: SimPlayer | null) {
+    if (this.opened.doors.has(id)) return;
+    this.opened.doors.add(id);
+    openDoorCell(this.d, id);
+    openSecret(this.phys, id);
+    this.flowAt = -1;
+    const door = this.d.doors?.find((o) => o.id === id);
+    this.events.push({ t: "door", id, kind: door?.kind, p: by?.id });
+  }
+
+  private collapse(id: string) {
+    if (this.opened.cracks.has(id)) return;
+    const c = this.d.cracks?.find((o) => o.id === id);
+    if (!c) return;
+    this.opened.cracks.add(id);
+    collapseCrack(this.d, id);
+    collapseCrackPhysics(this.phys, id);
+    this.flowAt = -1;
+    this.events.push({ t: "collapse", id });
+    // кто стоял — летит вниз и ушибается; в яме ждут
+    for (const p of this.players.values()) {
+      const cx = worldToCell(p.x), cy = worldToCell(p.z);
+      if (p.alive && c.cells.some(([x, y]) => x === cx && y === cy)) this.damagePlayer(p, p.stats.maxHp * 0.07, "physical", null, { aoe: true });
+    }
+    const [mx, my] = c.cells[Math.floor(c.cells.length / 2)];
+    const types = ["skeleton", "zombie"].filter((t) => ENEMIES[t]);
+    const n = 2 + (this.d.level > 8 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const [x, y] = c.cells[(i * 3 + 1) % c.cells.length];
+      const e = this.spawnEnemy(`${id}_amb${i}`, types[i % types.length] || "skeleton", (x + 0.5) * CELL, (y + 0.5) * CELL, this.d.level);
+      e.awake = true;
+      this.events.push({ t: "esummon", id: e.id, x: e.x, z: e.z });
+    }
+    this.spawnLoot((mx + 0.5) * CELL, (my + 0.5) * CELL, "elite", `pit:${id}`, 0);
+  }
+
   trapActive(id: string) {
     const phase = (this.t + (hashString(id) % 30) / 10) % 3.2;
     return phase < 0.7;
@@ -1334,7 +1492,9 @@ export class Sim {
       opened: {
         chests: [...this.opened.chests], secrets: [...this.opened.secrets], shrines: [...this.opened.shrines], broken: [...this.opened.broken],
         chandeliers: [...this.opened.chandeliers], mimics: [...this.opened.mimics],
+        doors: [...this.opened.doors], keys: [...this.opened.keys], plates: [...this.opened.plates], cracks: [...this.opened.cracks],
       },
+      keyCount: this.keyCount,
       levers: Object.fromEntries([...this.leverCd].map(([k, v]) => [k, r2(Math.max(0, v - this.t))]).filter(([, v]) => (v as number) > 0)),
       bossDead: this.bossDead,
       exitOpen: this.bossDead,

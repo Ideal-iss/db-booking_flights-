@@ -7,7 +7,10 @@ import { drawMap, exploredBounds, glyph, mapStats, objective, type MapData } fro
 const LEGEND: [string, string][] = [
   ["boss", "логово хранителя"], ["portal", "портал наверх"], ["entrance", "вход"], ["chest", "сундук"], ["chestOpen", "открытый сундук"],
   ["shrine", "святыня"], ["note", "записка"], ["lever", "рычаг"], ["secret", "тайник"],
+  ["key", "ключ"], ["door", "запертая дверь"], ["gate", "решётка"], ["plate", "нажимная плита"],
 ];
+/** Цветные образцы рельефа для легенды. */
+const TERRAIN: [string, string][] = [["#2c5868", "вода"], ["#6a1612", "кровь"], ["#d8561a", "лава"], ["#050404", "пропасть"], ["#6a4a2c", "мост"]];
 
 function Glyph({ name }: { name: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -150,6 +153,10 @@ export function MapPanel({ onClose }: { onClose: () => void }) {
                   <>
                     <div className="text-parch flex items-center gap-2.5 text-sm"><span className="inline-block h-[18px] w-[18px] text-center leading-[18px]" style={{ color: "#e3a45a" }}>···</span>путь к цели</div>
                     <div className="text-parch flex items-center gap-2.5 text-sm"><span className="inline-block h-[18px] w-[18px] rounded-[2px] border border-dashed" style={{ borderColor: "#e3a45a" }} />комната, где вы</div>
+                    {TERRAIN.map(([c, n]) => (
+                      <div key={n} className="text-parch flex items-center gap-2.5 text-sm"><span className="inline-block h-[18px] w-[18px] rounded-[2px] border border-[#2a2622]" style={{ background: c }} />{n}</div>
+                    ))}
+                    <div className="text-parch flex items-center gap-2.5 text-sm"><span className="inline-block h-[18px] w-[18px] rounded-[2px]" style={{ background: "linear-gradient(90deg,#5a5040,#b0a488)" }} />ступени (светлее — выше)</div>
                   </>
                 )}
               </div>

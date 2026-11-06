@@ -40,6 +40,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
         <div>▶ PLAY</div>
         <div>SP {clock}</div>
         <div className="text-parch mt-1">{hud.dungeonName}</div>
+        {hud.keys > 0 && <div className="mt-1" style={{ color: "#e8c050" }}>Ключи: {hud.keys}</div>}
       </div>
 
       {locked && lock.soft && <div className="osd text-parch absolute top-4 left-1/2 -translate-x-1/2">Мышь не захвачена: поворот курсором у края экрана или стрелками</div>}

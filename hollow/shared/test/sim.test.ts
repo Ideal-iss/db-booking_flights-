@@ -5,7 +5,10 @@ import { starterItem, slotOf, BASE_BY_ID } from "../data/items";
 import { skillsOf } from "../data/skills";
 import { STAGES } from "../data/dungeons";
 import { makeChar } from "./chars";
-import { generateDungeon, walkable, worldToCell } from "../dungeon/generate";
+import { Cell, generateDungeon, walkable, worldToCell } from "../dungeon/generate";
+import { passable } from "../dungeon/terrain";
+import { BOSS_ARENAS, BOSS_CHUNKS, CHUNKS, validateChunk } from "../dungeon/chunks";
+import { chunkLevels } from "../dungeon/generate";
 import { lineOfSight } from "../physics";
 
 await RAPIER.init();
@@ -59,7 +62,8 @@ for (const th of STAGES) for (let seed = 1; seed <= 8; seed++) {
     const c = q[i], x = c % d.w, y = (c / d.w) | 0;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy, j = ny * d.w + nx;
-      if (!reach[j] && walkable(d, nx, ny)) { reach[j] = 1; q.push(j); }
+      // двери и решётки открываются, высоты — по лестницам
+      if (!reach[j] && passable(d, x, y, nx, ny, (a, b) => walkable(d, a, b) || d.cells[b * d.w + a] === Cell.Door, false)) { reach[j] = 1; q.push(j); }
     }
   }
   const at = (x: number, z: number) => reach[worldToCell(z) * d.w + worldToCell(x)] === 1;
@@ -70,6 +74,82 @@ for (const th of STAGES) for (let seed = 1; seed <= 8; seed++) {
   ok(at(d.exit.x, d.exit.z), `${th.id}/${seed} exit reachable`);
   for (const p of d.props) if (p.solid) ok(walkable(d, worldToCell(p.x), worldToCell(p.z)), `${th.id}/${seed} prop ${p.kind} on floor`);
   if (seed === 1) console.log(th.id, "rooms:", d.rooms.map((r) => r.kind).join(","));
+}
+
+// Авторские фрагменты: форма и лестницы
+for (const c of [...CHUNKS, ...BOSS_CHUNKS, ...BOSS_ARENAS]) {
+  const e = validateChunk(c);
+  ok(!e, `chunk ${e}`);
+  for (const err of chunkLevels(c.map).errors) ok(false, `chunk ${c.id}: ${err}`);
+}
+// Рельеф и механики: ключ открывает дверь, плита — решётку, треснувший пол обваливается, из пропасти возвращают
+{
+  let sawKey = false, sawPlate = false, sawCrack = false, sawChasm = false;
+  for (const th of STAGES) for (let seed = 1; seed <= 6; seed++) {
+    const sim = new Sim(RAPIER, { dungeon: th.id, seed: seed * 131, level: th.level, players: [{ id: "a", name: "A", char: makeChar("warrior", th.level) }] });
+    const p = sim.players.get("a")!;
+    const d = sim.d;
+    const keyDoor = d.doors?.find((o) => o.kind === "key");
+    if (keyDoor && d.keys?.length && !sawKey) {
+      sawKey = true;
+      const k = d.keys[0];
+      p.x = k.x; p.z = k.z;
+      sim.step();
+      ok(sim.keyCount === 1, "key picked up");
+      // подходим к двери с той стороны, где пол
+      for (const s of [1, -1]) {
+        if (sim.opened.doors.has(keyDoor.id)) break;
+        p.x = (keyDoor.cx + 0.5) * 3 + (keyDoor.axis === "z" ? s * 1.8 : 0); p.z = (keyDoor.cy + 0.5) * 3 + (keyDoor.axis === "x" ? s * 1.8 : 0);
+        sim.action("a", { t: "interact" });
+      }
+      ok(sim.opened.doors.has(keyDoor.id), "key opens door");
+      ok(d.cells[keyDoor.cy * d.w + keyDoor.cx] === Cell.Floor, "door cell open");
+    }
+    const plate = d.plates?.find((pl) => pl.opens.length);
+    if (plate && !sawPlate) {
+      sawPlate = true;
+      p.x = plate.x; p.z = plate.z; p.y = 0;
+      sim.step();
+      ok(plate.opens.every((id) => sim.opened.doors.has(id)), "plate opens gates");
+    }
+    const crack = d.cracks?.[0];
+    if (crack && !sawCrack) {
+      sawCrack = true;
+      const [cx, cy] = crack.cells[0];
+      p.x = (cx + 0.5) * 3; p.z = (cy + 0.5) * 3;
+      for (let i = 0; i < 30; i++) { sim.setPose("a", { x: p.x, y: 0, z: p.z, yaw: 0, pitch: 0, sprint: false, moving: false }); sim.step(); }
+      ok(sim.opened.cracks.has(crack.id), "floor collapses");
+      ok(Math.abs(d.floor![cy * d.w + cx] - crack.pitH) < 0.01, "pit floor lowered");
+      // из ямы есть выход наверх
+      const walk = (a: number, b: number) => walkable(d, a, b);
+      const q = [cy * d.w + cx], seen = new Set(q);
+      let out = false;
+      for (let i = 0; i < q.length && !out; i++) {
+        const x = q[i] % d.w, y = (q[i] / d.w) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const j = (y + dy) * d.w + x + dx;
+          if (seen.has(j) || !passable(d, x, y, x + dx, y + dy, walk, false)) continue;
+          seen.add(j); q.push(j);
+          if (!crack.cells.some(([a, b]) => a === x + dx && b === y + dy) && Math.abs(d.floor![j]) < 0.5) out = true;
+        }
+      }
+      ok(out, "pit has a way out");
+    }
+    if (!sawChasm) {
+      const ci = d.cells.findIndex((c) => c === Cell.Chasm);
+      if (ci >= 0) {
+        sawChasm = true;
+        const hp = p.hp;
+        const x = (ci % d.w + 0.5) * 3, z = (((ci / d.w) | 0) + 0.5) * 3;
+        sim.setPose("a", { x: p.x, y: p.y, z: p.z, yaw: 0, pitch: 0, sprint: false, moving: false });
+        p.x = x - 0.5; p.z = z;
+        sim.setPose("a", { x, y: -3, z, yaw: 0, pitch: 0, sprint: false, moving: true });
+        ok(p.hp < hp && !Number.isNaN(p.x) && Math.floor(p.x / 3) + Math.floor(p.z / 3) * d.w !== ci, "fall returns to edge with damage");
+      }
+    }
+    sim.phys.world.free();
+  }
+  ok(sawKey && sawPlate && sawCrack && sawChasm, `mechanics present: key ${sawKey} plate ${sawPlate} crack ${sawCrack} chasm ${sawChasm}`);
 }
 
 // Сценарий: сундук, тайник, босс, выход.

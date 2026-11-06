@@ -1,6 +1,7 @@
 /** Освещение: запечённый по вершинам свет факелов (как Гуро в PS1) + несколько живых источников. */
 import * as THREE from "three";
 import { CELL, Cell, type Dungeon } from "@shared/dungeon/generate";
+import { groundAt } from "@shared/dungeon/terrain";
 import { snapUniform } from "./engine";
 
 export interface StaticLight {
@@ -22,7 +23,8 @@ export function staticLights(d: Dungeon): StaticLight[] {
     // огонь слегка «отбеливаем», чтобы картинка не уходила в сплошной оранжевый
     const c = new THREE.Color(l.color).lerp(new THREE.Color("#fff2e0"), 0.35);
     const [radius, power] = LIGHT_RADIUS[l.kind] || [8, 1];
-    return { x: l.x, y: l.y, z: l.z, r: c.r, g: c.g, b: c.b, radius, power };
+    // высота огня — над полом в этом месте
+    return { x: l.x, y: l.y + groundAt(d, l.x, l.z), z: l.z, r: c.r, g: c.g, b: c.b, radius, power };
   });
 }
 
@@ -47,7 +49,8 @@ export class LightField {
   private solid(x: number, z: number) {
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
     if (cx < 0 || cz < 0 || cx >= this.d.w || cz >= this.d.h) return true;
-    return this.d.cells[cz * this.d.w + cx] !== Cell.Floor;
+    const c = this.d.cells[cz * this.d.w + cx];
+    return c === Cell.Wall || c === Cell.Secret;
   }
 
   private visible(l: StaticLight, x: number, z: number) {
@@ -113,7 +116,7 @@ const soft = (v: number) => (v < 0.8 ? v : 0.8 + (1 - Math.exp(-(v - 0.8) * 1.5)
 
 /** Проба освещения для движущихся объектов: приглушённая, чтобы фигуры не светились. */
 export function probeAt(field: LightField, x: number, z: number, out: THREE.Color) {
-  field.sample(x, 1.3, z, 0, 0, 0, out);
+  field.sample(x, groundAt(field.d, x, z) + 1.3, z, 0, 0, 0, out);
   out.r = soft(out.r) * 0.6;
   out.g = soft(out.g) * 0.6;
   out.b = soft(out.b) * 0.6;

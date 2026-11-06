@@ -9,6 +9,7 @@ import { NOTES } from "@shared/data/lore";
 import { FpsController, EYE } from "./controller";
 import { Input } from "./input";
 import { ViewModel } from "./viewmodel";
+import { Fx, skillLook } from "./fx";
 import { Entities, ELEMENT_COLOR } from "./entities";
 import { audio } from "./audio";
 import { buildHub, type Npc } from "./hub";
@@ -16,7 +17,7 @@ import { LocalSession, type Session } from "./session";
 import { deriveStats, levelFromXp, type CharacterData, type Derived } from "@shared/data/stats";
 import { BASE_BY_ID, RARITIES, type Item } from "@shared/data/items";
 import { ENEMIES, ELITE_MODS } from "@shared/data/enemies";
-import { SKILL_BY_ID } from "@shared/data/skills";
+import { SKILL_BY_ID, type SkillDef } from "@shared/data/skills";
 import { CELL, walkable, worldToCell, type Dungeon } from "@shared/dungeon/generate";
 import { CLASSES } from "@shared/data/classes";
 import { SHRINE_NAMES } from "@shared/sim/sim";
@@ -69,6 +70,15 @@ export class Game {
   private lmbAt = -1;
   private rmbHeld = false;
   private shake = 0;
+  /** Эффекты навыков в мире. */
+  private fx: Fx;
+  /** Временный прирост угла обзора: рывок, удар. */
+  private fovKick = 0;
+  /** Камера догоняет героя после рывка/прыжка, а не перескакивает. */
+  private camMove: { dx: number; dz: number; t: number; dur: number; arc: number } | null = null;
+  private whirlFxAt = 0;
+  private whirlSide = false;
+  private blinkPending = false;
   private self: Snapshot["players"][number] | null = null;
   private bossId: string | null = null;
   private stepAcc = 0;
@@ -83,6 +93,7 @@ export class Game {
     this.char = char;
     this.stats = deriveStats(char);
     this.view = new ViewModel(this.engine.viewScene, char.appearance, char.cls);
+    this.fx = new Fx(this.engine.scene);
     this.pool = new LightPool(this.engine.scene, 4);
     this.engine.scene.add(new THREE.AmbientLight(0xffffff, 0.08));
     // фонарь героя: тёплый свет вокруг, чтобы коридоры не тонули в черноте
@@ -138,6 +149,8 @@ export class Game {
       disposeTree(this.level.group);
     }
     this.ents?.clear();
+    this.fx.clear();
+    this.camMove = null;
     this.ctl?.dispose();
     this.ambient = null;
     this.level = null;
@@ -220,7 +233,7 @@ export class Game {
           const undead = enemy ? ENEMIES[enemy.type]?.undead : true;
           ents.burst(e.x as number, e.y as number, e.z as number, undead ? "#d8cfb8" : "#8a0a10", big ? 14 : 7, { speed: 3, size: 0.07 });
           audio.play(e.blocked ? "block" : big ? "crit" : undead ? "bone" : "hit", pos, mine ? 1 : 0.6);
-          if (mine && big) this.shake = Math.max(this.shake, 0.25);
+          if (mine && big) { this.shake = Math.max(this.shake, 0.25); this.view.freeze(0.06); }
           if (big && !undead) ents.splat(e.x as number, e.z as number, "blood", 0.9);
           break;
         }
@@ -260,9 +273,12 @@ export class Game {
           break;
         case "cast":
           if (e.p === me) {
-            this.view.castAnim();
-            if (this.ctl && e.skill !== "bolt") ents.flash(this.ctl.x - Math.sin(this.ctl.yaw) * 0.8, 1.4, this.ctl.z - Math.cos(this.ctl.yaw) * 0.8, ELEMENT_COLOR[this.stats.boltElement] || "#ffd8a0", 0.8, 7, 0.3);
             const sk = SKILL_BY_ID[e.skill as string];
+            if (sk) this.playSkill(sk);
+            else {
+              this.view.castAnim();
+              if (this.ctl) ents.flash(this.ctl.x - Math.sin(this.ctl.yaw) * 0.8, 1.4, this.ctl.z - Math.cos(this.ctl.yaw) * 0.8, ELEMENT_COLOR[this.stats.boltElement] || "#ffd8a0", 0.8, 7, 0.3);
+            }
             if (sk) this.cb.say(sk.name, "#c9a46a");
             const sel = sk ? (sk.effect(1) as { element?: string; type: string }) : null;
             const snd = !sk ? "cast" : sel?.element === "fire" ? "fire" : sel?.element === "cold" ? "frost" : sel?.element === "holy" ? "holy" : sel?.element === "lightning" ? "zap" : sel?.element === "dark" || sel?.element === "poison" ? "dark" : sel?.type === "buff" || sel?.type === "summon" ? "cast" : "heavy";
@@ -356,13 +372,23 @@ export class Game {
           audio.play(e.el === "holy" ? "holy" : "explode", pos);
           if (this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 8) this.shake = Math.max(this.shake, 0.4);
           break;
-        case "nova":
+        case "nova": {
+          const delay = e.slam && e.p === me && this.camMove ? Math.max(0, this.camMove.dur - this.camMove.t) : 0;
+          const col = ELEMENT_COLOR[e.el as string] || "#ffffff";
+          this.fx.shockwave(e.x as number, e.z as number, (e.r as number) * 1.05, e.slam ? "#f0c890" : col, { dur: 0.45, delay });
+          this.fx.shockwave(e.x as number, e.z as number, (e.r as number) * 0.7, e.slam ? "#ffffff" : col, { dur: 0.35, delay: delay + 0.06 });
+          if (e.slam) {
+            ents.burst(e.x as number, 0.2, e.z as number, "#6a5a48", 26, { speed: (e.r as number) * 1.4, up: 2.5, g: 6, size: 0.18, life: 0.9 });
+            ents.splat(e.x as number, e.z as number, "soot", Math.min(3.5, e.r as number));
+            if (e.p === me) { this.view.freeze(0.07); this.fovKick = Math.min(this.fovKick, -4); }
+          }
           if (e.slam && this.ctl && Math.hypot(this.ctl.x - (e.x as number), this.ctl.z - (e.z as number)) < 6) this.shake = Math.max(this.shake, 0.6);
           ents.flash(e.x as number, 1.4, e.z as number, ELEMENT_COLOR[e.el as string] || "#ffffff", 1.6, 4 + (e.r as number) * 2, 0.5);
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, ELEMENT_COLOR[e.el as string] || "#fff");
           ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#fff", 24, { speed: e.r as number, additive: true, size: 0.25, up: 0.5, g: 0 });
           audio.play(e.el === "cold" ? "frost" : e.el === "holy" ? "holy" : "explode", pos, 0.8);
           break;
+        }
         case "chain":
           ents.bolt(e.pts as number[], ELEMENT_COLOR[e.el as string] || "#bfe4ff");
           audio.play(e.el === "lightning" ? "zap" : e.el === "holy" ? "holy" : "impact", { x: (e.pts as number[])[0], z: (e.pts as number[])[2] }, 0.8);
@@ -371,7 +397,9 @@ export class Game {
           ents.ring(e.x as number, e.z as number, (e.r as number) * 2, e.fear ? "#9a6aff" : "#ffb04a");
           ents.ring(e.x as number, e.z as number, (e.r as number) * 1.3, e.fear ? "#9a6aff" : "#ffb04a");
           audio.play("roar", pos, 0.7);
-          if (e.p === me) this.shake = Math.max(this.shake, 0.35);
+          this.fx.shockwave(e.x as number, e.z as number, e.r as number, e.fear ? "#9a6aff" : "#ffb04a", { dur: 0.55, y: 0.4 });
+          this.fx.shockwave(e.x as number, e.z as number, (e.r as number) * 0.8, "#ffffff", { dur: 0.4, y: 0.9, delay: 0.08 });
+          if (e.p === me) { this.shake = Math.max(this.shake, 0.45); this.engine.zoom = Math.max(this.engine.zoom, 0.7); }
           break;
         case "buff":
           ents.burst(e.x as number, 1, e.z as number, "#ffe9a0", 18, { speed: 1.2, up: 2.5, g: 0, additive: true, size: 0.14, life: 0.8 });
@@ -385,11 +413,25 @@ export class Game {
           ents.flash(e.x as number, 0.8, e.z as number, "#ffb070", 0.5, 4, 0.15);
           break;
         case "blink_from":
-          ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#d87aff", 26, { speed: 2, up: 1, g: 0, additive: true, size: 0.2, life: 0.6 });
+          if (e.p === me) this.blinkPending = true;
+          // своё облако остаётся там, где стоял герой; камера улетает из него — делаем его мельче, чтобы не слепило
+          ents.burst(e.x as number, 1, e.z as number, ELEMENT_COLOR[e.el as string] || "#d87aff", 26, { speed: 2, up: 1, g: 0, additive: true, size: e.p === me ? 0.1 : 0.2, life: 0.6 });
+          this.fx.sigil(e.x as number, e.z as number, 1, ELEMENT_COLOR[e.el as string] || "#d87aff", { dur: 0.8, spin: 4 });
           audio.play("portal", pos, 0.5);
           break;
         case "combo":
-          if (e.p === me) for (let i = 1; i < (e.n as number); i++) setTimeout(() => this.view.attack(false, 0.18), i * 90);
+          if (e.p === me) {
+            // серия ударов: каждый следующий — взмах с другой стороны
+            for (let i = 1; i < (e.n as number); i++) {
+              setTimeout(() => {
+                if (!this.ctl) return;
+                const c = this.ctl;
+                this.view.gesture("slash", "#f0e6d0", "none", i % 2 === 1);
+                this.fx.slash(c.x, c.y + 1.45, c.z, c.yaw, c.pitch, { color: "#f0e6d0", arc: 1.6, r: 2.4, width: 0.85, tilt: i % 2 ? 0.7 : -0.7, mirror: i % 2 === 1 });
+                audio.play("swing");
+              }, i * 120);
+            }
+          }
           break;
         case "smoke":
           ents.burst(e.x as number, 1, e.z as number, "#5a5a5a", 50, { speed: 4, size: 0.6, up: 0.6, g: -0.5, life: 2 });
@@ -451,12 +493,28 @@ export class Game {
         case "summon":
         case "esummon":
           if (e.id) ents.markSpawn(e.id as string);
+          if (e.t === "summon") {
+            this.fx.sigil(e.x as number, e.z as number, 1.1, "#9aff9a", { dur: 1.2, spin: 2 });
+            this.fx.pillar(e.x as number, e.z as number, "#9aff9a", { r: 0.5, h: 2.6, dur: 0.7, power: 0.8 });
+          }
           ents.burst(e.x as number, 0.4, e.z as number, "#7aff9a", 20, { speed: 2, up: 3, additive: true, size: 0.2 });
           audio.play("dark", pos, 0.7);
           break;
         case "teleport":
         case "correct":
-          if (e.p === me && this.ctl) this.ctl.teleport(e.x as number, (e.y as number) || 0, e.z as number, e.t === "teleport" ? (e.yaw as number) : undefined);
+          if (e.p === me && this.ctl) {
+            const c = this.ctl;
+            const dx = c.x - (e.x as number), dz = c.z - (e.z as number);
+            if (e.t === "teleport" && Math.hypot(dx, dz) > 0.5) {
+              // камера пролетает путь, а не перескакивает: прыжок — дугой, рывок — броском, телепорт — вспышкой
+              const leap = !!e.leap, blink = this.blinkPending;
+              this.camMove = { dx, dz, t: 0, dur: leap ? 0.34 : blink ? 0.1 : 0.16, arc: leap ? 1.5 : 0 };
+              this.engine.zoom = Math.max(this.engine.zoom, blink ? 1.2 : leap ? 0.6 : 0.9);
+              this.fovKick = Math.max(this.fovKick, blink ? 14 : leap ? 6 : 10);
+            }
+            this.blinkPending = false;
+            c.teleport(e.x as number, (e.y as number) || 0, e.z as number, e.t === "teleport" ? (e.yaw as number) : undefined);
+          }
           break;
         case "downed":
           if (e.p === me) {
@@ -524,6 +582,108 @@ export class Game {
     if (!d) return undefined;
     const o = kind === "chest" ? d.chests.find((c) => c.id === id) : d.traps.find((c) => c.id === id);
     return o ? { x: o.x, z: o.z } : undefined;
+  }
+
+  /** Отсвет силы навыка по краям кадра. */
+  private pulse(color: string, k: number) {
+    this.engine.glowColor.set(color);
+    this.engine.glow = Math.max(this.engine.glow, k);
+  }
+
+  /** Как выглядит навык героя: жест рук, эффекты в мире, отклик камеры. */
+  private playSkill(sk: SkillDef) {
+    const c = this.ctl;
+    if (!c) return;
+    const look = skillLook(sk);
+    const rank = Math.max(1, this.char.skills[sk.id] || 1);
+    const eff = sk.effect(rank) as Record<string, number | string | undefined> & { type: string };
+    const { color, gesture } = look;
+    const fx = this.fx;
+    const yaw = c.yaw, pitch = c.pitch;
+    const fwx = -Math.sin(yaw), fwz = -Math.cos(yaw);
+    const eye = c.y + EYE;
+    // точка «у руки»: чуть впереди и правее взгляда
+    const hand = { x: c.x + fwx * 1.5 + Math.cos(yaw) * 0.3, y: eye - 0.35 + Math.sin(pitch) * 1.5, z: c.z + fwz * 1.5 - Math.sin(yaw) * 0.3 };
+    const num = (k: string, d: number) => (typeof eff[k] === "number" ? (eff[k] as number) : d);
+    this.view.gesture(gesture, color, look.hand, false, eff.type === "leap" ? 1.7 : 1);
+    this.pulse(color, 0.1 + look.power * 0.22);
+    const aim = () => (sk.aimed || eff.type === "corpse" || eff.type === "curse" || eff.type === "ground" || eff.type === "field" ? this.aimPoint() : { x: c.x + fwx * 3, y: 0, z: c.z + fwz * 3 });
+    switch (gesture) {
+      case "slash": {
+        const arc = Math.max(1.3, Math.min(2.8, num("arc", 1.6) * 1.2));
+        fx.slash(c.x, c.y + 1.45, c.z, yaw, pitch, { color, arc, r: num("range", 2.6) + 0.2, width: 0.95, tilt: -0.55 });
+        this.fovKick = Math.max(this.fovKick, 2.5);
+        break;
+      }
+      case "chop":
+        if (eff.type === "arc") {
+          fx.slash(c.x, c.y + 1.3, c.z, yaw, pitch, { color, arc: 1.7, r: num("range", 2.4) + 0.3, width: 1.0, tilt: Math.PI / 2 - 0.2, yawOff: -0.5, dip: 0, dur: 0.36 });
+          this.fovKick = Math.min(this.fovKick, -3);
+          this.shake = Math.max(this.shake, 0.3);
+        }
+        break;
+      case "thrust":
+        this.fovKick = Math.max(this.fovKick, 6);
+        this.engine.zoom = Math.max(this.engine.zoom, 0.5);
+        break;
+      case "push":
+      case "flick":
+      case "throw":
+        fx.burstRing(hand.x, hand.y, hand.z, yaw, pitch, color, gesture === "throw" ? 0.18 : 0.3);
+        this.ents?.flash(hand.x, hand.y, hand.z, color, 1.2, 7, 0.3);
+        this.ents?.burst(hand.x, hand.y, hand.z, color, 10, { speed: 2.2, up: 0.4, g: 0, additive: true, size: 0.12, life: 0.35 });
+        this.fovKick = Math.max(this.fovKick, gesture === "throw" ? 1.5 : 3);
+        break;
+      case "slam":
+        fx.sigil(c.x, c.z, num("radius", 4) * 0.55, color, { dur: 0.9, spin: 3 });
+        this.engine.zoom = Math.max(this.engine.zoom, 0.45);
+        this.fovKick = Math.min(this.fovKick, -3);
+        this.shake = Math.max(this.shake, 0.35);
+        break;
+      case "raise":
+        fx.sigil(c.x, c.z, eff.type === "sanctuary" ? num("radius", 4) : 1.5, color, { dur: 1.3, spin: 1.5 });
+        fx.pillar(c.x, c.z, color, { r: 1.1, h: 3.4, dur: 0.9, power: 0.55 });
+        this.ents?.burst(c.x, 0.2, c.z, color, 24, { speed: 1.4, up: 3, g: -0.5, additive: true, size: 0.12, life: 1 });
+        this.pulse(color, 0.35);
+        break;
+      case "roar":
+        this.fovKick = Math.min(this.fovKick, -5);
+        break;
+      case "claw": {
+        const a = aim();
+        fx.sigil(a.x, a.z, num("radius", 3), color, { dur: 1.2, spin: -2 });
+        this.ents?.burst(a.x, 0.3, a.z, color, 22, { speed: 1.2, up: 1.6, g: -0.4, additive: true, size: 0.22, life: 1.1 });
+        break;
+      }
+      case "beckon":
+        if (eff.type === "corpse") {
+          const a = aim();
+          fx.sigil(a.x, a.z, num("radius", 3), color, { dur: 0.7, spin: 5 });
+        } else fx.sigil(c.x + fwx * 1.5, c.z + fwz * 1.5, 1.3, color, { dur: 1.2, spin: 2 });
+        break;
+      case "call": {
+        const a = aim();
+        fx.sigil(a.x, a.z, num("radius", 2.5), color, { dur: Math.max(0.8, num("delay", 0.6) + 0.5), spin: 2.5 });
+        if (sk.cls === "cleric") fx.pillar(a.x, a.z, color, { r: num("radius", 2) * 0.6, h: 6, dur: 0.7, power: 1, delay: Math.max(0, num("delay", 0.3) - 0.05) });
+        break;
+      }
+      case "sweep": {
+        const a = aim();
+        fx.sigil(a.x, a.z, num("radius", 3), color, { dur: 1, spin: 1 });
+        break;
+      }
+      case "bash":
+        this.shake = Math.max(this.shake, 0.25);
+        this.fovKick = Math.max(this.fovKick, 3);
+        fx.slash(c.x, c.y + 1.35, c.z, yaw, pitch, { color: "#e8e2d4", arc: 1.2, r: num("range", 2) + 0.2, width: 0.6, tilt: 0.1, dur: 0.25 });
+        break;
+      case "fling":
+        fx.slash(c.x, c.y + 0.9, c.z, yaw, 0, { color: "#e8ecf2", arc: Math.PI * 2, r: num("radius", 4), width: 1.1, dur: 0.35, dip: 0 });
+        break;
+      case "toss":
+      case "spin":
+        break;
+    }
   }
 
   private attackInterval(heavy: boolean) {
@@ -749,9 +909,32 @@ export class Game {
     // камера
     const cam = this.engine.camera;
     this.shake = Math.max(0, this.shake - dt * 2.2);
+    let mx = 0, my = 0, mz = 0;
+    if (this.camMove) {
+      const m = this.camMove;
+      m.t += dt;
+      const k = Math.min(1, m.t / m.dur);
+      const left = 1 - (1 - Math.pow(1 - k, 2));
+      mx = m.dx * left;
+      mz = m.dz * left;
+      my = m.arc * 4 * k * (1 - k);
+      if (k >= 1) this.camMove = null;
+    }
+    const fovT = this.engine.settings.fov + this.fovKick;
+    if (Math.abs(cam.fov - fovT) > 0.01) { cam.fov = fovT; cam.updateProjectionMatrix(); }
+    this.fovKick *= Math.exp(-dt * 7);
+    this.engine.zoom = Math.max(0, this.engine.zoom - dt * 4);
+    this.engine.glow = Math.max(0, this.engine.glow - dt * 1.8);
+    this.fx.update(dt);
+    // вихрь: серп вокруг героя на каждом обороте
+    if (this.self?.whirl && t >= this.whirlFxAt) {
+      this.whirlFxAt = t + 0.24;
+      this.whirlSide = !this.whirlSide;
+      this.fx.slash(c.x, c.y + 1.0, c.z, c.yaw, 0, { color: "#f0e6d0", arc: Math.PI * 2, r: 3.2, width: 1.0, tilt: this.whirlSide ? 0.12 : -0.12, mirror: this.whirlSide, dur: 0.3, dip: 0 });
+    }
     const bob = this.engine.settings.bob && c.moving && c.grounded ? Math.abs(Math.sin(c.stepPhase)) * 0.05 : 0;
     const dead = this.mode === "dungeon" && this.self && !this.self.alive;
-    cam.position.set(c.x + (Math.random() - 0.5) * this.shake * 0.15, c.y + (dead ? 0.35 : EYE) + bob + (Math.random() - 0.5) * this.shake * 0.15, c.z);
+    cam.position.set(c.x + mx + (Math.random() - 0.5) * this.shake * 0.15, c.y + my + (dead ? 0.35 : EYE) + bob + (Math.random() - 0.5) * this.shake * 0.15, c.z + mz);
     cam.rotation.order = "YXZ";
     cam.rotation.set(c.pitch, c.yaw, dead ? 0.6 : 0);
     audio.listener = { x: c.x, z: c.z, yaw: c.yaw };

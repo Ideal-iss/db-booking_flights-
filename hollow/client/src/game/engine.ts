@@ -47,6 +47,9 @@ uniform float uHurt;
 uniform float uFade;
 uniform float uDesat;
 uniform float uGamma;
+uniform vec3 uGlowCol;
+uniform float uGlow;
+uniform float uZoom;
 varying vec2 vUv;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -83,6 +86,13 @@ void main() {
   col.g = texture2D(tDiffuse, uv).g;
   col.b = texture2D(tDiffuse, uv - vec2(ca, 0.0)).b;
   // размытие по горизонтали, как у кассеты
+  // «рывок»: радиальное размытие к центру при прыжке, рывке и телепорте
+  if (uZoom > 0.002) {
+    vec2 d = (uv - 0.5) * uZoom * 0.09;
+    vec3 acc = col;
+    for (int k = 1; k < 6; k++) acc += texture2D(tDiffuse, uv - d * float(k)).rgb;
+    col = mix(col, acc / 6.0, smoothstep(0.05, 0.45, length(uv - 0.5)));
+  }
   vec3 smear = texture2D(tDiffuse, uv - vec2(1.5 / uRes.x, 0.0)).rgb;
   col = mix(col, max(col, smear * 0.92), 0.35 * uVhs);
 
@@ -111,6 +121,8 @@ void main() {
   float vig = smoothstep(1.35, 0.35, length(cc));
   col *= mix(1.0, vig, 0.65);
   col = mix(col, vec3(0.55, 0.03, 0.03), uHurt * (1.0 - vig * 0.6) * 0.55);
+  // отсвет силы навыка по краям кадра
+  col += uGlowCol * uGlow * ((1.0 - vig) * 0.55 + 0.05);
   col *= 1.0 - uFade;
   gl_FragColor = vec4(col, 1.0);
 }
@@ -131,6 +143,11 @@ export class Engine {
   hurt = 0;
   fade = 0;
   desat = 0;
+  /** Отсвет навыка по краям кадра и его цвет. */
+  glow = 0;
+  glowColor = new THREE.Color();
+  /** Сила радиального размытия «рывка». */
+  zoom = 0;
   private ro: ResizeObserver;
 
   constructor(host: HTMLElement, settings: Settings) {
@@ -154,6 +171,7 @@ export class Engine {
         tDiffuse: { value: this.rt.texture }, uRes: { value: new THREE.Vector2() }, uScreen: { value: new THREE.Vector2() },
         uTime: { value: 0 }, uVhs: { value: 0 }, uGrain: { value: 0 }, uChroma: { value: 0 }, uCurve: { value: 0 },
         uScan: { value: 0 }, uHurt: { value: 0 }, uFade: { value: 0 }, uDesat: { value: 0 }, uGamma: { value: 1.35 },
+        uGlowCol: { value: new THREE.Color() }, uGlow: { value: 0 }, uZoom: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,
@@ -214,6 +232,9 @@ export class Engine {
     u.uHurt.value = this.hurt;
     u.uFade.value = this.fade;
     u.uDesat.value = this.desat;
+    u.uGlowCol.value.copy(this.glowColor);
+    u.uGlow.value = this.glow;
+    u.uZoom.value = this.zoom;
     u.uGamma.value = s.brightness || 1.35;
     r.render(this.postScene, this.postCam);
   }

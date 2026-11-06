@@ -77,7 +77,7 @@ export class Entities {
   selfId: string;
   enemies = new Map<string, EnemyView>();
   players = new Map<string, PlayerView>();
-  projectiles = new Map<number, { obj: THREE.Object3D; vx: number; vy: number; vz: number; x: number; y: number; z: number; t: number }>();
+  projectiles = new Map<number, { obj: THREE.Object3D; vx: number; vy: number; vz: number; x: number; y: number; z: number; t: number; trailAcc?: number }>();
   grounds = new Map<number, { obj: THREE.Group; fill?: THREE.Mesh; data: Snapshot["grounds"][number] }>();
   drops = new Map<string, { obj: THREE.Group; label?: THREE.Sprite; kind: string; name?: string; rarity?: string; x: number; z: number }>();
   particles: Particle[] = [];
@@ -263,6 +263,7 @@ export class Entities {
       glow.scale.setScalar(1.1);
       g.add(head, glow);
       g.userData.light = { color: new THREE.Color("#ffe9a0"), power: 0.7, radius: 7 };
+      g.userData.trail = "#ffe9a0";
       return g;
     }
     if (kind === "bone_spear") {
@@ -270,6 +271,7 @@ export class Entities {
       m.rotation.x = -Math.PI / 2;
       const g = new THREE.Group();
       g.add(m);
+      g.userData.trail = "#d8cfb8";
       return g;
     }
     const g = new THREE.Group();
@@ -281,6 +283,8 @@ export class Entities {
     g.add(glow, core);
     // свет снаряда раздаётся из общего пула (см. updateLights)
     g.userData.light = { color: new THREE.Color(color), power: big ? 1.6 : kind === "ebolt" ? 0.8 : 1.0, radius: big ? 13 : 8 };
+    g.userData.trail = color;
+    g.userData.trailBig = big;
     return g;
   }
 
@@ -692,6 +696,17 @@ export class Entities {
       p.obj.lookAt(p.obj.position.x + p.vx, p.obj.position.y + p.vy, p.obj.position.z + p.vz);
       const core = p.obj.getObjectByName("core");
       if (core) core.rotation.set(t * 8, t * 6, 0);
+      // след снаряда: тающие искры позади
+      const tc = p.obj.userData.trail as string | undefined;
+      if (tc) {
+        p.trailAcc = (p.trailAcc || 0) + dt;
+        const step = p.obj.userData.trailBig ? 0.012 : 0.022;
+        while (p.trailAcc > step) {
+          p.trailAcc -= step;
+          const o = p.obj.position;
+          this.burst(o.x, o.y, o.z, tc, 1, { speed: 0.4, up: 0.2, g: p.obj.userData.trailBig ? -0.6 : 0, additive: true, size: p.obj.userData.trailBig ? 0.32 : 0.16, life: p.obj.userData.trailBig ? 0.45 : 0.28 });
+        }
+      }
     }
     this.updateLights(dt, t, cam);
     const simT = this.snapB ? this.snapB.time + (now - this.tB) : 0;

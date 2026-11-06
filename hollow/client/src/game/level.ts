@@ -678,6 +678,12 @@ export class LevelView {
   /** Отмечает открытые клетки карты вокруг игрока. */
   explore(x: number, z: number) {
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+    // вошли в комнату — она открывается на карте целиком (вместе со стенами по краю)
+    for (const r of this.d.rooms) {
+      if (cx < r.x || cz < r.y || cx >= r.x + r.w || cz >= r.y + r.h || r.kind === "secret") continue;
+      for (let y = r.y - 1; y <= r.y + r.h; y++) for (let xx = r.x - 1; xx <= r.x + r.w; xx++)
+        if (xx >= 0 && y >= 0 && xx < this.d.w && y < this.d.h) this.explored[y * this.d.w + xx] = 1;
+    }
     for (let j = -3; j <= 3; j++)
       for (let i = -3; i <= 3; i++) {
         const xx = cx + i, zz = cz + j;

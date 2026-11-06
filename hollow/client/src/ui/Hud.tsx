@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGame } from "../store";
 import { Bar } from "./common";
 import { baseIcon, itemIcon, skillIcon } from "./icons";
+import { drawMap, objective, type MapData } from "./mapDraw";
 import { SKILL_BY_ID } from "@shared/data/skills";
 import { BASE_BY_ID } from "@shared/data/items";
 import { CELL, Cell } from "@shared/dungeon/generate";
@@ -192,77 +193,64 @@ function HotSlot(props: { k: string; icon?: string; cd?: number; total?: number;
   );
 }
 
+/** Миникарта: круглая, поворачивается вместе со взглядом; «С» на ободе показывает север. */
 function Minimap() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
+    const t0 = performance.now();
     const id = setInterval(() => {
       const c = ref.current;
       const g = c?.getContext("2d");
-      const data = gameApi.game?.mapData();
+      const data = gameApi.game?.mapData() as MapData | null | undefined;
       if (!c || !g || !data) return;
-      const { d, explored, x, z, yaw } = data;
-      const S = 6; // пикселей на клетку
-      const R = 11;
-      g.fillStyle = "#121110";
-      g.fillRect(0, 0, c.width, c.height);
-      const pcx = x / CELL, pcz = z / CELL;
-      for (let j = -R; j <= R; j++)
-        for (let i = -R; i <= R; i++) {
-          const cx = Math.floor(pcx) + i, cz = Math.floor(pcz) + j;
-          if (cx < 0 || cz < 0 || cx >= d.w || cz >= d.h) continue;
-          const idx = cz * d.w + cx;
-          if (!explored[idx]) continue;
-          const cell = d.cells[idx];
-          if (cell === Cell.Wall) continue;
-          g.fillStyle = cell === Cell.Secret ? "#3a3632" : "#4d4943";
-          g.fillRect(c.width / 2 + (cx - pcx) * S, c.height / 2 + (cz - pcz) * S, S, S);
-        }
-      const pt = (wx: number, wz: number, col: string, r = 2) => {
-        const px = c.width / 2 + (wx / CELL - pcx) * S, pz = c.height / 2 + (wz / CELL - pcz) * S;
-        if (px < 0 || pz < 0 || px > c.width || pz > c.height) return;
-        g.fillStyle = col;
-        g.fillRect(px - r, pz - r, r * 2, r * 2);
-      };
-      for (const n of data.npcs) pt(n.x, n.z, "#aaa398", 2);
-      for (const a of data.allies) pt(a.x, a.z, "#4cc38a", 2);
-      if (data.exitOpen) pt(d.exit.x, d.exit.z, "#8fd0ff", 3);
-      // компас к логову босса (или к открытому порталу)
-      const boss = d.rooms[d.bossRoom];
-      if (boss && d.theme.id !== "hub") {
-        const tx = data.exitOpen ? d.exit.x / CELL : boss.x + boss.w / 2, tz = data.exitOpen ? d.exit.z / CELL : boss.y + boss.h / 2;
-        const dx = (tx - pcx) * S, dz = (tz - pcz) * S;
-        const half = c.width / 2 - 8;
-        const k = Math.max(Math.abs(dx), Math.abs(dz)) > half ? half / Math.max(Math.abs(dx), Math.abs(dz)) : 1;
-        const col = data.exitOpen ? "#8fd0ff" : "#e0505a";
-        g.save();
-        g.translate(c.width / 2 + dx * k, c.height / 2 + dz * k);
-        g.fillStyle = col;
-        if (k < 1) {
-          g.rotate(Math.atan2(dz, dx) + Math.PI / 2);
-          g.beginPath();
-          g.moveTo(0, -6);
-          g.lineTo(5, 4);
-          g.lineTo(-5, 4);
-          g.closePath();
-          g.fill();
-        } else g.fillRect(-3, -3, 6, 6);
-        g.restore();
-      }
-      if (d.theme.id !== "hub") pt(d.entrance.x, d.entrance.z, "#6f9fd8", 2);
-      // игрок — стрелка
+      const W = c.width, R = W / 2;
+      const t = (performance.now() - t0) / 1000;
       g.save();
-      g.translate(c.width / 2, c.height / 2);
-      g.rotate(-yaw);
-      g.fillStyle = "#ece6da";
+      g.clearRect(0, 0, W, W);
       g.beginPath();
-      g.moveTo(0, -5);
-      g.lineTo(4, 4);
-      g.lineTo(-4, 4);
-      g.closePath();
-      g.fill();
+      g.arc(R, R, R - 3, 0, Math.PI * 2);
+      g.clip();
+      drawMap(g, data, { S: 9, cx: data.x / CELL, cy: data.z / CELL, rotate: data.yaw, t });
       g.restore();
-    }, 150);
+      // цель за краем — стрелка на ободе
+      const obj = objective(data);
+      if (obj) {
+        const dx = obj.cx + 0.5 - data.x / CELL, dz = obj.cy + 0.5 - data.z / CELL;
+        const dist = Math.hypot(dx, dz) * 9;
+        if (dist > R - 14) {
+          const ang = Math.atan2(dz, dx) + data.yaw;
+          const col = obj.kind === "portal" ? "#9ad8ff" : "#e5484d";
+          g.save();
+          g.translate(R + Math.cos(ang) * (R - 11), R + Math.sin(ang) * (R - 11));
+          g.rotate(ang + Math.PI / 2);
+          g.fillStyle = "#0b0806";
+          g.beginPath(); g.moveTo(0, -8); g.lineTo(7, 6); g.lineTo(-7, 6); g.closePath(); g.fill();
+          g.fillStyle = col;
+          g.beginPath(); g.moveTo(0, -6); g.lineTo(5, 4.5); g.lineTo(-5, 4.5); g.closePath(); g.fill();
+          g.restore();
+        }
+      }
+      // обод и север
+      g.strokeStyle = "#0b0806";
+      g.lineWidth = 4;
+      g.beginPath(); g.arc(R, R, R - 3, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = "rgba(239,233,222,0.22)";
+      g.lineWidth = 1.5;
+      g.beginPath(); g.arc(R, R, R - 4.5, 0, Math.PI * 2); g.stroke();
+      const na = -Math.PI / 2 + data.yaw;
+      const nx = R + Math.cos(na) * (R - 9), ny = R + Math.sin(na) * (R - 9);
+      g.fillStyle = "#141311";
+      g.beginPath(); g.arc(nx, ny, 8, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "rgba(239,233,222,0.3)";
+      g.lineWidth = 1;
+      g.stroke();
+      g.fillStyle = "#e3a45a";
+      g.font = "bold 11px 'IBM Plex Mono', monospace";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("С", nx, ny + 0.5);
+    }, 90);
     return () => clearInterval(id);
   }, []);
-  return <canvas ref={ref} width={160} height={160} className="panel absolute top-4 right-6 h-[160px] w-[160px] p-0" />;
+  return <canvas ref={ref} width={176} height={176} className="absolute top-4 right-6 h-[176px] w-[176px]" style={{ imageRendering: "pixelated" }} />;
 }

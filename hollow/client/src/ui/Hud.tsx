@@ -81,7 +81,8 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
           {hud.prompt}
         </div>
       )}
-      {!hud.alive && (hud.deadFor < 4.5 || hud.allies.some((a) => a.alive)) && (
+      {hud.secondChance && <SecondChance />}
+      {!hud.alive && !hud.secondChance && (hud.deadFor < 4.5 || hud.allies.some((a) => a.alive)) && (
         <div className="absolute top-[35%] left-1/2 -translate-x-1/2 text-center transition-opacity duration-700" style={{ opacity: hud.allies.some((a) => a.alive) ? 1 : Math.max(0, Math.min(1, (4.5 - hud.deadFor) / 1.2)) }}>
           <div className="font-[family-name:var(--font-head)] text-[56px] leading-none font-semibold text-[#e5484d] [text-shadow:0_0_8px_#000]">Вы пали</div>
           {hud.allies.some((a) => a.alive) && <div className="text-parch mt-3">Союзник может поднять вас, если подойдёт и нажмёт E</div>}
@@ -144,7 +145,7 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
         </div>
       </div>
 
-      {!locked && !panel && (
+      {!locked && !panel && !hud.secondChance && (
         <div className="pointer-events-auto absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40" onClick={onClickCanvas}>
           <div className="panel rise w-[520px] p-6">
             <div className="panel-title">Кликните, чтобы играть</div>
@@ -260,4 +261,29 @@ function Minimap() {
     return () => clearInterval(id);
   }, []);
   return <canvas ref={ref} width={176} height={176} className="absolute top-4 right-6 h-[176px] w-[176px]" style={{ imageRendering: "pixelated" }} />;
+}
+
+/** Гибель в одиночной игре на Яндексе: один раз за забег можно подняться за просмотр рекламы. */
+function SecondChance() {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const watch = async () => {
+    setBusy(true);
+    const ok = await gameApi.secondChance();
+    setBusy(false);
+    if (!ok) setFailed(true);
+  };
+  return (
+    <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/55">
+      <div className="panel rise flex w-[440px] flex-col items-center gap-4 p-7 text-center">
+        <div className="font-[family-name:var(--font-head)] text-[48px] leading-none font-semibold text-[#e5484d]">Вы пали</div>
+        <p className="text-parch text-sm">Глубина ещё не забрала вас. Посмотрите рекламу — и встанете с половиной здоровья. Так можно один раз за спуск.</p>
+        {failed && <p className="text-bad text-sm">Реклама сейчас недоступна. Можно попробовать ещё раз или вернуться в лагерь.</p>}
+        <div className="flex w-full gap-2">
+          <button className="btn btn-primary h-11 flex-1" disabled={busy} onClick={watch}>{busy ? "Реклама…" : "Подняться за рекламу"}</button>
+          <button className="btn h-11" disabled={busy} onClick={() => gameApi.giveUp()}>Сдаться</button>
+        </div>
+      </div>
+    </div>
+  );
 }

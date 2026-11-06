@@ -711,8 +711,44 @@ export class Sim {
     this.events.push({ t: "downed", p: p.id });
     for (const e of this.enemies.values()) if (e.target === p.id) e.target = null;
     if ([...this.players.values()].every((x) => !x.alive || !x.connected)) {
-      this.finish(false, p.id);
+      // одиночная игра с возрождением за рекламу: поражение ждёт решения игрока
+      if (this.offerRevive && !this.revivedOnce) this.awaitingRevive = p.id;
+      else this.finish(false, p.id);
     }
+  }
+
+  /** Можно ли один раз за забег подняться после гибели (решает клиент: например, за просмотр рекламы). */
+  offerRevive = false;
+  revivedOnce = false;
+  /** Кто пал и ждёт решения: подняться или сдаться. */
+  awaitingRevive: string | null = null;
+
+  /** Подняться на ноги: половина здоровья и маны, три секунды неуязвимости, враги рядом отброшены. */
+  secondChance() {
+    const p = this.awaitingRevive ? this.players.get(this.awaitingRevive) : null;
+    if (!p || this.finished) return false;
+    this.awaitingRevive = null;
+    this.revivedOnce = true;
+    p.alive = true;
+    p.hp = p.stats.maxHp * 0.5;
+    p.mana = Math.max(p.mana, p.stats.maxMana * 0.5);
+    p.iframesUntil = this.t + 3;
+    for (const e of this.enemies.values()) {
+      if (e.team !== "enemy" || e.state === "dead") continue;
+      const dx = e.x - p.x, dz = e.z - p.z, dist = Math.hypot(dx, dz);
+      if (dist < 5 && dist > 0.01 && !e.boss) {
+        e.kx += (dx / dist) * 12;
+        e.kz += (dz / dist) * 12;
+        e.stunUntil = Math.max(e.stunUntil, this.t + 1);
+      }
+    }
+    this.events.push({ t: "revived", p: p.id, by: p.id, ad: 1 });
+    return true;
+  }
+
+  giveUp() {
+    if (this.awaitingRevive && !this.finished) this.finish(false, this.awaitingRevive);
+    this.awaitingRevive = null;
   }
 
   finish(success: boolean, by: string, how: "exit" | "entrance" | "wipe" = success ? "exit" : "wipe") {

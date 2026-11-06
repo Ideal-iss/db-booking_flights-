@@ -7,13 +7,18 @@ import { CharacterCreate } from "./CharacterCreate";
 import { GameScreen } from "./GameScreen";
 import { audio } from "../game/audio";
 import { MenuScene } from "../game/menuScene";
+import { PLATFORM, yandex } from "../yandex";
 
 export function App() {
   const { screen, set } = useGame();
   useEffect(() => {
     api
       .me()
-      .then((r) => set({ user: r.user, characters: r.characters || [], coopEnabled: r.coop, screen: r.user ? "select" : "auth" }))
+      .then((r) => {
+        set({ user: r.user, characters: r.characters || [], coopEnabled: r.coop, screen: r.user ? "select" : "auth" });
+        // площадка снимает свой экран загрузки, когда можно играть
+        yandex.loaded();
+      })
       .catch(() => set({ screen: "auth", toast: "Нет связи с сервером." }));
   }, [set]);
   return (
@@ -77,7 +82,8 @@ export function MenuBackdrop({ children, scene = true, center = false }: { child
       {scene && <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(90deg, #141311 0%, #141311f2 30%, #14131180 48%, #14131100 66%)" }} />}
       <Osd />
       <div className={`relative z-10 h-full ${center ? "flex items-center justify-center p-6" : ""}`}>{children}</div>
-      <a href={window.HOLLOW.home} className="text-dim hover:text-bone absolute right-6 bottom-4 z-10 text-xs transition-colors">SkyBook</a>
+      {/* на Яндекс Играх ссылки наружу запрещены */}
+      {PLATFORM === "web" && <a href={window.HOLLOW.home} className="text-dim hover:text-bone absolute right-6 bottom-4 z-10 text-xs transition-colors">SkyBook</a>}
     </div>
   );
 }
@@ -226,12 +232,16 @@ function Select() {
             {err && <div className="text-bad text-sm">{err}</div>}
           </div>
         )}
+        {PLATFORM === "yandex" ? (
+          <div className="text-dim text-sm">Прогресс сохраняется автоматически</div>
+        ) : (
         <div className="text-dim text-sm">
           {user} ·{" "}
           <button className="hover:text-bone underline underline-offset-4 transition-colors" onClick={async () => { await api.logout(); set({ user: null, characters: [], screen: "auth" }); }}>
             выйти
           </button>
         </div>
+        )}
       </MenuColumn>
     </MenuBackdrop>
   );

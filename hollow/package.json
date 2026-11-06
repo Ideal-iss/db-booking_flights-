@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --config client/vite.config.ts",
     "build": "vite build --config client/vite.config.ts && node -e \"require('fs').rmSync('../web/hollow/static/hollow/index.html',{force:true})\"",
+    "build:yandex": "vite build --config client/vite.config.ts --mode yandex && cd dist-yandex && rm -f ../the-hollow-yandex.zip && zip -qr ../the-hollow-yandex.zip . && cd .. && ls -la the-hollow-yandex.zip",
     "typecheck": "tsc --noEmit -p client",
     "server:dev": "tsx server/src/index.ts",
     "server:build": "esbuild server/src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=server/dist/index.mjs --packages=external --alias:@shared=./shared",

@@ -45,6 +45,8 @@ export interface Hud {
   alive: boolean;
   /** Сколько секунд герой лежит (0 — жив). */
   deadFor: number;
+  /** Герой пал, и можно один раз подняться за просмотр рекламы. */
+  secondChance: boolean;
   level: number; xp: number; xpNeed: number;
   cds: Record<string, number>;
   potions: { health: number; mana: number };

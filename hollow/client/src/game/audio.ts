@@ -15,9 +15,19 @@ class AudioEngine {
   private music = 0.6;
   private lastPlay = new Map<string, number>();
 
+  /** Причины тишины: реклама, пауза платформы, свёрнутая вкладка. Пока есть хоть одна — звук молчит. */
+  private holds = new Set<string>();
+  hold(reason: string, on: boolean) {
+    if (on) this.holds.add(reason);
+    else this.holds.delete(reason);
+    if (!this.ctx) return;
+    if (this.holds.size) void this.ctx.suspend();
+    else if (this.ctx.state === "suspended") void this.ctx.resume();
+  }
+
   ensure() {
     if (this.ctx) {
-      if (this.ctx.state === "suspended") void this.ctx.resume();
+      if (this.ctx.state === "suspended" && !this.holds.size) void this.ctx.resume();
       return true;
     }
     try {

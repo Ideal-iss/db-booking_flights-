@@ -1,6 +1,8 @@
 /** Обращения к Django API игры. */
 import type { CharacterData } from "@shared/data/stats";
 import type { Item } from "@shared/data/items";
+import { PLATFORM } from "./yandex";
+import { localApi } from "./local/backend";
 
 declare global {
   interface Window {
@@ -44,7 +46,7 @@ async function call<T = any>(path: string, body?: unknown, method?: string): Pro
   return data;
 }
 
-export const api = {
+const remoteApi = {
   me: () => call<{ user: string | null; characters?: ServerCharacter[]; coop: boolean }>("me/"),
   login: (username: string, password: string) => call("login/", { username, password }),
   register: (username: string, password: string) => call("register/", { username, password }),
@@ -59,3 +61,6 @@ export const api = {
     call<{ summary: { xp: number; gold: number; levels: number; unlocked?: string[]; cleared?: boolean; firstClear?: boolean }; character: ServerCharacter }>(`characters/${id}/run/${run}/finish/`, { success, result }),
   coopToken: (id: number) => call<{ token: string; url: string }>(`characters/${id}/coop-token/`, {}),
 };
+
+/** На сайте — Django; в Яндекс Играх своего сервера нет, правила и сохранения живут в самой игре. */
+export const api: typeof remoteApi = PLATFORM === "yandex" ? (localApi as unknown as typeof remoteApi) : remoteApi;

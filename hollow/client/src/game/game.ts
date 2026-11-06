@@ -104,7 +104,7 @@ export class Game {
     this.lantern = new THREE.PointLight(0xffd8b0, 2.4, 10, 2);
     this.engine.scene.add(this.lantern);
     this.engine.canvas.addEventListener("click", () => {
-      if (!this.uiOpen) this.input.lock();
+      if (!this.uiOpen && !this.extPause) this.input.lock();
       audio.ensure();
     });
     audio.setVolume(settings.volume, settings.music);
@@ -129,7 +129,15 @@ export class Game {
     // нажатие, которое открыло/закрыло окно, не должно ещё раз сработать в игре
     this.input.pressed = [];
     if (open) this.input.unlock();
-    if (this.session && !this.session.coop) this.session.paused = open;
+    if (this.session && !this.session.coop) this.session.paused = open || this.extPause;
+  }
+
+  /** Пауза снаружи (реклама, пауза платформы): мир замирает, ввод не идёт. */
+  extPause = false;
+  setExternalPause(on: boolean) {
+    this.extPause = on;
+    if (on) this.input.unlock();
+    if (this.session && !this.session.coop) this.session.paused = on || this.uiOpen;
   }
 
   /** Вызывается после изменений персонажа на сервере (экипировка, атрибуты). */
@@ -884,7 +892,7 @@ export class Game {
     const inp = this.input;
     const c = this.ctl!;
     // пока открыто окно интерфейса, его клавиши (I, C, Esc…) обрабатывает сам интерфейс
-    if (this.uiOpen) return;
+    if (this.uiOpen || this.extPause) return;
     for (const code of inp.pressed) {
       if (code === "Escape") { this.cb.pauseToggle(); continue; }
       if (code === "KeyI") this.cb.togglePanel("inventory");
@@ -1079,6 +1087,8 @@ export class Game {
 
   private pushHud(draw: number) {
     const s = this.self;
+    // выбор «подняться или сдаться» — курсор нужен свободным
+    if (this.session instanceof LocalSession && this.session.sim.awaitingRevive && this.input.locked) this.input.unlock();
     if (s && !s.alive) { if (this.deadSince < 0) this.deadSince = this.now; }
     else this.deadSince = -1;
     const st = this.stats;
@@ -1090,6 +1100,7 @@ export class Game {
       absorb: s ? s.absorb : 0,
       alive: s ? s.alive : true,
       deadFor: this.deadSince >= 0 ? this.now - this.deadSince : 0,
+      secondChance: this.session instanceof LocalSession && this.session.sim.awaitingRevive === this.session.selfId && !this.session.finished,
       level: s ? s.level : this.char.level,
       xp: lv.into, xpNeed: lv.need,
       cds: s ? s.cds : {},

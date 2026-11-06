@@ -17,12 +17,16 @@ import { QuestsPanel, GatePanel, ResultsPanel, PausePanel, SettingsPanel, HelpPa
 import { PartyPanel } from "./Party";
 import { audio } from "../game/audio";
 import { party } from "../game/net";
+import { PLATFORM, yandex } from "../yandex";
 
 export interface GameApi {
   game: Game | null;
   op: (op: Record<string, unknown>) => Promise<boolean>;
   startRun: (dungeon: string) => Promise<void>;
   startCoop: (s: import("../game/session").Session, name: string, run: RunInfo) => void;
+  /** Подняться за просмотр рекламы (true — получилось). */
+  secondChance: () => Promise<boolean>;
+  giveUp: () => void;
 }
 
 export interface RunInfo {
@@ -33,7 +37,7 @@ export interface RunInfo {
   kills: number;
 }
 
-export const gameApi: GameApi = { game: null, op: async () => false, startRun: async () => {}, startCoop: () => {} };
+export const gameApi: GameApi = { game: null, op: async () => false, startRun: async () => {}, startCoop: () => {}, secondChance: async () => false, giveUp: () => {} };
 // доступ из консоли браузера для отладки (одиночная симуляция всё равно идёт на клиенте)
 (window as unknown as { __hollow: GameApi }).__hollow = gameApi;
 
@@ -155,6 +159,11 @@ export function GameScreen() {
         });
         gameRef.current = g;
         gameApi.game = g;
+        // пауза площадки и реклама останавливают мир
+        yandex.onPause((on) => {
+          g?.setExternalPause(on);
+          if (on) yandex.gameplay(false);
+        });
         party.hooks = {
           onMessage: (t, col) => useGame.getState().say(t, col),
           onDungeon: (session, run) => gameApi.startCoop(session, `${stageLabel(run.dungeon)} (ур. ${run.level}, отряд)`, { id: "", dungeon: run.dungeon, coop: true, items: 0, kills: 0 }),
@@ -228,6 +237,8 @@ export function GameScreen() {
     try {
       const r = await api.runStart(c.id, dungeon);
       const session = new LocalSession(RAPIER, { dungeon, seed: r.run.seed, level: r.run.level, char: c, name: c.name });
+      // на Яндексе после гибели можно один раз подняться за рекламу
+      session.sim.offerRevive = PLATFORM === "yandex";
       runRef.current = { id: r.run.id, dungeon, coop: false, items: 0, kills: 0 };
       closePanel();
       useGame.setState({ log: [] });
@@ -245,11 +256,41 @@ export function GameScreen() {
     g.enterDungeon(session, name);
   };
 
-  const backToCamp = () => {
+  gameApi.secondChance = async () => {
+    const s = gameRef.current?.session;
+    if (!(s instanceof LocalSession) || !s.sim.awaitingRevive) return false;
+    const ok = await yandex.rewarded();
+    if (!ok) return false;
+    s.sim.secondChance();
+    gameRef.current?.input.lock();
+    return true;
+  };
+  gameApi.giveUp = () => {
+    const s = gameRef.current?.session;
+    if (s instanceof LocalSession) s.sim.giveUp();
+  };
+
+  const backToCamp = async () => {
+    // межэкранная реклама — в логической паузе, между забегом и лагерем
+    if (PLATFORM === "yandex") await yandex.fullscreen();
     set({ panel: null, results: null });
     gameRef.current?.leaveDungeon();
     gameRef.current?.setUiOpen(false);
   };
+
+  // разметка геймплея для площадки: идёт игра, только когда герой управляется
+  useEffect(() => {
+    if (PLATFORM !== "yandex" || !ready) return;
+    let locked = false;
+    const upd = () => {
+      const g = gameRef.current;
+      yandex.gameplay(!!g && locked && !useGame.getState().panel && !g.extPause);
+    };
+    const onLock = (e: Event) => { locked = !!(e as CustomEvent).detail?.locked; upd(); };
+    window.addEventListener("hollow-lock", onLock);
+    const unsub = useGame.subscribe(upd);
+    return () => { window.removeEventListener("hollow-lock", onLock); unsub(); yandex.gameplay(false); };
+  }, [ready]);
 
   if (!char) return null;
   return (

@@ -10,5 +10,7 @@ import "@fontsource/cormorant-garamond/latin-600.css";
 import "@fontsource/jacquard-12/latin-400.css";
 import "./styles.css";
 import { App } from "./ui/App";
+import { yandex } from "./yandex";
 
-createRoot(document.getElementById("root")!).render(<App />);
+// SDK площадки поднимаем до интерфейса (на сайте это пустой вызов)
+void yandex.init().finally(() => createRoot(document.getElementById("root")!).render(<App />));

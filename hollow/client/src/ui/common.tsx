@@ -6,7 +6,7 @@ import {
 } from "@shared/data/items";
 import { CLASSES } from "@shared/data/classes";
 import { deriveStats, type CharacterData } from "@shared/data/stats";
-import { itemIcon } from "./icons";
+import { baseIcon, itemIcon } from "./icons";
 import { audio } from "../game/audio";
 import { useGame, NAV_TABS, NPC_PANELS, navHomePanel, openedFromPanel, type Panel as GamePanel } from "../store";
 
@@ -251,7 +251,7 @@ export function ItemSlot(props: {
     >
       {it ? (
         <>
-          <img src={itemIcon(BASE_BY_ID[it.base].icon)} alt="" draggable={false} />
+          <img src={baseIcon(it.base)} alt="" draggable={false} />
           {it.rarity !== "common" && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px]" style={{ background: color }} />}
           {it.upgrade ? <span className="absolute top-0.5 right-1 text-[11px] leading-none text-bone">+{it.upgrade}</span> : null}
         </>

@@ -2,7 +2,7 @@ import { HOTKEYS } from "./SkillsPanel";
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "../store";
 import { Bar } from "./common";
-import { itemIcon, skillIcon } from "./icons";
+import { baseIcon, itemIcon, skillIcon } from "./icons";
 import { SKILL_BY_ID } from "@shared/data/skills";
 import { BASE_BY_ID } from "@shared/data/items";
 import { CELL, Cell } from "@shared/dungeon/generate";
@@ -116,8 +116,8 @@ export function Hud({ onClickCanvas }: { onClickCanvas: () => void }) {
         </div>
         <Bar value={hud.stamina} max={hud.maxStamina} color="#a8915a" className="w-[280px] !h-1" />
         <div className="panel flex items-end gap-1 px-2 pt-2 pb-1">
-          <HotSlot k="ЛКМ" icon={weapon ? itemIcon(BASE_BY_ID[weapon.base].icon) : itemIcon("gloves")} />
-          <HotSlot k="ПКМ" icon={char.equipment.offhand ? itemIcon(BASE_BY_ID[char.equipment.offhand.base].icon) : itemIcon("shield")} dim />
+          <HotSlot k="ЛКМ" icon={weapon ? baseIcon(weapon.base) : itemIcon("gloves")} />
+          <HotSlot k="ПКМ" icon={char.equipment.offhand ? baseIcon(char.equipment.offhand.base) : itemIcon("shield")} dim />
           <div className="mx-1 h-11 w-px self-start bg-line" />
           {HOTKEYS.map((k, i) => {
             const id = char.hotbar[i];

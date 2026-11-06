@@ -36,7 +36,7 @@ export class LevelView {
   constructor(d: Dungeon) {
     this.d = d;
     const pal = d.theme.palette;
-    const ambient = new THREE.Color(pal.fog).multiplyScalar(2).add(d.theme.id === "hub" ? new THREE.Color(0.28, 0.24, 0.19) : new THREE.Color(0.17, 0.145, 0.12));
+    const ambient = new THREE.Color(pal.fog).multiplyScalar(2).add(d.theme.id === "hub" ? new THREE.Color(0.34, 0.29, 0.22) : new THREE.Color(0.17, 0.145, 0.12));
     this.field = new LightField(d, staticLights(d), ambient);
     this.explored = new Uint8Array(d.w * d.h);
     // логово хозяина этажа видно на карте сразу — понятно, куда идти

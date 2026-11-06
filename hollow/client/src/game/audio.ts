@@ -282,6 +282,26 @@ class AudioEngine {
         this.tone(out, t, { type: "sawtooth", f: 55, f2: 40, a: 0.15, d: 1.2, gain: 0.3 * v });
         this.noiseHit(out, t, { type: "lowpass", f: 500, f2: 150, a: 0.15, d: 1.1, gain: 0.5 * v });
         break;
+      case "clang":
+        // молот по наковальне: звонкий металл с долгим хвостом
+        this.tone(out, t, { type: "triangle", f: 1480, d: 0.55, gain: 0.16 * v });
+        this.tone(out, t, { type: "triangle", f: 2230, d: 0.35, gain: 0.08 * v, detune: 9 });
+        this.tone(out, t, { type: "square", f: 330, f2: 300, d: 0.12, gain: 0.05 * v });
+        this.noiseHit(out, t, { type: "highpass", f: 3000, d: 0.05, gain: 0.3 * v });
+        break;
+      case "caw":
+        for (const dt of [0, 0.28]) {
+          this.tone(out, t + dt, { type: "sawtooth", f: 760, f2: 520, a: 0.02, d: 0.2, gain: 0.07 * v });
+          this.noiseHit(out, t + dt, { type: "bandpass", f: 1300, q: 3, a: 0.02, d: 0.2, gain: 0.18 * v });
+        }
+        break;
+      case "purr":
+        // мурлыканье: низкий шорох с частыми «вдохами»
+        for (let i = 0; i < 22; i++) this.noiseHit(out, t + i * 0.045, { type: "lowpass", f: 180, a: 0.012, d: 0.03, gain: (0.35 + 0.2 * Math.sin(i * 0.6)) * v });
+        break;
+      case "crackle":
+        for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) this.noiseHit(out, t + Math.random() * 0.12, { type: "highpass", f: 1800 + Math.random() * 2000, d: 0.015 + Math.random() * 0.02, gain: 0.25 * v });
+        break;
       case "windup":
         this.noiseHit(out, t, { type: "bandpass", f: 300, f2: 900, q: 2, a: 0.2, d: 0.2, gain: 0.15 * v });
         break;

@@ -13,6 +13,7 @@ import { Fx, skillLook } from "./fx";
 import { Entities, ELEMENT_COLOR } from "./entities";
 import { audio } from "./audio";
 import { buildHub, type Npc } from "./hub";
+import { HubLife } from "./hubLife";
 import { LocalSession, type Session } from "./session";
 import { deriveStats, levelFromXp, type CharacterData, type Derived } from "@shared/data/stats";
 import { BASE_BY_ID, RARITIES, type Item } from "@shared/data/items";
@@ -79,6 +80,8 @@ export class Game {
   private whirlFxAt = 0;
   private whirlSide = false;
   private blinkPending = false;
+  /** Жизнь лагеря: жители, костёр, снег. */
+  private hubLife: HubLife | null = null;
   private self: Snapshot["players"][number] | null = null;
   private bossId: string | null = null;
   private stepAcc = 0;
@@ -151,6 +154,7 @@ export class Game {
     this.ents?.clear();
     this.fx.clear();
     this.camMove = null;
+    this.hubLife = null;
     this.ctl?.dispose();
     this.ambient = null;
     this.level = null;
@@ -178,7 +182,8 @@ export class Game {
     const { d, npcs } = buildHub(this.char.cleared);
     this.npcs = npcs;
     this.setupScene(d);
-    this.level!.addNpcs(npcs);
+    this.hubLife = new HubLife(this.level!, npcs);
+    this.hubLife.onLine = (n, text) => this.cb.say(`${n.name}: «${text}»`, "#aaa398");
     this.ctl!.yaw = 0;
     audio.startAmbient("hub");
     this.engine.fade = 1;
@@ -708,9 +713,19 @@ export class Game {
       if (best) {
         const n = best;
         return {
-          label: `${n.name}${n.title ? ` — ${n.title}` : ""}`,
+          label: n.kind === "cat" ? `Погладить: ${n.name}` : !n.panel ? `Поговорить: ${n.name}` : `${n.name}${n.title ? ` — ${n.title}` : ""}`,
           act: () => {
-            if (n.lines.length) this.cb.say(`${n.name}: «${n.lines[Math.floor(Math.random() * n.lines.length)]}»`, "#d8cdb2");
+            if (!n.panel) {
+              // житель без лавки: поговорить или погладить
+              const line = this.hubLife?.interact(n, this.now);
+              if (line) this.cb.say(`${n.name}: «${line}»`, "#d8cdb2");
+              return;
+            }
+            if (n.lines.length) {
+              const line = n.lines[Math.floor(Math.random() * n.lines.length)];
+              this.cb.say(`${n.name}: «${line}»`, "#d8cdb2");
+              this.hubLife?.say(n, line, this.now, false);
+            }
             audio.play("click");
             this.cb.openPanel(n.panel);
           },
@@ -949,6 +964,7 @@ export class Game {
     this.ambient?.update(dt, t, c.x, c.z);
     this.ents?.update(t, dt, { x: c.x, z: c.z });
     this.pool.update(this.level.field, c.x, c.z, t);
+    this.hubLife?.update(t, dt, c.x, c.z);
     for (const n of this.level.npcRigs) {
       n.rig.root.rotation.y = 0;
       n.rig.torso.rotation.x = Math.sin(t * 1.2 + n.id.length) * 0.04;

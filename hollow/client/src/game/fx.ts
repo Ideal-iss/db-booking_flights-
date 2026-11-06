@@ -68,7 +68,7 @@ export function skillLook(sk: SkillDef): SkillLook {
 
 let runeTex: THREE.CanvasTexture | null = null;
 /** Круг с рунами для земли: призыв, проклятие, бафф. */
-function runeTexture() {
+export function runeTexture() {
   if (runeTex) return runeTex;
   const s = 128;
   const c = document.createElement("canvas");

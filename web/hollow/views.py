@@ -8,6 +8,7 @@ import random
 import re
 import time
 from functools import wraps
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
@@ -15,9 +16,10 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
@@ -85,6 +87,19 @@ def coop_url():
 @ensure_csrf_cookie
 def index(request):
     return render(request, "hollow/index.html", {"coop_url": coop_url()})
+
+
+@xframe_options_exempt
+@require_GET
+def pikabu(request):
+    """Версия для Пикабу Игр: площадка показывает эту страницу в рамке, свой сервер ей не нужен
+    (правила и сохранения внутри игры и в облаке Пикабу). Сборка: npm run build:pikabu."""
+    page = Path(__file__).resolve().parent / "static" / "hollow-pikabu" / "index.html"
+    if not page.exists():
+        raise Http404("Версия для Пикабу ещё не собрана.")
+    resp = HttpResponse(page.read_text(encoding="utf-8"), content_type="text/html; charset=utf-8")
+    resp["Cache-Control"] = "no-cache"
+    return resp
 
 
 # ---------------------------------------------------------------- аккаунт

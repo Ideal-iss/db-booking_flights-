@@ -1,7 +1,7 @@
 /** Обращения к Django API игры. */
 import type { CharacterData } from "@shared/data/stats";
 import type { Item } from "@shared/data/items";
-import { PLATFORM } from "./yandex";
+import { STANDALONE } from "./yandex";
 import { localApi } from "./local/backend";
 
 declare global {
@@ -63,4 +63,4 @@ const remoteApi = {
 };
 
 /** На сайте — Django; в Яндекс Играх своего сервера нет, правила и сохранения живут в самой игре. */
-export const api: typeof remoteApi = PLATFORM === "yandex" ? (localApi as unknown as typeof remoteApi) : remoteApi;
+export const api: typeof remoteApi = STANDALONE ? (localApi as unknown as typeof remoteApi) : remoteApi;

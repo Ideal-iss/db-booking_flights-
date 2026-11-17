@@ -6,6 +6,7 @@ app_name = "hollow"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("pikabu/", views.pikabu, name="pikabu"),
     path("api/me/", views.me, name="me"),
     path("api/login/", views.api_login, name="login"),
     path("api/register/", views.api_register, name="register"),

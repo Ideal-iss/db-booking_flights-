@@ -17,7 +17,7 @@ import { QuestsPanel, GatePanel, ResultsPanel, PausePanel, SettingsPanel, HelpPa
 import { PartyPanel } from "./Party";
 import { audio } from "../game/audio";
 import { party } from "../game/net";
-import { PLATFORM, yandex } from "../yandex";
+import { GAME_TITLE, PLATFORM, STANDALONE, yandex } from "../yandex";
 
 export interface GameApi {
   game: Game | null;
@@ -238,7 +238,7 @@ export function GameScreen() {
       const r = await api.runStart(c.id, dungeon);
       const session = new LocalSession(RAPIER, { dungeon, seed: r.run.seed, level: r.run.level, char: c, name: c.name });
       // на Яндексе после гибели можно один раз подняться за рекламу
-      session.sim.offerRevive = PLATFORM === "yandex";
+      session.sim.offerRevive = STANDALONE;
       runRef.current = { id: r.run.id, dungeon, coop: false, items: 0, kills: 0 };
       closePanel();
       useGame.setState({ log: [] });
@@ -272,7 +272,7 @@ export function GameScreen() {
 
   const backToCamp = async () => {
     // межэкранная реклама — в логической паузе, между забегом и лагерем
-    if (PLATFORM === "yandex") await yandex.fullscreen();
+    if (STANDALONE) await yandex.fullscreen();
     set({ panel: null, results: null });
     gameRef.current?.leaveDungeon();
     gameRef.current?.setUiOpen(false);
@@ -296,7 +296,7 @@ export function GameScreen() {
   return (
     <div className="relative h-full w-full bg-black">
       <div ref={host} className="absolute inset-0" />
-      {!ready && !loadErr && <div className="logo bg-coal absolute inset-0 flex items-center justify-center text-6xl">THE HOLLOW</div>}
+      {!ready && !loadErr && <div className="logo bg-coal absolute inset-0 flex items-center justify-center text-6xl">{GAME_TITLE}</div>}
       {loadErr && <div className="absolute inset-0 flex items-center justify-center text-[#e0505a]">Не удалось запустить игру: {loadErr}</div>}
       {ready && <Hud onClickCanvas={() => gameRef.current?.input.lock()} />}
       {panel && (

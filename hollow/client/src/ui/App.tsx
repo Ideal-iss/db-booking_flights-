@@ -7,7 +7,7 @@ import { CharacterCreate } from "./CharacterCreate";
 import { GameScreen } from "./GameScreen";
 import { audio } from "../game/audio";
 import { MenuScene } from "../game/menuScene";
-import { PLATFORM, yandex } from "../yandex";
+import { GAME_TITLE, PLATFORM, STANDALONE, yandex } from "../yandex";
 
 export function App() {
   const { screen, set } = useGame();
@@ -35,7 +35,7 @@ export function App() {
 function Boot() {
   return (
     <div className="bg-coal flex h-full items-center justify-center">
-      <div className="logo text-6xl">THE HOLLOW</div>
+      <div className="logo text-6xl">{GAME_TITLE}</div>
     </div>
   );
 }
@@ -122,7 +122,7 @@ function Auth() {
     <MenuBackdrop>
       <MenuColumn>
         <div>
-          <div className="logo text-[48px] leading-none whitespace-nowrap sm:text-[60px]">THE HOLLOW</div>
+          <div className="logo text-[48px] leading-none whitespace-nowrap sm:text-[60px]">{GAME_TITLE}</div>
           <p className="text-parch mt-4 max-w-[34ch]">Спуск в подземелья под часовней «Последняя свеча». Пять актов, шесть классов, один герой.</p>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-4">
@@ -190,7 +190,7 @@ function Select() {
   return (
     <MenuBackdrop>
       <MenuColumn>
-        <div className="logo text-[48px] leading-none whitespace-nowrap">THE HOLLOW</div>
+        <div className="logo text-[48px] leading-none whitespace-nowrap">{GAME_TITLE}</div>
         <div className="flex flex-col gap-2">
           <div className="label mb-1">Герои</div>
           {characters.length === 0 && <div className="text-parch">Пока никого. Создайте первого героя</div>}
@@ -232,7 +232,7 @@ function Select() {
             {err && <div className="text-bad text-sm">{err}</div>}
           </div>
         )}
-        {PLATFORM === "yandex" ? (
+        {STANDALONE ? (
           <div className="text-dim text-sm">Прогресс сохраняется автоматически</div>
         ) : (
         <div className="text-dim text-sm">

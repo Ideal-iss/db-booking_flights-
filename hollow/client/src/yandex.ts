@@ -59,7 +59,9 @@ export const yandex = {
       if (PLATFORM === "pikabu") {
         if (!window.PkbSDK) await loadScript(PIKABU_SDK);
         if (!window.PkbSDK) return;
-        sdk = await window.PkbSDK.init();
+        // вне страницы Пикабу init не отвечает — не держим игру дольше нескольких секунд
+        sdk = await Promise.race([window.PkbSDK.init(), new Promise((r) => setTimeout(() => r(null), 6000))]);
+        if (!sdk) return;
         sdk.on?.("storageSaveError", (reason: string) => console.warn("Пикабу: сохранение не удалось", reason));
         return;
       }
